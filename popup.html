@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=400, initial-scale=1.0">
+  <title>TwoTab</title>
+  <link href="daisyui.css" rel="stylesheet" type="text/css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 400px; min-width: 400px; max-width: 450px; margin: 0 auto; }
+    body { 
+      display: flex; 
+      flex-direction: column; 
+      align-items: stretch; 
+      padding: 2rem; 
+      background-color: #d6d3d1; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      overflow-y: auto; 
+    }
+    h2 { font-size: 1.25rem; font-weight: 600; text-align: center; color: #1f2937; margin-bottom: 2rem; }
+    .input { 
+      width: 100%; 
+      padding: 0.5rem; 
+      border: 1px solid #d1d5db; 
+      border-radius: 0.375rem; 
+      margin-bottom: 2rem; 
+      font-size: 0.875rem; 
+      background-color: #ffffff; 
+    }
+    .input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); }
+    .btn-group { display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+    .btn { 
+      padding: 0.25rem 0.75rem; 
+      border: 1px solid #d1d5db; 
+      border-radius: 0.375rem; 
+      background-color: #f3f4f6; 
+      cursor: pointer; 
+      font-size: 0.75rem; 
+      display: inline-flex; 
+      align-items: center; 
+      justify-content: center;
+      gap: 0.25rem; 
+      color: #1f2937; 
+      transition: background-color 0.2s ease; 
+      white-space: nowrap;
+      vertical-align: middle;
+      text-align: center;
+      line-height: 1.2;
+      min-height: 32px;
+      box-sizing: border-box;
+    }
+    .btn svg {
+      flex-shrink: 0;
+      width: 10px;
+      height: 10px;
+    }
+    .btn:hover { background-color: #e5e7eb; }
+    .btn.danger { color: #ef4444; border-color: #ef4444; background-color: #ffffff; }
+    .btn.danger:hover { background-color: #fee2e2; color: #dc2626; }
+    .group-container { width: 100%; margin-bottom: 2rem; display: flex; flex-direction: column; align-items: center; }
+    .collapse { 
+      background-color: #ffffff; 
+      border-radius: 0.375rem; 
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); 
+      width: 100%; 
+      max-width: 360px; 
+      margin-bottom: 1rem; 
+      overflow: hidden;
+    }
+    .collapse input[type="checkbox"] {
+      display: none;
+    }
+    .collapse-title { 
+      font-size: 0.875rem; 
+      font-weight: 500; 
+      color: #1f2937; 
+      display: flex; 
+      align-items: center; 
+      padding: 1rem; 
+      justify-content: space-between; 
+      cursor: pointer;
+      min-height: 50px;
+      border-bottom: 1px solid #e5e7eb;
+      width: 100%;
+    }
+    .collapse-content { 
+      padding: 0 1.5rem; 
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+    }
+    .collapse input[type="checkbox"]:checked ~ .collapse-content {
+      max-height: 1000px;
+      padding: 1.5rem;
+    }
+    .tab-list { list-style: none; margin: 0; padding: 0; }
+    .tab-list li { margin-bottom: 1rem; }
+    .tab-list a { color: #3b82f6; text-decoration: none; font-size: 0.875rem; }
+    .tab-list a:hover { text-decoration: underline; }
+    .group-actions { 
+      display: flex; 
+      gap: 1rem; 
+      margin-top: 1rem; 
+      justify-content: center;
+    }
+    .error { color: #ef4444; text-align: center; font-size: 0.875rem; }
+    .empty { color: #6b7280; text-align: center; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <h2>TwoTab</h2>
+  <input id="search" type="text" placeholder="Search tabs..." class="input" aria-label="Search saved tabs" />
+  <div class="btn-group">
+    <button id="saveTabs" class="btn" aria-label="Save current tabs">
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+      Save
+    </button>
+    <button id="viewAll" class="btn" aria-label="View all saved tabs">
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+      All Tabs
+    </button>
+  </div>
+  <div id="groups" class="group-container"></div>
+  <div class="btn-group">
+    <button id="import" class="btn" aria-label="Import tabs from file">
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+      Import
+    </button>
+    <button id="exportAll" class="btn" aria-label="Export all tabs">
+      Export All
+    </button>
+    <button id="clearAll" class="btn danger" aria-label="Clear all saved tabs">
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      Clear
+    </button>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
