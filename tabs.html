@@ -1,134 +1,35 @@
 <!DOCTYPE html>
-<html lang="en" dir="auto">
+<html lang="en" dir="auto" data-theme="winter">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TwoTab - All Saved Tabs</title>
   <link href="daisyui.css" rel="stylesheet" type="text/css" />
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: 100%; max-width: 1200px; margin: 0 auto; }
-    body { 
-      display: flex; 
-      flex-direction: column; 
-      align-items: stretch; 
-      padding: 2.5rem; 
-      background-color: #d6d3d1; 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-      overflow-y: auto; 
-    }
-    h1 { font-size: 1.5rem; font-weight: 600; text-align: center; color: #1f2937; margin-bottom: 2.5rem; }
-    .input { 
-      width: 100%; 
-      padding: 0.75rem; 
-      border: 1px solid #d1d5db; 
-      border-radius: 0.375rem; 
-      margin-bottom: 2.5rem; 
-      font-size: 1rem; 
-      background-color: #ffffff; 
-    }
-    .input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); }
-    .btn-group { display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 2.5rem; flex-wrap: wrap; }
-    .btn { 
-      padding: 0.5rem 1rem; 
-      border: 1px solid #d1d5db; 
-      border-radius: 0.375rem; 
-      background-color: #f3f4f6; 
-      cursor: pointer; 
-      font-size: 0.875rem; 
-      display: inline-flex; 
-      align-items: center; 
-      justify-content: center;
-      gap: 0.25rem; 
-      color: #1f2937; 
-      transition: background-color 0.2s ease; 
-      white-space: nowrap;
-      vertical-align: middle;
-      text-align: center;
-      line-height: 1.2;
-      min-height: 36px;
-      box-sizing: border-box;
-    }
-    .btn svg {
-      flex-shrink: 0;
-      width: 14px;
-      height: 14px;
-    }
-    .btn:hover { background-color: #e5e7eb; }
-    .btn.danger { color: #ef4444; border-color: #ef4444; background-color: #ffffff; }
-    .btn.danger:hover { background-color: #fee2e2; color: #dc2626; }
-    .group-container { width: 100%; margin-bottom: 2.5rem; display: flex; flex-direction: column; align-items: center; }
-    .collapse { 
-      background-color: #ffffff; 
-      border-radius: 0.375rem; 
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); 
-      width: 100%; 
-      max-width: 1080px; 
-      margin-bottom: 1.25rem; 
-      overflow: hidden;
-    }
-    .collapse input[type="checkbox"] {
-      display: none;
-    }
-    .collapse-title { 
-      font-size: 1rem; 
-      font-weight: 500; 
-      color: #1f2937; 
-      display: flex; 
-      align-items: center; 
-      padding: 1rem 1.5rem; 
-      justify-content: space-between; 
-      cursor: pointer;
-      min-height: 60px;
-      border-bottom: 1px solid #e5e7eb;
-      width: 100%;
-    }
-    .collapse-content { 
-      padding: 0 2rem; 
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s ease-out, padding 0.3s ease-out;
-    }
-    .collapse input[type="checkbox"]:checked ~ .collapse-content {
-      max-height: 1000px;
-      padding: 2rem;
-    }
-    .tab-list { list-style: none; margin: 0; padding: 0; }
-    .tab-list li { margin-bottom: 1.25rem; }
-    .tab-list a { color: #3b82f6; text-decoration: none; font-size: 1rem; }
-    .tab-list a:hover { text-decoration: underline; }
-    .group-actions { 
-      display: flex; 
-      gap: 1.5rem; 
-      margin-top: 1.5rem; 
-      justify-content: center;
-    }
-    .error { color: #ef4444; text-align: center; font-size: 1rem; }
-    .empty { color: #6b7280; text-align: center; font-size: 1rem; }
-  </style>
 </head>
-<body>
-  <h1>TwoTab - All Saved Tabs</h1>
-  <input id="search" type="text" placeholder="Search tabs..." class="input" aria-label="Search saved tabs" />
-  <div class="btn-group">
-    <button id="saveTabs" class="btn" aria-label="Save current tabs">
-      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
-      Save
-    </button>
-    <button id="import" class="btn" aria-label="Import tabs from file">
-      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-      Import
-    </button>
-    <button id="exportAll" class="btn" aria-label="Export all tabs">
-      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-      Export All
-    </button>
-    <button id="clearAll" class="btn danger" aria-label="Clear all saved tabs">
-      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-      Clear
-    </button>
-  </div>
-  <div id="groups" class="group-container"></div>
+<body class="bg-base-200 min-h-screen p-4 sm:p-6 md:p-10">
+  <main class="max-w-6xl w-full mx-auto flex flex-col items-center">
+    <h1 class="text-3xl font-bold text-center text-base-content mb-10">TwoTab - All Saved Tabs</h1>
+    <input id="search" type="text" placeholder="Search tabs by title or URL..." class="input input-bordered w-full max-w-5xl mb-10 shadow-sm" aria-label="Search saved tabs" />
+    <div class="flex justify-center gap-4 mb-10 flex-wrap">
+      <button id="saveTabs" class="btn btn-primary" aria-label="Save current tabs">
+        <svg xmlns="http://www.w.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+        Save Current Tabs
+      </button>
+      <button id="import" class="btn" aria-label="Import tabs from file">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+        Import
+      </button>
+      <button id="exportAll" class="btn" aria-label="Export all tabs">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+        Export All
+      </button>
+      <button id="clearAll" class="btn btn-error btn-outline" aria-label="Clear all saved tabs">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+        Clear All
+      </button>
+    </div>
+    <div id="groups" class="w-full flex flex-col items-center space-y-4"></div>
+  </main>
   <script src="tabs.js"></script>
 </body>
 </html>

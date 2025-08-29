@@ -6,9 +6,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('import').addEventListener('click', importTabs);
     document.getElementById('exportAll').addEventListener('click', exportAll);
     document.getElementById('clearAll').addEventListener('click', clearAll);
-  } catch (error) {
+  } catch (error)
+ {
     console.error('Error initializing tabs page:', error);
-    document.getElementById('groups').innerHTML = '<p class="error">Error loading tabs. Please try again.</p>';
+    document.getElementById('groups').innerHTML = '<p class="text-error text-center">Error loading tabs. Please try again.</p>';
   }
 });
 
@@ -21,11 +22,13 @@ function loadGroups() {
       const tabGroups = data.tabGroups || [];
       
       if (tabGroups.length === 0) {
-        groupsDiv.innerHTML = '<p class="empty">No saved groups.</p>';
+        groupsDiv.innerHTML = '<p class="text-base-content text-opacity-60 text-center py-10">No saved tab groups.</p>';
         return;
       }
       
-      tabGroups.forEach((group, index) => {
+      const sortedGroups = tabGroups.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      sortedGroups.forEach((group, index) => {
         const filteredTabs = searchTerm
           ? group.tabs.filter(tab => 
               tab.title?.toLowerCase().includes(searchTerm) || 
@@ -35,93 +38,87 @@ function loadGroups() {
         if (searchTerm && filteredTabs.length === 0) return;
         
         const groupDiv = document.createElement('div');
-        groupDiv.className = 'collapse';
+        // FIX: Added w-full and max-w-5xl to control the width of the collapse component
+        groupDiv.className = 'collapse collapse-arrow bg-base-100 shadow-md border border-base-300 w-full max-w-5xl';
         
         const input = document.createElement('input');
         input.type = 'checkbox';
         input.id = `group-${group.id}`;
-        input.setAttribute('aria-label', `Toggle group ${group.name || `Group ${index + 1}`}`);
+        input.setAttribute('aria-label', `Toggle group ${group.name || `Group ${group.id}`}`);
         groupDiv.appendChild(input);
         
         const titleDiv = document.createElement('div');
-        titleDiv.className = 'collapse-title';
-        
-        const titleContent = document.createElement('div');
-        titleContent.style.display = 'flex';
-        titleContent.style.alignItems = 'center';
-        titleContent.style.justifyContent = 'space-between';
-        titleContent.style.width = '100%';
-        titleContent.style.pointerEvents = 'none'; // Disable pointer events on container
+        titleDiv.className = 'collapse-title text-lg font-medium flex justify-between items-center gap-4';
         
         const titleText = document.createElement('span');
-        titleText.style.flex = '1';
-        titleText.style.pointerEvents = 'auto'; // Re-enable for text (for selection)
+        titleText.className = 'flex-1 truncate';
         
         const date = new Date(group.date);
         const formattedDate = date.toLocaleString('en-US', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        }).replace(/,/, '').replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2');
+          year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
+        });
         
-        titleText.textContent = `${group.name || `Group ${index + 1}`} - ${formattedDate} (${filteredTabs.length} tabs)`;
+        titleText.textContent = `${group.name || 'Saved Group'} (${filteredTabs.length}) - ${formattedDate}`;
+        titleText.title = `${group.name || 'Saved Group'} - ${formattedDate}`;
         
         const renameBtn = document.createElement('button');
-        renameBtn.className = 'btn';
-        renameBtn.style.marginLeft = '0.5rem';
-        renameBtn.style.pointerEvents = 'auto'; // Re-enable for button
-        renameBtn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg> Rename';
-        renameBtn.setAttribute('aria-label', `Rename group ${group.name || `Group ${index + 1}`}`);
+        renameBtn.className = 'btn btn-ghost btn-sm';
+        renameBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg> Rename';
+        renameBtn.setAttribute('aria-label', `Rename group ${group.name || `Group ${group.id}`}`);
         renameBtn.onclick = (e) => {
           e.stopPropagation();
           e.preventDefault();
           renameGroup(group.id);
         };
         
-        // Make the entire title div clickable
-        titleDiv.onclick = () => {
-          input.checked = !input.checked;
-        };
-        
-        titleContent.appendChild(titleText);
-        titleContent.appendChild(renameBtn);
-        titleDiv.appendChild(titleContent);
+        titleDiv.appendChild(titleText);
+        titleDiv.appendChild(renameBtn);
         groupDiv.appendChild(titleDiv);
         
         const contentDiv = document.createElement('div');
         contentDiv.className = 'collapse-content';
         
         const ul = document.createElement('ul');
-        ul.className = 'tab-list';
+        ul.className = 'menu p-0';
         filteredTabs.forEach(tab => {
           const li = document.createElement('li');
           const a = document.createElement('a');
           a.href = tab.url;
-          a.textContent = tab.title || tab.url;
+          a.className = "flex items-start gap-3"
           a.onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: tab.url }); };
+
+          const favicon = document.createElement('img');
+          favicon.src = `https://www.google.com/s2/favicons?domain=${new URL(tab.url).hostname}&sz=16`;
+          favicon.className = 'w-4 h-4 mt-1';
+          favicon.alt = "Tab Favicon";
+
+          const linkText = document.createElement('span');
+          linkText.textContent = tab.title || tab.url;
+          linkText.className = "flex-1 break-all";
+
+          a.appendChild(favicon);
+          a.appendChild(linkText);
           li.appendChild(a);
           ul.appendChild(li);
         });
         contentDiv.appendChild(ul);
         
         const btnDiv = document.createElement('div');
-        btnDiv.className = 'group-actions';
-        const restoreBtn = document.createElement('button');
-        restoreBtn.className = 'btn';
-        restoreBtn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9H9m4 5H9m1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l2.586-2.586z"></path></svg> Restore All';
-        restoreBtn.setAttribute('aria-label', `Restore all tabs in group ${group.name || `Group ${index + 1}`}`);
-        restoreBtn.onclick = () => restoreGroup(group);
-        btnDiv.appendChild(restoreBtn);
-        
+        btnDiv.className = 'flex gap-4 mt-6 justify-end border-t border-base-200 pt-4';
+
         const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'btn danger';
-        deleteBtn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Delete';
-        deleteBtn.setAttribute('aria-label', `Delete group ${group.name || `Group ${index + 1}`}`);
+        deleteBtn.className = 'btn btn-error btn-sm btn-outline';
+        deleteBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete';
+        deleteBtn.setAttribute('aria-label', `Delete group ${group.name || `Group ${group.id}`}`);
         deleteBtn.onclick = () => deleteGroup(group.id);
         btnDiv.appendChild(deleteBtn);
+
+        const restoreBtn = document.createElement('button');
+        restoreBtn.className = 'btn btn-secondary btn-sm';
+        restoreBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg> Restore All';
+        restoreBtn.setAttribute('aria-label', `Restore all tabs in group ${group.name || `Group ${group.id}`}`);
+        restoreBtn.onclick = () => restoreGroup(group);
+        btnDiv.appendChild(restoreBtn);
         
         contentDiv.appendChild(btnDiv);
         groupDiv.appendChild(contentDiv);
@@ -131,13 +128,15 @@ function loadGroups() {
     });
   } catch (error) {
     console.error('Error loading groups:', error);
-    document.getElementById('groups').innerHTML = '<p class="error">Error loading tabs. Please try again.</p>';
+    document.getElementById('groups').innerHTML = '<p class="text-error text-center">Error loading groups. Please try again.</p>';
   }
 }
 
+// ... the rest of the functions (restoreGroup, deleteGroup, etc.) remain unchanged ...
+
 function restoreGroup(group) {
   try {
-    group.tabs.forEach(tab => chrome.tabs.create({ url: tab.url }));
+    group.tabs.forEach(tab => chrome.tabs.create({ url: tab.url, active: false }));
   } catch (error) {
     console.error('Error restoring group:', error);
   }
@@ -145,10 +144,12 @@ function restoreGroup(group) {
 
 function deleteGroup(id) {
   try {
-    chrome.storage.local.get('tabGroups', (data) => {
-      const tabGroups = data.tabGroups.filter(g => g.id !== id);
-      chrome.storage.local.set({ tabGroups }, loadGroups);
-    });
+    if (confirm('Are you sure you want to delete this group? This action cannot be undone.')) {
+      chrome.storage.local.get('tabGroups', (data) => {
+        const tabGroups = data.tabGroups.filter(g => g.id !== id);
+        chrome.storage.local.set({ tabGroups }, loadGroups);
+      });
+    }
   } catch (error) {
     console.error('Error deleting group:', error);
   }
@@ -156,36 +157,43 @@ function deleteGroup(id) {
 
 function renameGroup(id) {
   try {
-    const newName = prompt('Enter new group name:');
-    if (newName) {
-      chrome.storage.local.get('tabGroups', (data) => {
-        const tabGroups = data.tabGroups || [];
-        const group = tabGroups.find(g => g.id === id);
+    chrome.storage.local.get('tabGroups', (data) => {
+      const tabGroups = data.tabGroups || [];
+      const group = tabGroups.find(g => g.id === id);
+      const currentName = group ? group.name : '';
+      const newName = prompt('Enter new group name:', currentName);
+      
+      if (newName !== null && newName.trim() !== currentName) {
         if (group) {
           group.name = newName.trim();
           chrome.storage.local.set({ tabGroups }, loadGroups);
         }
-      });
-    }
+      }
+    });
   } catch (error) {
     console.error('Error renaming group:', error);
   }
 }
 
 function saveTabs() {
+  const btn = document.getElementById('saveTabs');
   try {
-    const btn = document.getElementById('saveTabs');
     btn.classList.add('loading');
+    btn.disabled = true;
     chrome.runtime.sendMessage({ action: 'saveTabs' }, (response) => {
       btn.classList.remove('loading');
-      if (response.status === 'success') {
+      btn.disabled = false;
+      if (response && response.status === 'success') {
         loadGroups();
       } else {
-        console.error('Error saving tabs:', response.error);
+        console.error('Error saving tabs:', response ? response.error : 'No response');
+        alert('Failed to save tabs. Please see the console for details.');
       }
     });
   } catch (error) {
-    console.error('Error saving tabs:', error);
+    console.error('Error sending saveTabs message:', error);
+    btn.classList.remove('loading');
+    btn.disabled = false;
   }
 }
 
@@ -193,9 +201,10 @@ function importTabs() {
   try {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.txt,.csv';
+    input.accept = '.txt,.csv,.json';
     input.onchange = (e) => {
       const file = e.target.files[0];
+      if (!file) return;
       const reader = new FileReader();
       reader.onload = (event) => {
         const content = event.target.result;
@@ -204,23 +213,31 @@ function importTabs() {
         if (file.name.endsWith('.txt')) {
           newTabs = content.split('\n').filter(url => url.trim()).map(url => ({ title: url, url }));
         } else if (file.name.endsWith('.csv')) {
-          const lines = content.split('\n').slice(1);
+          const lines = content.split('\n');
           lines.forEach(line => {
-            const [groupId, date, title, url] = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-            if (url) newTabs.push({ title, url });
+             const parts = line.split(',');
+             const url = parts.length > 1 ? parts[1] : parts[0];
+             const title = parts.length > 1 ? parts[0] : url;
+             if (url && url.trim().startsWith('http')) {
+               newTabs.push({ title: title.trim().replace(/^"|"$/g, ''), url: url.trim().replace(/^"|"$/g, '') });
+             }
           });
         }
         
         if (newTabs.length > 0) {
+          const newGroupName = prompt('Enter a name for the imported group:', file.name);
           chrome.storage.local.get('tabGroups', (data) => {
             const tabGroups = data.tabGroups || [];
             tabGroups.push({
               id: Date.now(),
               date: new Date().toISOString(),
+              name: newGroupName || 'Imported Group',
               tabs: newTabs
             });
             chrome.storage.local.set({ tabGroups }, loadGroups);
           });
+        } else {
+          alert('No valid tabs found in the selected file.');
         }
       };
       reader.readAsText(file);
@@ -228,6 +245,7 @@ function importTabs() {
     input.click();
   } catch (error) {
     console.error('Error importing tabs:', error);
+    alert('An error occurred during import. Please check the console.');
   }
 }
 
@@ -239,11 +257,12 @@ function exportAll() {
         alert('No groups to export.');
         return;
       }
-      const csvContent = ['Group ID,Date,Title,URL'];
+      const csvContent = ['Group ID,Group Name,Date,Title,URL'];
       tabGroups.forEach(group => {
         group.tabs.forEach(tab => {
           const row = [
             group.id,
+            `"${(group.name || '').replace(/"/g, '""')}"`,
             group.date,
             `"${(tab.title || tab.url).replace(/"/g, '""')}"`,
             `"${tab.url.replace(/"/g, '""')}"`
@@ -251,7 +270,7 @@ function exportAll() {
           csvContent.push(row.join(','));
         });
       });
-      const blob = new Blob([csvContent.join('\n')], { type: 'text/csv' });
+      const blob = new Blob([csvContent.join('\n')], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       chrome.downloads.download({
         url,
@@ -267,7 +286,7 @@ function exportAll() {
 
 function clearAll() {
   try {
-    if (confirm('Clear all saved groups?')) {
+    if (confirm('Are you sure you want to delete ALL saved groups? This action cannot be undone.')) {
       chrome.storage.local.set({ tabGroups: [] }, loadGroups);
     }
   } catch (error) {
