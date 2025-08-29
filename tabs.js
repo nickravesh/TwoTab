@@ -1,4 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const renameModal = document.getElementById('rename-modal');
+  const renameInput = document.getElementById('rename-input');
+  const renameSaveBtn = document.getElementById('rename-save-btn');
+
   try {
     loadGroups();
     document.getElementById('search').addEventListener('input', loadGroups);
@@ -6,8 +10,32 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('import').addEventListener('click', importTabs);
     document.getElementById('exportAll').addEventListener('click', exportAll);
     document.getElementById('clearAll').addEventListener('click', clearAll);
-  } catch (error)
- {
+
+    // Add event listener for the modal's save button
+    renameSaveBtn.addEventListener('click', (e) => {
+      e.preventDefault(); // Stop the form from closing the modal immediately
+      const groupId = parseInt(renameModal.dataset.groupId);
+      const newName = renameInput.value.trim();
+
+      if (!groupId || !newName) {
+        renameModal.close();
+        return;
+      }
+
+      chrome.storage.local.get('tabGroups', (data) => {
+        const tabGroups = data.tabGroups || [];
+        const groupToUpdate = tabGroups.find(g => g.id === groupId);
+        if (groupToUpdate) {
+          groupToUpdate.name = newName;
+          chrome.storage.local.set({ tabGroups }, () => {
+            loadGroups(); // Refresh the list with the new name
+            renameModal.close(); // Close the modal
+          });
+        }
+      });
+    });
+
+  } catch (error) {
     console.error('Error initializing tabs page:', error);
     document.getElementById('groups').innerHTML = '<p class="text-error text-center">Error loading tabs. Please try again.</p>';
   }
@@ -28,7 +56,7 @@ function loadGroups() {
       
       const sortedGroups = tabGroups.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-      sortedGroups.forEach((group, index) => {
+      sortedGroups.forEach((group) => {
         const filteredTabs = searchTerm
           ? group.tabs.filter(tab => 
               tab.title?.toLowerCase().includes(searchTerm) || 
@@ -38,16 +66,17 @@ function loadGroups() {
         if (searchTerm && filteredTabs.length === 0) return;
         
         const groupDiv = document.createElement('div');
-        // FIX: Added w-full and max-w-5xl to control the width of the collapse component
         groupDiv.className = 'collapse collapse-arrow bg-base-100 shadow-md border border-base-300 w-full max-w-5xl';
         
+        const checkboxId = `collapse-${group.id}`;
         const input = document.createElement('input');
         input.type = 'checkbox';
-        input.id = `group-${group.id}`;
-        input.setAttribute('aria-label', `Toggle group ${group.name || `Group ${group.id}`}`);
+        input.id = checkboxId;
+        input.className = 'hidden';
         groupDiv.appendChild(input);
         
-        const titleDiv = document.createElement('div');
+        const titleDiv = document.createElement('label');
+        titleDiv.htmlFor = checkboxId;
         titleDiv.className = 'collapse-title text-lg font-medium flex justify-between items-center gap-4';
         
         const titleText = document.createElement('span');
@@ -64,11 +93,18 @@ function loadGroups() {
         const renameBtn = document.createElement('button');
         renameBtn.className = 'btn btn-ghost btn-sm';
         renameBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg> Rename';
-        renameBtn.setAttribute('aria-label', `Rename group ${group.name || `Group ${group.id}`}`);
+        
+        // This now opens the modal
         renameBtn.onclick = (e) => {
-          e.stopPropagation();
+          e.stopPropagation(); // Stop the click from expanding the collapse
           e.preventDefault();
-          renameGroup(group.id);
+          const renameModal = document.getElementById('rename-modal');
+          const renameInput = document.getElementById('rename-input');
+          
+          renameInput.value = group.name || '';
+          renameInput.focus();
+          renameModal.dataset.groupId = group.id; // Store the group ID on the modal
+          renameModal.showModal();
         };
         
         titleDiv.appendChild(titleText);
@@ -86,16 +122,13 @@ function loadGroups() {
           a.href = tab.url;
           a.className = "flex items-start gap-3"
           a.onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: tab.url }); };
-
           const favicon = document.createElement('img');
           favicon.src = `https://www.google.com/s2/favicons?domain=${new URL(tab.url).hostname}&sz=16`;
           favicon.className = 'w-4 h-4 mt-1';
           favicon.alt = "Tab Favicon";
-
           const linkText = document.createElement('span');
           linkText.textContent = tab.title || tab.url;
           linkText.className = "flex-1 break-all";
-
           a.appendChild(favicon);
           a.appendChild(linkText);
           li.appendChild(a);
@@ -109,14 +142,12 @@ function loadGroups() {
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'btn btn-error btn-sm btn-outline';
         deleteBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete';
-        deleteBtn.setAttribute('aria-label', `Delete group ${group.name || `Group ${group.id}`}`);
         deleteBtn.onclick = () => deleteGroup(group.id);
         btnDiv.appendChild(deleteBtn);
 
         const restoreBtn = document.createElement('button');
         restoreBtn.className = 'btn btn-secondary btn-sm';
         restoreBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg> Restore All';
-        restoreBtn.setAttribute('aria-label', `Restore all tabs in group ${group.name || `Group ${group.id}`}`);
         restoreBtn.onclick = () => restoreGroup(group);
         btnDiv.appendChild(restoreBtn);
         
@@ -132,7 +163,6 @@ function loadGroups() {
   }
 }
 
-// ... the rest of the functions (restoreGroup, deleteGroup, etc.) remain unchanged ...
 
 function restoreGroup(group) {
   try {
@@ -152,26 +182,6 @@ function deleteGroup(id) {
     }
   } catch (error) {
     console.error('Error deleting group:', error);
-  }
-}
-
-function renameGroup(id) {
-  try {
-    chrome.storage.local.get('tabGroups', (data) => {
-      const tabGroups = data.tabGroups || [];
-      const group = tabGroups.find(g => g.id === id);
-      const currentName = group ? group.name : '';
-      const newName = prompt('Enter new group name:', currentName);
-      
-      if (newName !== null && newName.trim() !== currentName) {
-        if (group) {
-          group.name = newName.trim();
-          chrome.storage.local.set({ tabGroups }, loadGroups);
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error renaming group:', error);
   }
 }
 
