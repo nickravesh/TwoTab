@@ -1,7 +1,13 @@
-// Note: This file shares many functions with tabs.js. In a larger project,
-// this shared logic would be abstracted into a separate utility file.
+/**
+ * TwoTab Popup Script
+ * Leverages utils.js for core actions and manages the compact UI.
+ */
 
 document.addEventListener('DOMContentLoaded', () => {
+  const renameModal = document.getElementById('rename-modal');
+  const renameInput = document.getElementById('rename-input');
+  const renameSaveBtn = document.getElementById('rename-save-btn');
+
   try {
     loadGroups();
     document.getElementById('search').addEventListener('input', loadGroups);
@@ -9,7 +15,30 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('viewAll').addEventListener('click', viewAll);
     document.getElementById('import').addEventListener('click', importTabs);
     document.getElementById('exportAll').addEventListener('click', exportAll);
-    document.getElementById('clearAll').addEventListener('click', clearAll);
+    document.getElementById('clearAll').addEventListener('click', () => clearAll(true, loadGroups));
+
+    // Handle modal save button
+    renameSaveBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const groupId = parseInt(renameModal.dataset.groupId);
+      const newName = renameInput.value.trim();
+
+      if (!groupId || !newName) {
+        renameModal.close();
+        return;
+      }
+
+      getGroups((groups) => {
+        const groupToUpdate = groups.find(g => g.id === groupId);
+        if (groupToUpdate) {
+          groupToUpdate.name = newName;
+          saveGroups(groups, () => {
+            loadGroups();
+            renameModal.close();
+          });
+        }
+      });
+    });
   } catch (error) {
     console.error('Error initializing popup:', error);
     document.getElementById('groups').innerHTML = '<p class="text-error text-center text-sm p-4">Error loading.</p>';
@@ -19,11 +48,18 @@ document.addEventListener('DOMContentLoaded', () => {
 function loadGroups() {
   try {
     const searchTerm = document.getElementById('search').value.toLowerCase();
-    chrome.storage.local.get('tabGroups', (data) => {
+    getGroups((tabGroups) => {
       const groupsDiv = document.getElementById('groups');
       groupsDiv.innerHTML = '';
-      const tabGroups = data.tabGroups || [];
       
+      // Update warning footer if total groups count exceeds the 10-item display limit
+      const limitWarning = document.getElementById('popup-limit-warning');
+      if (tabGroups.length > 10) {
+        limitWarning.classList.remove('hidden');
+      } else {
+        limitWarning.classList.add('hidden');
+      }
+
       if (tabGroups.length === 0) {
         groupsDiv.innerHTML = '<p class="text-base-content text-opacity-60 text-center text-sm py-4">No saved groups.</p>';
         return;
@@ -31,7 +67,8 @@ function loadGroups() {
 
       const sortedGroups = tabGroups.sort((a, b) => new Date(b.date) - new Date(a.date));
       
-      sortedGroups.slice(0, 10).forEach((group) => { // Show 10 most recent groups in popup
+      // Show only 10 most recent groups in the popup to conserve screen space
+      sortedGroups.slice(0, 10).forEach((group) => {
         const filteredTabs = searchTerm
           ? group.tabs.filter(tab => 
               tab.title?.toLowerCase().includes(searchTerm) || 
@@ -52,7 +89,13 @@ function loadGroups() {
         
         const titleText = document.createElement('span');
         titleText.className = 'flex-1 truncate';
-        titleText.textContent = `${group.name || 'Saved Group'} (${filteredTabs.length} tabs)`;
+        
+        const date = new Date(group.date);
+        const formattedDate = date.toLocaleString('en-US', {
+          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        
+        titleText.textContent = `${group.name || 'Saved Group'} (${filteredTabs.length} tabs) - ${formattedDate}`;
         titleDiv.appendChild(titleText);
         groupDiv.appendChild(titleDiv);
 
@@ -84,14 +127,20 @@ function loadGroups() {
         contentDiv.appendChild(ul);
         
         const btnDiv = document.createElement('div');
-        btnDiv.className = 'flex gap-2 mt-4 justify-end';
+        btnDiv.className = 'flex gap-2 mt-4 justify-end border-t border-base-200 pt-2';
 
         const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'btn btn-error btn-xs';
+        deleteBtn.className = 'btn btn-error btn-xs btn-outline';
         deleteBtn.textContent = 'Delete';
-        deleteBtn.onclick = () => deleteGroup(group.id);
+        deleteBtn.onclick = () => deleteGroup(group.id, true, loadGroups);
         btnDiv.appendChild(deleteBtn);
         
+        const renameBtn = document.createElement('button');
+        renameBtn.className = 'btn btn-ghost btn-xs';
+        renameBtn.textContent = 'Rename';
+        renameBtn.onclick = () => openRenameModal(group);
+        btnDiv.appendChild(renameBtn);
+
         const restoreBtn = document.createElement('button');
         restoreBtn.className = 'btn btn-secondary btn-xs';
         restoreBtn.textContent = 'Restore';
@@ -109,44 +158,21 @@ function loadGroups() {
   }
 }
 
-function restoreGroup(group) {
-  try {
-    group.tabs.forEach(tab => chrome.tabs.create({ url: tab.url, active: false }));
-  } catch (error) {
-    console.error('Error restoring group:', error);
-  }
-}
-
-function deleteGroup(id) {
-  try {
-    chrome.storage.local.get('tabGroups', (data) => {
-      const tabGroups = data.tabGroups.filter(g => g.id !== id);
-      chrome.storage.local.set({ tabGroups }, loadGroups);
-    });
-  } catch (error) {
-    console.error('Error deleting group:', error);
-  }
+function openRenameModal(group) {
+  const renameModal = document.getElementById('rename-modal');
+  const renameInput = document.getElementById('rename-input');
+  renameInput.value = group.name || '';
+  renameModal.dataset.groupId = group.id;
+  renameModal.showModal();
+  renameInput.focus();
 }
 
 function saveTabs() {
-  const btn = document.getElementById('saveTabs');
-  try {
-    btn.classList.add('loading');
-    btn.disabled = true;
-    chrome.runtime.sendMessage({ action: 'saveTabs' }, (response) => {
-      btn.classList.remove('loading');
-      btn.disabled = false;
-      if (response && response.status === 'success') {
-        loadGroups();
-      } else {
-        console.error('Error saving tabs:', response ? response.error : 'No response');
-      }
-    });
-  } catch (error) {
-    console.error('Error saving tabs:', error);
-    btn.classList.remove('loading');
-    btn.disabled = false;
-  }
+  saveTabsAction(document.getElementById('saveTabs'), (err) => {
+    if (!err) {
+      loadGroups();
+    }
+  });
 }
 
 function viewAll() {
@@ -157,32 +183,19 @@ function viewAll() {
   }
 }
 
-// These functions are duplicates from tabs.js.
-// In a real-world scenario, they would be in a shared file.
 function importTabs() {
   chrome.tabs.create({ url: chrome.runtime.getURL('tabs.html') }, () => {
-    // A bit of a hack to trigger the import on the newly opened page.
-    // A more robust solution would use messaging between the popup and the tab.
+    // Send message to trigger import action on newly opened dashboard tab
     setTimeout(() => {
-        chrome.tabs.query({url: chrome.runtime.getURL('tabs.html')}, (tabs) => {
-            if(tabs[0]) {
-                chrome.tabs.sendMessage(tabs[0].id, {action: "triggerImport"});
-            }
-        });
+      chrome.tabs.query({ url: chrome.runtime.getURL('tabs.html') }, (tabs) => {
+        if (tabs[0]) {
+          chrome.tabs.sendMessage(tabs[0].id, { action: "triggerImport" });
+        }
+      });
     }, 500);
   });
 }
 
 function exportAll() {
   chrome.tabs.create({ url: chrome.runtime.getURL('tabs.html') });
-}
-
-function clearAll() {
-  try {
-    if (confirm('Are you sure you want to delete ALL saved groups?')) {
-      chrome.storage.local.set({ tabGroups: [] }, loadGroups);
-    }
-  } catch (error) {
-    console.error('Error clearing groups:', error);
-  }
 }

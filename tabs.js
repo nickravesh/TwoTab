@@ -1,3 +1,8 @@
+/**
+ * TwoTab Full-Page Dashboard Script
+ * Handles showing, searching, renaming, exporting, and importing all tab groups.
+ */
+
 document.addEventListener('DOMContentLoaded', () => {
   const renameModal = document.getElementById('rename-modal');
   const renameInput = document.getElementById('rename-input');
@@ -9,7 +14,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('saveTabs').addEventListener('click', saveTabs);
     document.getElementById('import').addEventListener('click', importTabs);
     document.getElementById('exportAll').addEventListener('click', exportAll);
-    document.getElementById('clearAll').addEventListener('click', clearAll);
+    document.getElementById('clearAll').addEventListener('click', () => clearAll(true, loadGroups));
+
+    // Listen for import trigger from popup
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'triggerImport') {
+        importTabs();
+      }
+    });
 
     // Add event listener for the modal's save button
     renameSaveBtn.addEventListener('click', (e) => {
@@ -22,12 +34,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      chrome.storage.local.get('tabGroups', (data) => {
-        const tabGroups = data.tabGroups || [];
-        const groupToUpdate = tabGroups.find(g => g.id === groupId);
+      getGroups((groups) => {
+        const groupToUpdate = groups.find(g => g.id === groupId);
         if (groupToUpdate) {
           groupToUpdate.name = newName;
-          chrome.storage.local.set({ tabGroups }, () => {
+          saveGroups(groups, () => {
             loadGroups(); // Refresh the list with the new name
             renameModal.close(); // Close the modal
           });
@@ -44,10 +55,9 @@ document.addEventListener('DOMContentLoaded', () => {
 function loadGroups() {
   try {
     const searchTerm = document.getElementById('search').value.toLowerCase();
-    chrome.storage.local.get('tabGroups', (data) => {
+    getGroups((tabGroups) => {
       const groupsDiv = document.getElementById('groups');
       groupsDiv.innerHTML = '';
-      const tabGroups = data.tabGroups || [];
       
       if (tabGroups.length === 0) {
         groupsDiv.innerHTML = '<p class="text-base-content text-opacity-60 text-center py-10">No saved tab groups.</p>';
@@ -94,7 +104,6 @@ function loadGroups() {
         renameBtn.className = 'btn btn-ghost btn-sm';
         renameBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg> Rename';
         
-        // This now opens the modal
         renameBtn.onclick = (e) => {
           e.stopPropagation(); // Stop the click from expanding the collapse
           e.preventDefault();
@@ -102,9 +111,9 @@ function loadGroups() {
           const renameInput = document.getElementById('rename-input');
           
           renameInput.value = group.name || '';
-          renameInput.focus();
           renameModal.dataset.groupId = group.id; // Store the group ID on the modal
           renameModal.showModal();
+          renameInput.focus();
         };
         
         titleDiv.appendChild(titleText);
@@ -120,7 +129,7 @@ function loadGroups() {
           const li = document.createElement('li');
           const a = document.createElement('a');
           a.href = tab.url;
-          a.className = "flex items-start gap-3"
+          a.className = "flex items-start gap-3";
           a.onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: tab.url }); };
           const favicon = document.createElement('img');
           favicon.src = `https://www.google.com/s2/favicons?domain=${new URL(tab.url).hostname}&sz=16`;
@@ -142,7 +151,7 @@ function loadGroups() {
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'btn btn-error btn-sm btn-outline';
         deleteBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete';
-        deleteBtn.onclick = () => deleteGroup(group.id);
+        deleteBtn.onclick = () => deleteGroup(group.id, true, loadGroups);
         btnDiv.appendChild(deleteBtn);
 
         const restoreBtn = document.createElement('button');
@@ -163,48 +172,14 @@ function loadGroups() {
   }
 }
 
-
-function restoreGroup(group) {
-  try {
-    group.tabs.forEach(tab => chrome.tabs.create({ url: tab.url, active: false }));
-  } catch (error) {
-    console.error('Error restoring group:', error);
-  }
-}
-
-function deleteGroup(id) {
-  try {
-    if (confirm('Are you sure you want to delete this group? This action cannot be undone.')) {
-      chrome.storage.local.get('tabGroups', (data) => {
-        const tabGroups = data.tabGroups.filter(g => g.id !== id);
-        chrome.storage.local.set({ tabGroups }, loadGroups);
-      });
-    }
-  } catch (error) {
-    console.error('Error deleting group:', error);
-  }
-}
-
 function saveTabs() {
-  const btn = document.getElementById('saveTabs');
-  try {
-    btn.classList.add('loading');
-    btn.disabled = true;
-    chrome.runtime.sendMessage({ action: 'saveTabs' }, (response) => {
-      btn.classList.remove('loading');
-      btn.disabled = false;
-      if (response && response.status === 'success') {
-        loadGroups();
-      } else {
-        console.error('Error saving tabs:', response ? response.error : 'No response');
-        alert('Failed to save tabs. Please see the console for details.');
-      }
-    });
-  } catch (error) {
-    console.error('Error sending saveTabs message:', error);
-    btn.classList.remove('loading');
-    btn.disabled = false;
-  }
+  saveTabsAction(document.getElementById('saveTabs'), (err) => {
+    if (!err) {
+      loadGroups();
+    } else {
+      alert('Failed to save tabs. Please see the console for details.');
+    }
+  });
 }
 
 function importTabs() {
@@ -215,39 +190,41 @@ function importTabs() {
     input.onchange = (e) => {
       const file = e.target.files[0];
       if (!file) return;
+      
       const reader = new FileReader();
       reader.onload = (event) => {
         const content = event.target.result;
-        let newTabs = [];
+        let importedGroups = [];
         
         if (file.name.endsWith('.txt')) {
-          newTabs = content.split('\n').filter(url => url.trim()).map(url => ({ title: url, url }));
+          importedGroups = parseTXTToGroups(content);
         } else if (file.name.endsWith('.csv')) {
-          const lines = content.split('\n');
-          lines.forEach(line => {
-             const parts = line.split(',');
-             const url = parts.length > 1 ? parts[1] : parts[0];
-             const title = parts.length > 1 ? parts[0] : url;
-             if (url && url.trim().startsWith('http')) {
-               newTabs.push({ title: title.trim().replace(/^"|"$/g, ''), url: url.trim().replace(/^"|"$/g, '') });
-             }
-          });
+          importedGroups = parseCSVToGroups(content);
+        } else if (file.name.endsWith('.json')) {
+          importedGroups = parseJSONToGroups(content);
         }
         
-        if (newTabs.length > 0) {
-          const newGroupName = prompt('Enter a name for the imported group:', file.name);
-          chrome.storage.local.get('tabGroups', (data) => {
-            const tabGroups = data.tabGroups || [];
-            tabGroups.push({
-              id: Date.now(),
-              date: new Date().toISOString(),
-              name: newGroupName || 'Imported Group',
-              tabs: newTabs
+        if (importedGroups && importedGroups.length > 0) {
+          // If single group and doesn't have custom name, prompt for one
+          let namePrompt = null;
+          if (importedGroups.length === 1 && !importedGroups[0].name) {
+            namePrompt = prompt('Enter a name for the imported group:', file.name.replace(/\.[^/.]+$/, ""));
+          }
+          
+          getGroups((existingGroups) => {
+            const updatedGroups = [...existingGroups];
+            importedGroups.forEach((newGroup, idx) => {
+              updatedGroups.push({
+                id: newGroup.id || (Date.now() + idx),
+                date: newGroup.date || new Date().toISOString(),
+                name: newGroup.name || namePrompt || 'Imported Group',
+                tabs: newGroup.tabs
+              });
             });
-            chrome.storage.local.set({ tabGroups }, loadGroups);
+            saveGroups(updatedGroups, loadGroups);
           });
         } else {
-          alert('No valid tabs found in the selected file.');
+          alert('No valid tabs found in the selected file or invalid format.');
         }
       };
       reader.readAsText(file);
@@ -261,26 +238,13 @@ function importTabs() {
 
 function exportAll() {
   try {
-    chrome.storage.local.get('tabGroups', (data) => {
-      const tabGroups = data.tabGroups || [];
+    getGroups((tabGroups) => {
       if (tabGroups.length === 0) {
         alert('No groups to export.');
         return;
       }
-      const csvContent = ['Group ID,Group Name,Date,Title,URL'];
-      tabGroups.forEach(group => {
-        group.tabs.forEach(tab => {
-          const row = [
-            group.id,
-            `"${(group.name || '').replace(/"/g, '""')}"`,
-            group.date,
-            `"${(tab.title || tab.url).replace(/"/g, '""')}"`,
-            `"${tab.url.replace(/"/g, '""')}"`
-          ];
-          csvContent.push(row.join(','));
-        });
-      });
-      const blob = new Blob([csvContent.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const csvString = exportToCSV(tabGroups);
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       chrome.downloads.download({
         url,
@@ -291,15 +255,5 @@ function exportAll() {
   } catch (error) {
     console.error('Error exporting tabs:', error);
     alert('Error exporting tabs. Check console for details.');
-  }
-}
-
-function clearAll() {
-  try {
-    if (confirm('Are you sure you want to delete ALL saved groups? This action cannot be undone.')) {
-      chrome.storage.local.set({ tabGroups: [] }, loadGroups);
-    }
-  } catch (error) {
-    console.error('Error clearing groups:', error);
   }
 }

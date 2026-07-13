@@ -22,7 +22,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["tabs.html", "tabs.js", "daisyui.css"],
+      "resources": ["tabs.html", "tabs.js", "utils.js", "daisyui.css"],
       "matches": ["<all_urls>"]
     }
   ],
