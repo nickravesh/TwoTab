@@ -44,38 +44,8 @@ async function saveTabs() {
     .filter(id => id !== chrome.tabs.TAB_ID_NONE);
   await chrome.tabs.remove(tabIds);
   
-  // Create and download backups
-  createBackups(newGroup, tabGroups);
+  // Removed automatic backup generation here. Backups should be explicit via "Export All CSV"
 }
-
-function createBackups(newGroup, allGroups) {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  
-  // TXT: One URL per line for the new group
-  const txtContent = newGroup.tabs.map(tab => tab.url).join('\n');
-  const txtBlob = new Blob([txtContent], { type: 'text/plain' });
-  chrome.downloads.download({
-    url: URL.createObjectURL(txtBlob),
-    filename: `TwoTab_newgroup_${timestamp}.txt`,
-    saveAs: false
-  });
-  
-  // CSV: All groups, with columns for group ID, date, title, URL
-  let csvContent = 'GroupID,Date,Title,URL\n';
-  allGroups.forEach(group => {
-    group.tabs.forEach(tab => {
-      csvContent += `${group.id},${group.date},"${tab.title.replace(/"/g, '""')}",${tab.url}\n`;
-    });
-  });
-  const csvBlob = new Blob([csvContent], { type: 'text/csv' });
-  chrome.downloads.download({
-    url: URL.createObjectURL(csvBlob),
-    filename: `TwoTab_fullbackup_${timestamp}.csv`,
-    saveAs: false
-  });
-}
-
-
 
 // chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 //   if (request.action === 'saveTabs') {

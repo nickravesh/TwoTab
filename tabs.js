@@ -30,12 +30,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Select & Merge toggle button in right sidebar
     document.getElementById('bulkToggleBtn').addEventListener('click', toggleSelectMode);
 
-    // Listen for import trigger from popup
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      if (request.action === 'triggerImport') {
-        importTabs();
-      }
-    });
+    // Check for import trigger from popup URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('action') === 'import') {
+      setTimeout(() => importTabs(), 100);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
 
     // Event listener for the rename modal's save button
     renameSaveBtn.addEventListener('click', (e) => {
@@ -65,6 +65,22 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('bulk-merge').addEventListener('click', bulkMerge);
     document.getElementById('bulk-delete').addEventListener('click', bulkDelete);
     document.getElementById('bulk-cancel').addEventListener('click', bulkCancel);
+
+    // Initialize Settings
+    const deleteOnRestoreToggle = document.getElementById('setting-delete-on-restore');
+    if (deleteOnRestoreToggle) {
+      chrome.storage.local.get('settings', (data) => {
+        const settings = data.settings || { deleteOnRestore: false };
+        deleteOnRestoreToggle.checked = settings.deleteOnRestore;
+      });
+      deleteOnRestoreToggle.addEventListener('change', (e) => {
+        chrome.storage.local.get('settings', (data) => {
+          const settings = data.settings || {};
+          settings.deleteOnRestore = e.target.checked;
+          chrome.storage.local.set({ settings });
+        });
+      });
+    }
 
   } catch (error) {
     console.error('Error initializing tabs page:', error);
@@ -184,7 +200,7 @@ function loadGroups() {
         
         const restoreLi = document.createElement('li');
         restoreLi.innerHTML = '<a class="py-1.5 hover:text-indigo-400">Restore All</a>';
-        restoreLi.onclick = () => restoreGroup(group);
+        restoreLi.onclick = () => restoreGroup(group, loadGroups);
         
         const renameLi = document.createElement('li');
         renameLi.innerHTML = '<a class="py-1.5 hover:text-indigo-400">Rename</a>';
@@ -210,17 +226,30 @@ function loadGroups() {
 
         card.appendChild(header);
 
+        card.onclick = (e) => {
+          // Ignore clicks on controls to avoid conflicting actions
+          if (e.target.closest('.dropdown') || e.target.closest('input[type="checkbox"]') || e.target.closest('button') || e.target.closest('.tab-grid-item')) {
+            return; 
+          }
+          openDetailModal(group);
+        };
+
         // Body Grid Layout of website favicon icon-blocks
+        const gridContainer = document.createElement('div');
+        gridContainer.className = 'tab-grid-container mt-auto';
+        
         const grid = document.createElement('div');
-        grid.className = 'grid grid-cols-4 gap-2.5 mt-auto';
+        grid.className = 'grid grid-cols-4 gap-2.5';
 
         filteredTabs.forEach((tab) => {
           const tabBlock = document.createElement('div');
-          tabBlock.className = 'tab-grid-item';
-          tabBlock.onclick = () => chrome.tabs.create({ url: tab.url });
+          tabBlock.className = 'tab-grid-item custom-tooltip-wrapper';
           
           let hostname = 'N/A';
           try { hostname = new URL(tab.url).hostname; } catch(e){}
+          
+          tabBlock.dataset.fullTitle = tab.title || hostname;
+          tabBlock.onclick = () => chrome.tabs.create({ url: tab.url });
 
           const favicon = document.createElement('img');
           favicon.src = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`; // Request larger 32px favicons for clean icons
@@ -258,7 +287,8 @@ function loadGroups() {
           grid.appendChild(tabBlock);
         });
 
-        card.appendChild(grid);
+        gridContainer.appendChild(grid);
+        card.appendChild(gridContainer);
         groupsDiv.appendChild(card);
       });
     });
@@ -310,10 +340,27 @@ function bulkRestore() {
   const ids = Array.from(selectedGroupIds);
   getGroups((groups) => {
     const toRestore = groups.filter(g => ids.includes(g.id));
-    toRestore.forEach(g => restoreGroup(g));
-    selectedGroupIds.clear();
-    updateBulkActionsBar();
-    toggleSelectMode();
+    toRestore.forEach(g => {
+      try {
+        g.tabs.forEach(tab => chrome.tabs.create({ url: tab.url, active: false }));
+      } catch(e) { console.error('Error restoring tab:', e); }
+    });
+    
+    chrome.storage.local.get('settings', (data) => {
+      const settings = data.settings || {};
+      if (settings.deleteOnRestore) {
+        const updated = groups.filter(g => !ids.includes(g.id));
+        saveGroups(updated, () => {
+          selectedGroupIds.clear();
+          updateBulkActionsBar();
+          toggleSelectMode();
+        });
+      } else {
+        selectedGroupIds.clear();
+        updateBulkActionsBar();
+        toggleSelectMode();
+      }
+    });
   });
 }
 
@@ -434,4 +481,118 @@ function exportAll() {
     console.error('Error exporting tabs:', error);
     alert('Error exporting tabs. Check console.');
   }
+}
+
+// --- Detail Modal Implementation ---
+
+function openDetailModal(group) {
+  const modal = document.getElementById('detail-modal');
+  const title = document.getElementById('detail-modal-title');
+  const subtitle = document.getElementById('detail-modal-subtitle');
+  const list = document.getElementById('detail-modal-list');
+  const btnDeleteGroup = document.getElementById('detail-modal-delete-group');
+  const btnOpenNew = document.getElementById('detail-modal-open-new');
+  const btnOpenCurrent = document.getElementById('detail-modal-open-current');
+
+  title.textContent = group.name || 'Saved Group';
+  subtitle.textContent = `${group.tabs.length} tabs • ${getRelativeTime(group.date)}`;
+  
+  // Render tabs
+  list.innerHTML = '';
+  group.tabs.forEach((tab) => {
+    const li = document.createElement('li');
+    li.className = 'group flex items-center justify-between rounded-lg hover:bg-slate-800/60 p-2 transition-colors';
+    
+    let hostname = 'N/A';
+    try { hostname = new URL(tab.url).hostname; } catch(e){}
+
+    const a = document.createElement('a');
+    a.href = tab.url;
+    a.className = "flex items-center gap-3 flex-1 overflow-hidden cursor-pointer";
+    a.onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: tab.url }); };
+
+    const favicon = document.createElement('img');
+    favicon.src = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+    favicon.className = 'w-6 h-6 flex-shrink-0 bg-slate-900 rounded p-0.5';
+    favicon.alt = "";
+    favicon.onerror = () => { favicon.src = 'icon16.png'; };
+
+    const textDiv = document.createElement('div');
+    textDiv.className = 'flex flex-col flex-1 min-w-0 pr-2';
+    
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'text-sm text-slate-200 font-medium truncate';
+    titleSpan.textContent = tab.title || hostname;
+    
+    const urlSpan = document.createElement('span');
+    urlSpan.className = 'text-xs text-slate-500 truncate mt-0.5';
+    urlSpan.textContent = tab.url;
+    
+    textDiv.appendChild(titleSpan);
+    textDiv.appendChild(urlSpan);
+    a.appendChild(favicon);
+    a.appendChild(textDiv);
+    
+    // Delete individual tab
+    const trashBtn = document.createElement('button');
+    trashBtn.className = 'btn btn-ghost btn-sm text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0';
+    trashBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>';
+    trashBtn.title = "Delete Tab";
+    trashBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (confirm(`Delete this tab? \n"${tab.title || tab.url}"`)) {
+        deleteTabFromGroup(group.id, tab.url, () => {
+          // Re-fetch group to update modal without closing
+          getGroups((groups) => {
+            const updatedGroup = groups.find(g => g.id === group.id);
+            if (updatedGroup) {
+              openDetailModal(updatedGroup); // Refresh modal
+              loadGroups(); // Refresh background dashboard
+            } else {
+              modal.close();
+              loadGroups();
+            }
+          });
+        });
+      }
+    };
+    
+    li.appendChild(a);
+    li.appendChild(trashBtn);
+    list.appendChild(li);
+  });
+
+  // Actions
+  btnDeleteGroup.onclick = () => {
+    if (confirm(`Are you sure you want to delete this group?`)) {
+      deleteGroup(group.id, false, () => {
+        modal.close();
+        loadGroups();
+      });
+    }
+  };
+
+  btnOpenNew.onclick = () => {
+    chrome.windows.create({ url: group.tabs.map(t => t.url) }, () => {
+      chrome.storage.local.get('settings', (data) => {
+        if ((data.settings || {}).deleteOnRestore) {
+          deleteGroup(group.id, false, () => {
+            modal.close();
+            loadGroups();
+          });
+        } else {
+          modal.close();
+        }
+      });
+    });
+  };
+
+  btnOpenCurrent.onclick = () => {
+    restoreGroup(group, () => {
+      modal.close();
+      loadGroups();
+    });
+  };
+
+  modal.showModal();
 }

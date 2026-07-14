@@ -169,7 +169,7 @@ function loadGroups() {
         const restoreBtn = document.createElement('button');
         restoreBtn.className = 'btn btn-gradient-secondary btn-xs';
         restoreBtn.textContent = 'Restore';
-        restoreBtn.onclick = () => restoreGroup(group);
+        restoreBtn.onclick = () => restoreGroup(group, loadGroups);
         btnDiv.appendChild(restoreBtn);
 
         contentDiv.appendChild(btnDiv);
@@ -216,16 +216,7 @@ function viewAll() {
 }
 
 function importTabs() {
-  chrome.tabs.create({ url: chrome.runtime.getURL('tabs.html') }, () => {
-    // Send message to trigger import action on newly opened dashboard tab
-    setTimeout(() => {
-      chrome.tabs.query({ url: chrome.runtime.getURL('tabs.html') }, (tabs) => {
-        if (tabs[0]) {
-          chrome.tabs.sendMessage(tabs[0].id, { action: "triggerImport" });
-        }
-      });
-    }, 500);
-  });
+  chrome.tabs.create({ url: chrome.runtime.getURL('tabs.html?action=import') });
 }
 
 function exportAll() {

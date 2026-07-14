@@ -80,11 +80,20 @@ function mergeGroups(groupIds, callback) {
   });
 }
 
-function restoreGroup(group) {
+function restoreGroup(group, callback) {
   try {
     group.tabs.forEach(tab => chrome.tabs.create({ url: tab.url, active: false }));
+    chrome.storage.local.get('settings', (data) => {
+      const settings = data.settings || {};
+      if (settings.deleteOnRestore) {
+        deleteGroup(group.id, false, callback);
+      } else {
+        if (callback) callback();
+      }
+    });
   } catch (error) {
     console.error('Error restoring group:', error);
+    if (callback) callback();
   }
 }
 

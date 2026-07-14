@@ -8,7 +8,7 @@
   <link href="daisyui.css" rel="stylesheet" type="text/css" />
   <link href="custom.css" rel="stylesheet" type="text/css" />
 </head>
-<body class="bg-base-300 min-h-screen flex overflow-hidden">
+<body class="bg-base-300 h-screen flex overflow-hidden">
 
   <!-- Left Navigation Sidebar -->
   <aside class="w-16 bg-slate-950 border-r border-slate-800 flex flex-col items-center py-6 justify-between flex-shrink-0 z-20">
@@ -64,9 +64,28 @@
               <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
               PREMIUM ENABLED
             </div>
-            <!-- Mock User Avatar -->
-            <div class="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center font-bold text-xs text-slate-200 select-none">
-              A
+            <!-- Actions Dropdown -->
+            <div class="dropdown dropdown-end">
+              <label tabindex="0" class="btn btn-ghost btn-sm btn-circle bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              </label>
+              <ul tabindex="0" class="dropdown-content z-[60] menu p-2 shadow-2xl shadow-black/80 bg-slate-900 border border-slate-700 rounded-box w-60 mt-3 text-sm text-slate-300">
+                <li class="menu-title px-4 py-2 text-[10px] text-slate-500 font-bold uppercase tracking-widest">Quick Actions</li>
+                <li><a id="saveTabs" class="hover:text-white hover:bg-slate-800"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg> Save Current Tabs</a></li>
+                <li><a id="import" class="hover:text-white hover:bg-slate-800"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg> Import Backup</a></li>
+                <li><a id="exportAll" class="hover:text-white hover:bg-slate-800"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> Export All CSV</a></li>
+                <li><a id="bulkToggleBtn" class="hover:text-white hover:bg-slate-800"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg> Select & Merge</a></li>
+                <div class="divider my-0 border-slate-800 h-px"></div>
+                <li class="menu-title px-4 py-2 mt-1 text-[10px] text-slate-500 font-bold uppercase tracking-widest">Settings</li>
+                <li class="hover:bg-slate-800 rounded-lg">
+                  <label class="cursor-pointer flex items-center justify-between w-full">
+                    <span class="text-xs">Delete on restore</span>
+                    <input type="checkbox" id="setting-delete-on-restore" class="toggle toggle-primary toggle-sm border-slate-700 bg-slate-900" />
+                  </label>
+                </li>
+                <div class="divider my-0 border-slate-800 h-px"></div>
+                <li class="mt-1"><a id="clearAll" class="text-red-400 hover:text-red-300 hover:bg-red-500/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Clear History</a></li>
+              </ul>
             </div>
           </div>
         </header>
@@ -111,7 +130,12 @@
         </div>
 
         <!-- Search Bar -->
-        <input id="search" type="text" placeholder="Search tabs by title or URL..." class="input glass-input w-full mb-6 shadow-inner" aria-label="Search saved tabs" />
+        <div class="relative w-full mb-6">
+          <input id="search" type="text" placeholder="Search tabs by title or URL..." class="input glass-input w-full pl-10 shadow-inner" aria-label="Search saved tabs" />
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          </div>
+        </div>
 
         <!-- Saved Groups Card Grid -->
         <div id="groups" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full mb-16"></div>
@@ -127,53 +151,7 @@
       </div>
     </main>
 
-    <!-- Right Quick Actions Sidebar -->
-    <aside class="w-full md:w-60 bg-slate-950 border-t md:border-t-0 md:border-l border-slate-800 p-6 flex flex-col gap-6 flex-shrink-0 z-10 overflow-y-auto">
-      
-      <!-- Quick Actions section -->
-      <div>
-        <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Quick Actions</h3>
-        <div class="flex flex-col gap-2.5">
-          <button id="saveTabs" class="btn quick-action-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
-            Save Current Tabs
-          </button>
-          <button id="import" class="btn quick-action-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-            Import Backup
-          </button>
-          <button id="exportAll" class="btn quick-action-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            Export All CSV
-          </button>
-          <button id="bulkToggleBtn" class="btn quick-action-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-            Select & Merge
-          </button>
-          <button id="clearAll" class="btn quick-action-btn text-red-400 hover:text-red-300 hover:bg-red-500/10">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-            Clear History
-          </button>
-        </div>
-      </div>
 
-      <!-- Settings Shortcuts section -->
-      <div>
-        <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Settings Shortcuts</h3>
-        <div class="flex flex-col gap-2 text-xs text-slate-400">
-          <a href="#" class="hover:text-indigo-400 hover:underline transition-colors py-1 flex items-center justify-between">
-            Auto-backup intervals <span>Daily</span>
-          </a>
-          <a href="#" class="hover:text-indigo-400 hover:underline transition-colors py-1 flex items-center justify-between">
-            Storage quota <span>Local Only</span>
-          </a>
-          <a href="#" class="hover:text-indigo-400 hover:underline transition-colors py-1 flex items-center justify-between">
-            Sync options <span>Disabled</span>
-          </a>
-        </div>
-      </div>
-
-    </aside>
 
   </div>
 
@@ -213,6 +191,38 @@
       <button id="bulk-cancel" class="btn btn-ghost btn-sm text-slate-400">Cancel</button>
     </div>
   </div>
+
+  <!-- Detailed Group Modal -->
+  <dialog id="detail-modal" class="modal">
+    <div class="modal-box w-11/12 max-w-4xl bg-slate-900 border border-slate-700 h-[80vh] flex flex-col p-0 overflow-hidden">
+      <div class="p-6 border-b border-slate-800 flex justify-between items-start shrink-0">
+        <div>
+          <h3 id="detail-modal-title" class="font-bold text-xl text-slate-100">Group Name</h3>
+          <p id="detail-modal-subtitle" class="text-sm text-slate-400 mt-1">0 tabs</p>
+        </div>
+        <form method="dialog">
+          <button class="btn btn-sm btn-circle btn-ghost text-slate-400 hover:text-white">✕</button>
+        </form>
+      </div>
+      
+      <div class="p-6 overflow-y-auto flex-1 bg-slate-900/50">
+        <ul id="detail-modal-list" class="space-y-2">
+          <!-- Tabs will be dynamically inserted here -->
+        </ul>
+      </div>
+
+      <div class="p-6 border-t border-slate-800 bg-slate-950 flex justify-between items-center shrink-0">
+        <button id="detail-modal-delete-group" class="btn btn-error btn-outline btn-sm hover:bg-red-500/20">Delete Group</button>
+        <div class="flex gap-3">
+          <button id="detail-modal-open-new" class="btn btn-ghost btn-sm text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10">Open in New Window</button>
+          <button id="detail-modal-open-current" class="btn btn-gradient-primary btn-sm">Open in Current Window</button>
+        </div>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>close</button>
+    </form>
+  </dialog>
 
   <script src="utils.js"></script>
   <script src="tabs.js"></script>

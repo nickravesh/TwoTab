@@ -4,28 +4,34 @@
 
 /* Deep Slate Dark Mode background overrides */
 body {
-  background-color: #080b13 !important; /* Extremely dark deep blue-black */
+  background: radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.12) 0%, transparent 70%),
+              radial-gradient(circle at 100% 100%, rgba(168, 85, 247, 0.12) 0%, transparent 75%),
+              radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.06) 0%, transparent 80%),
+              #0a0e17 !important; /* Lighter space dark base with expansive glowing nebulas */
   color: #f1f5f9 !important;
   min-height: 100vh;
   margin: 0;
   overflow-x: hidden;
 }
 
-/* Glassmorphism card */
+/* Glassmorphism card with linear gradient and glare lines */
 .glass-card {
-  background: rgba(17, 24, 39, 0.5) !important;
+  background: linear-gradient(135deg, rgba(22, 28, 45, 0.65) 0%, rgba(15, 19, 32, 0.75) 100%) !important;
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.05) !important;
-  border-radius: 1rem;
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 1.25rem;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.05); /* Top border glare reflection */
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(139, 92, 246, 0.2) !important;
-  box-shadow: 0 15px 40px -5px rgba(0, 0, 0, 0.8), 0 0 15px rgba(139, 92, 246, 0.05);
+  border-color: rgba(139, 92, 246, 0.3) !important;
+  box-shadow: 0 15px 45px -5px rgba(0, 0, 0, 0.65), 
+              0 0 25px rgba(139, 92, 246, 0.12),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
 }
 
 /* Left Sidebar Navigation */
@@ -46,38 +52,55 @@ body {
   box-shadow: 0 0 10px rgba(139, 92, 246, 0.1);
 }
 
-/* Large Summary Blocks */
+/* Large Summary Blocks with Glow Colors and Inner Shadows */
 .summary-block {
-  border-radius: 1rem;
+  border-radius: 1.25rem;
   padding: 1.25rem;
-  transition: all 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
-  background: rgba(30, 41, 59, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.25) 0%, rgba(15, 23, 42, 0.35) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.03);
 }
 .summary-block.active-session-glow {
-  border-color: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.15) !important;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.06) 0%, rgba(30, 41, 59, 0.2) 100%) !important;
 }
 .summary-block.active-session-glow:hover {
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.45) !important;
+  box-shadow: 0 12px 28px -8px rgba(59, 130, 246, 0.35),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
 }
 .summary-block.saved-archive-glow {
-  border-color: rgba(139, 92, 246, 0.2);
+  border-color: rgba(139, 92, 246, 0.15) !important;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.06) 0%, rgba(30, 41, 59, 0.2) 100%) !important;
 }
 .summary-block.saved-archive-glow:hover {
-  border-color: rgba(139, 92, 246, 0.4);
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.45) !important;
+  box-shadow: 0 12px 28px -8px rgba(139, 92, 246, 0.35),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
 }
 .summary-block.recently-closed-glow {
-  border-color: rgba(236, 72, 153, 0.2);
+  border-color: rgba(236, 72, 153, 0.15) !important;
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.06) 0%, rgba(30, 41, 59, 0.2) 100%) !important;
 }
 .summary-block.recently-closed-glow:hover {
-  border-color: rgba(236, 72, 153, 0.4);
-  box-shadow: 0 0 20px rgba(236, 72, 153, 0.1);
+  border-color: rgba(236, 72, 153, 0.45) !important;
+  box-shadow: 0 12px 28px -8px rgba(236, 72, 153, 0.35),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
 }
 
-/* Inner Tab Grid inside Group Cards */
+/* Inner Tab Grid Container */
+.tab-grid-container {
+  max-height: 16rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+/* Inner Tab Grid inside Group Cards - Styled as interactive glowing tiles */
 .tab-grid-item {
   position: relative;
   display: flex;
@@ -85,15 +108,19 @@ body {
   align-items: center;
   padding: 0.75rem 0.5rem;
   border-radius: 0.75rem;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.02);
-  transition: all 0.2s ease;
+  background: rgba(30, 41, 59, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.04) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.02);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
 }
 .tab-grid-item:hover {
-  background: rgba(139, 92, 246, 0.08);
-  border-color: rgba(139, 92, 246, 0.15);
-  transform: translateY(-1px);
+  background: rgba(139, 92, 246, 0.12) !important;
+  border-color: rgba(139, 92, 246, 0.35) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -4px rgba(139, 92, 246, 0.22),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
 }
 .tab-grid-item img {
   width: 2rem;
@@ -116,6 +143,39 @@ body {
 }
 .tab-grid-item:hover .tab-title-text {
   color: #f1f5f9;
+}
+
+/* Custom 2-second Tooltip */
+.custom-tooltip-wrapper {
+  position: relative;
+}
+.custom-tooltip-wrapper::after {
+  content: attr(data-full-title);
+  position: absolute;
+  bottom: 110%;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: rgba(15, 23, 42, 0.95);
+  color: #f1f5f9;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s, transform 0.2s;
+  transition-delay: 0s;
+  z-index: 50;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+}
+.custom-tooltip-wrapper:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+  transition-delay: 2s; /* 2-second delay on hover */
 }
 
 /* Inner Tab block Delete Button (X overlay) */
@@ -266,4 +326,43 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+/* Glass translucent sidebars override */
+aside.bg-slate-950 {
+  background: rgba(3, 5, 12, 0.45) !important;
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+}
+
+/* Fallback Slate Color definitions missing in Tailwind v2 default build */
+.bg-slate-950 {
+  background-color: #03050c !important;
+}
+.bg-slate-900 {
+  background-color: #0c101c !important;
+}
+.border-slate-800 {
+  border-color: rgba(255, 255, 255, 0.08) !important; /* Frosted glass panel borders */
+}
+.border-slate-700 {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+.text-slate-100 {
+  color: #f8fafc !important;
+}
+.text-slate-300 {
+  color: #cbd5e1 !important;
+}
+.text-slate-400 {
+  color: #94a3b8 !important;
+}
+.text-slate-500 {
+  color: #64748b !important;
+}
+.text-slate-600 {
+  color: #475569 !important;
+}
+.hover\:bg-slate-800\/40:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
 }
