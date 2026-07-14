@@ -1,6 +1,6 @@
 /**
  * Shared utility functions for TwoTab Chrome Extension
- * Storage management, file parsing, and background messaging wrappers.
+ * Storage management, file parsing, statistics calculations, and background messaging wrappers.
  */
 
 // --- Storage Management Helpers ---
@@ -27,6 +27,59 @@ function deleteGroup(id, showConfirm, callback) {
   });
 }
 
+function deleteTabFromGroup(groupId, tabUrl, callback) {
+  getGroups((groups) => {
+    const updated = groups.map(g => {
+      if (g.id === groupId) {
+        g.tabs = g.tabs.filter(t => t.url !== tabUrl);
+      }
+      return g;
+    }).filter(g => g.tabs.length > 0); // If group is now empty, filter it out
+    saveGroups(updated, callback);
+  });
+}
+
+function mergeGroups(groupIds, callback) {
+  getGroups((groups) => {
+    const groupsToMerge = groups.filter(g => groupIds.includes(g.id));
+    if (groupsToMerge.length < 2) {
+      if (callback) callback();
+      return;
+    }
+    
+    // Sort chronologically to find the oldest group (we will preserve its ID and date)
+    groupsToMerge.sort((a, b) => new Date(a.date) - new Date(b.date));
+    const baseGroup = groupsToMerge[0];
+    
+    // Combine all tabs while eliminating duplicate URLs
+    const allTabs = [];
+    const seenUrls = new Set();
+    groupsToMerge.forEach(g => {
+      g.tabs.forEach(t => {
+        if (!seenUrls.has(t.url)) {
+          seenUrls.add(t.url);
+          allTabs.push(t);
+        }
+      });
+    });
+    
+    baseGroup.tabs = allTabs;
+    baseGroup.name = baseGroup.name || 'Merged Group';
+    
+    // Remove other merged groups
+    const otherIds = groupIds.filter(id => id !== baseGroup.id);
+    const updated = groups.filter(g => !otherIds.includes(g.id));
+    
+    // Re-insert base group with updated tab array
+    const baseIdx = updated.findIndex(g => g.id === baseGroup.id);
+    if (baseIdx !== -1) {
+      updated[baseIdx] = baseGroup;
+    }
+    
+    saveGroups(updated, callback);
+  });
+}
+
 function restoreGroup(group) {
   try {
     group.tabs.forEach(tab => chrome.tabs.create({ url: tab.url, active: false }));
@@ -40,6 +93,57 @@ function clearAll(showConfirm, callback) {
     return;
   }
   saveGroups([], callback);
+}
+
+// --- Metrics & Analytics Helpers ---
+
+function getRAMSaved(tabCount) {
+  const mb = tabCount * 150; // Estimate 150MB per saved/closed tab
+  if (mb < 1024) {
+    return `${mb} MB`;
+  }
+  return `${(mb / 1024).toFixed(1)} GB`;
+}
+
+function getTopDomain(tabGroups) {
+  if (!tabGroups || tabGroups.length === 0) return 'N/A';
+  const counts = {};
+  let maxCount = 0;
+  let topDomain = 'N/A';
+  
+  tabGroups.forEach(g => {
+    g.tabs.forEach(t => {
+      try {
+        const hostname = new URL(t.url).hostname.replace('www.', '');
+        counts[hostname] = (counts[hostname] || 0) + 1;
+        if (counts[hostname] > maxCount) {
+          maxCount = counts[hostname];
+          topDomain = hostname;
+        }
+      } catch (e) {
+        // Safe fallback for invalid URLs
+      }
+    });
+  });
+  return topDomain;
+}
+
+function getRelativeTime(dateString) {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffSec = Math.floor((now - date) / 1000);
+  
+  if (diffSec < 60) return 'just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDays = Math.floor(diffHr / 24);
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 // --- Background Action Wrappers ---
@@ -75,9 +179,6 @@ function saveTabsAction(btnElement, callback) {
 
 // --- File Parsers & Exporters ---
 
-/**
- * Standard CSV Line Parser respecting double quotes and escaped quotes
- */
 function parseCSV(content) {
   const lines = content.split(/\r?\n/);
   const results = [];
@@ -115,9 +216,6 @@ function parseCSV(content) {
   return results;
 }
 
-/**
- * Parses CSV text content into TabGroup structure
- */
 function parseCSVToGroups(content) {
   const rows = parseCSV(content);
   if (rows.length === 0) return [];
@@ -139,7 +237,6 @@ function parseCSVToGroups(content) {
     hasGroups = idIdx !== -1;
     rows.shift(); // remove header
   } else {
-    // No header found, default to simple format
     urlIdx = 1;
     titleIdx = 0;
   }
@@ -169,7 +266,6 @@ function parseCSVToGroups(content) {
     });
     return Object.values(groupsMap);
   } else {
-    // Single group fallback
     const tabs = [];
     rows.forEach(row => {
       const url = row[urlIdx] ? row[urlIdx].trim() : (row[0] ? row[0].trim() : '');
@@ -187,9 +283,6 @@ function parseCSVToGroups(content) {
   }
 }
 
-/**
- * Parses JSON text content into TabGroup structure
- */
 function parseJSONToGroups(content) {
   try {
     const data = JSON.parse(content);
@@ -225,9 +318,6 @@ function parseJSONToGroups(content) {
   }
 }
 
-/**
- * Parses TXT text content (one URL per line) into TabGroup structure
- */
 function parseTXTToGroups(content) {
   const urls = content.split(/\r?\n/).map(line => line.trim()).filter(line => line && line.startsWith('http'));
   if (urls.length === 0) return [];
@@ -239,9 +329,6 @@ function parseTXTToGroups(content) {
   }];
 }
 
-/**
- * Formats TabGroups to a standard RFC 4180-compliant CSV string
- */
 function exportToCSV(tabGroups) {
   const csvContent = ['Group ID,Group Name,Date,Title,URL'];
   tabGroups.forEach(group => {

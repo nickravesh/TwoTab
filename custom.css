@@ -1,0 +1,269 @@
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+/* Deep Slate Dark Mode background overrides */
+body {
+  background-color: #080b13 !important; /* Extremely dark deep blue-black */
+  color: #f1f5f9 !important;
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+/* Glassmorphism card */
+.glass-card {
+  background: rgba(17, 24, 39, 0.5) !important;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(139, 92, 246, 0.2) !important;
+  box-shadow: 0 15px 40px -5px rgba(0, 0, 0, 0.8), 0 0 15px rgba(139, 92, 246, 0.05);
+}
+
+/* Left Sidebar Navigation */
+.sidebar-icon-btn {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b; /* slate-500 */
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.sidebar-icon-btn:hover, .sidebar-icon-btn.active {
+  color: #a78bfa; /* light violet */
+  background: rgba(139, 92, 246, 0.15);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.1);
+}
+
+/* Large Summary Blocks */
+.summary-block {
+  border-radius: 1rem;
+  padding: 1.25rem;
+  transition: all 0.3s;
+  cursor: pointer;
+  background: rgba(30, 41, 59, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+.summary-block.active-session-glow {
+  border-color: rgba(59, 130, 246, 0.2);
+}
+.summary-block.active-session-glow:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
+}
+.summary-block.saved-archive-glow {
+  border-color: rgba(139, 92, 246, 0.2);
+}
+.summary-block.saved-archive-glow:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
+}
+.summary-block.recently-closed-glow {
+  border-color: rgba(236, 72, 153, 0.2);
+}
+.summary-block.recently-closed-glow:hover {
+  border-color: rgba(236, 72, 153, 0.4);
+  box-shadow: 0 0 20px rgba(236, 72, 153, 0.1);
+}
+
+/* Inner Tab Grid inside Group Cards */
+.tab-grid-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem 0.5rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.tab-grid-item:hover {
+  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(139, 92, 246, 0.15);
+  transform: translateY(-1px);
+}
+.tab-grid-item img {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.35rem;
+  padding: 4px;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+.tab-grid-item .tab-title-text {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  margin-top: 0.5rem;
+  text-align: center;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+.tab-grid-item:hover .tab-title-text {
+  color: #f1f5f9;
+}
+
+/* Inner Tab block Delete Button (X overlay) */
+.tab-item-delete-btn {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: bold;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 10;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
+.tab-grid-item:hover .tab-item-delete-btn {
+  opacity: 0.85;
+  transform: scale(1);
+}
+.tab-item-delete-btn:hover {
+  opacity: 1 !important;
+  background: #dc2626 !important;
+  transform: scale(1.1);
+}
+
+/* Card Selection Checkbox Overlay */
+.card-select-checkbox {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 20;
+}
+
+/* Inputs, highlights, colors */
+.glass-input {
+  background: rgba(15, 23, 42, 0.75) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #f8fafc !important;
+  border-radius: 0.75rem;
+  transition: all 0.25s ease;
+}
+
+.glass-input:focus {
+  border-color: #8b5cf6 !important;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25) !important;
+  outline: none !important;
+}
+
+.search-highlight {
+  background-color: rgba(139, 92, 246, 0.35) !important;
+  color: #c084fc !important;
+  padding: 0 2px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+/* Accent Buttons */
+.btn-gradient-primary {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+  border: none !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+.btn-gradient-primary:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+}
+
+.btn-gradient-secondary {
+  background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%) !important;
+  border: none !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+.btn-gradient-secondary:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);
+}
+
+.quick-action-btn {
+  background: rgba(30, 41, 59, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  color: #cbd5e1 !important;
+  font-weight: 500;
+  width: 100%;
+  justify-content: flex-start;
+  text-transform: none;
+  font-size: 0.85rem;
+  height: 2.5rem;
+  min-height: 2.5rem;
+  border-radius: 0.5rem;
+}
+.quick-action-btn:hover {
+  background: rgba(30, 41, 59, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+}
+
+/* Floating Actions Bar */
+.floating-bulk-bar {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(120px);
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 1.25rem;
+  padding: 0.85rem 1.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  z-index: 100;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.floating-bulk-bar.visible {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
