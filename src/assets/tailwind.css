@@ -6,10 +6,10 @@
 
 @layer base {
   :root {
-    --background: 222 40% 6%; /* #0a0e17 */
+    --background: 222 40% 6%; /* #0a0e17 dark canvas */
     --foreground: 210 40% 98%;
 
-    --card: 222 25% 12%; /* #151b26 elevated surface */
+    --card: 222 25% 12%; /* #151b26 elevated card surface */
     --card-foreground: 210 40% 98%;
 
     --popover: 222 25% 12%;
@@ -21,16 +21,16 @@
     --secondary: 222 30% 16%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 222 30% 16%;
-    --muted-foreground: 215 20% 75%;
+    --muted: 222 25% 15%;
+    --muted-foreground: 215 20% 70%; /* High WCAG contrast */
 
-    --accent: 217 25% 20%;
+    --accent: 252 87% 67%;
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 84% 65%; /* Soft Light Red (#F87171) for dark themes */
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217 20% 22%; /* #272e3f */
+    --border: 217 20% 22%; /* Crisp 1px boundary */
     --input: 217 20% 22%;
     --ring: 252 87% 67%;
 
@@ -44,15 +44,5 @@
   }
   body {
     @apply bg-background text-foreground font-sans;
-  }
-}
-
-/* Custom Utilities for Premium Separation & Elevation */
-@layer utilities {
-  .glass {
-    @apply bg-background/80 backdrop-blur-xl border border-white/[0.08];
-  }
-  .glass-card {
-    @apply bg-card/90 backdrop-blur-xl border border-white/[0.1] shadow-xl shadow-black/40;
   }
 }
