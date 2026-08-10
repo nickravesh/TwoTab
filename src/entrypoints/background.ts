@@ -3,51 +3,80 @@ export default defineBackground(() => {
     if (request.action === 'saveTabs') {
       (async () => {
         try {
-          await saveTabs();
+          await saveCurrentWindowTabs();
           sendResponse({ status: 'success' });
         } catch (error: any) {
           sendResponse({ status: 'error', message: error.message || error });
         }
       })();
-      return true; // Keep message channel open for async response
+      return true;
+    }
+
+    if (request.action === 'saveAllWindows') {
+      (async () => {
+        try {
+          await saveAllWindowsTabs();
+          sendResponse({ status: 'success' });
+        } catch (error: any) {
+          sendResponse({ status: 'error', message: error.message || error });
+        }
+      })();
+      return true;
     }
   });
 
-  async function saveTabs() {
-    // Query all tabs in the current window
+  async function saveCurrentWindowTabs() {
     const tabs = await chrome.tabs.query({ currentWindow: true });
+    await processTabsForWindow(tabs);
+  }
+
+  async function saveAllWindowsTabs() {
+    const tabs = await chrome.tabs.query({});
     
-    // Filter out the TwoTab popup and pinned tabs
+    // Group tabs by windowId
+    const tabsByWindow: Record<number, chrome.tabs.Tab[]> = {};
+    tabs.forEach(tab => {
+      if (tab.windowId !== undefined) {
+        if (!tabsByWindow[tab.windowId]) tabsByWindow[tab.windowId] = [];
+        tabsByWindow[tab.windowId].push(tab);
+      }
+    });
+
+    for (const windowId of Object.keys(tabsByWindow)) {
+      await processTabsForWindow(tabsByWindow[Number(windowId)]);
+    }
+  }
+
+  async function processTabsForWindow(tabs: chrome.tabs.Tab[]) {
     const tabData = tabs
       .filter(tab => tab.url && !tab.url.startsWith('chrome-extension://') && !tab.pinned)
-      .map(tab => ({ title: tab.title, url: tab.url }));
+      .map(tab => ({ title: tab.title || tab.url || '', url: tab.url || '' }));
 
     if (tabData.length === 0) return;
 
-    // Get the window ID from the first tab (all tabs in query share the same window)
     const windowId = tabs[0].windowId;
-
-    // Get existing saved groups from storage
     const data = await chrome.storage.local.get('tabGroups');
     const tabGroups = data.tabGroups || [];
+    
     const newGroup = {
-      id: Date.now(),
+      id: Date.now() + Math.floor(Math.random() * 1000),
       date: new Date().toISOString(),
+      name: `Window Group`,
       tabs: tabData
     };
     tabGroups.push(newGroup);
     
-    // Save to local storage
     await chrome.storage.local.set({ tabGroups });
     
-    // Open a new blank tab in the current window first
+    // Open a new blank tab in the window first
     await chrome.tabs.create({ url: 'chrome://newtab', windowId });
     
-    // Close only non-pinned tabs
+    // Close non-pinned tabs
     const tabIds = tabs
       .filter(tab => !tab.pinned)
       .map(tab => tab.id)
-      .filter(id => id !== chrome.tabs.TAB_ID_NONE);
+      .filter(id => id !== undefined && id !== chrome.tabs.TAB_ID_NONE);
+    
     await chrome.tabs.remove(tabIds as number[]);
   }
 });

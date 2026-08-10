@@ -3,14 +3,37 @@ import { getGroups, deleteGroup, deleteTabFromGroup, getRelativeTime, type TabGr
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Save, List, Search, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Save, List, Search, Trash2, Layers, ChevronDown } from 'lucide-react';
+
+interface DeleteConfirmState {
+  type: 'group' | 'tab';
+  id?: number;
+  groupId?: number;
+  url?: string;
+  title?: string;
+}
 
 export default function App() {
   const [groups, setGroups] = useState<TabGroup[]>([]);
   const [search, setSearch] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
 
   const loadGroups = async () => {
     const data = await getGroups();
@@ -21,7 +44,7 @@ export default function App() {
     loadGroups();
   }, []);
 
-  const handleSaveTabs = async () => {
+  const handleSaveCurrentWindow = async () => {
     setIsSaving(true);
     try {
       await new Promise((resolve, reject) => {
@@ -31,7 +54,29 @@ export default function App() {
           } else if (response && response.status === 'success') {
             resolve(true);
           } else {
-            reject(new Error('Failed to save tabs'));
+            reject(new Error('Failed to save window tabs'));
+          }
+        });
+      });
+      loadGroups();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveAllWindows = async () => {
+    setIsSaving(true);
+    try {
+      await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ action: 'saveAllWindows' }, (response) => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else if (response && response.status === 'success') {
+            resolve(true);
+          } else {
+            reject(new Error('Failed to save all windows'));
           }
         });
       });
@@ -47,18 +92,21 @@ export default function App() {
     chrome.tabs.create({ url: chrome.runtime.getURL('tabs.html') });
   };
 
-  const handleDeleteGroup = async (id: number) => {
-    await deleteGroup(id);
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
+
+    if (deleteConfirm.type === 'group' && deleteConfirm.id) {
+      await deleteGroup(deleteConfirm.id);
+    } else if (deleteConfirm.type === 'tab' && deleteConfirm.groupId && deleteConfirm.url) {
+      await deleteTabFromGroup(deleteConfirm.groupId, deleteConfirm.url);
+    }
+
+    setDeleteConfirm(null);
     loadGroups();
   };
 
   const handleRestoreGroup = (group: TabGroup) => {
     group.tabs.forEach(tab => chrome.tabs.create({ url: tab.url, active: false }));
-  };
-
-  const handleDeleteTab = async (groupId: number, url: string) => {
-    await deleteTabFromGroup(groupId, url);
-    loadGroups();
   };
 
   const filteredGroups = groups.map(g => {
@@ -68,26 +116,71 @@ export default function App() {
   }).filter(Boolean) as TabGroup[];
 
   return (
-    <div className="relative p-5 min-h-[500px] w-[400px] bg-background overflow-hidden font-sans text-foreground">
+    <div className="relative p-5 min-h-[520px] w-[400px] bg-background overflow-hidden font-sans text-foreground">
       {/* Decorative ambient background glow */}
       <div className="absolute top-[-50px] right-[-50px] w-32 h-32 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-[-50px] left-[-50px] w-32 h-32 bg-accent/20 rounded-full blur-3xl pointer-events-none" />
 
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent className="border-border bg-card max-w-[340px] p-5">
+          <DialogHeader>
+            <DialogTitle className="text-base text-foreground flex items-center gap-2">
+              <Trash2 className="w-4 h-4 text-destructive" />
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground pt-1.5">
+              {deleteConfirm?.type === 'group' && (
+                <>Are you sure you want to delete <strong className="text-foreground">"{deleteConfirm.title}"</strong>?</>
+              )}
+              {deleteConfirm?.type === 'tab' && (
+                <>Are you sure you want to remove <strong className="text-foreground">"{deleteConfirm.title}"</strong>?</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-row justify-end gap-2 pt-3">
+            <Button size="sm" variant="outline" onClick={() => setDeleteConfirm(null)} className="h-8 text-xs">
+              Cancel
+            </Button>
+            <Button size="sm" variant="destructive" onClick={handleConfirmDelete} className="h-8 text-xs font-bold shadow-md shadow-destructive/20">
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="relative z-10 animate-fade-in-up">
-        <h2 className="text-2xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent mb-6 tracking-tight">TwoTab</h2>
+        <h2 className="text-2xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent mb-5 tracking-tight">TwoTab</h2>
         
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <Button onClick={handleSaveTabs} disabled={isSaving} variant="default" className="w-full font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
-            <Save className="w-4 h-4 mr-2" />
-            {isSaving ? 'Saving...' : 'Save Tabs'}
-          </Button>
-          <Button onClick={handleViewAll} variant="outline" className="w-full border-border bg-card hover:bg-muted text-foreground shadow-md font-medium transition-all">
-            <List className="w-4 h-4 mr-2 text-primary" />
-            View All
-          </Button>
+        {/* Split Button: Save Window + dropdown for Save All Windows */}
+        <div className="flex gap-2.5 mb-3">
+          <div className="flex flex-1">
+            <Button onClick={handleSaveCurrentWindow} disabled={isSaving} variant="default" group="splitLeft" className="flex-1 font-bold shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] transition-all text-xs">
+              <Save className="w-3.5 h-3.5 mr-1.5" />
+              {isSaving ? 'Saving...' : 'Save Window'}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="default" group="splitRight" disabled={isSaving} className="shadow-lg shadow-primary/20 px-2">
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleSaveAllWindows} className="cursor-pointer text-xs">
+                  <Layers className="w-3.5 h-3.5 mr-2" />
+                  Save All Windows
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
-        <div className="relative mb-5 group">
+        <Button onClick={handleViewAll} variant="ghost" className="w-full mb-4 text-xs text-muted-foreground hover:text-foreground">
+          <List className="w-3.5 h-3.5 mr-1.5 text-primary" />
+          Open Full Dashboard
+        </Button>
+
+        <div className="relative mb-4 group">
           <Search className="absolute left-3.5 top-3 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
           <Input
             placeholder="Search saved tabs..."
@@ -97,7 +190,7 @@ export default function App() {
           />
         </div>
 
-        <ScrollArea className="h-80 pr-3 -mr-3">
+        <ScrollArea className="h-72 pr-3 -mr-3">
           <div className="space-y-4">
             {filteredGroups.length === 0 && (
               <div className="text-center text-muted-foreground py-12 flex flex-col items-center">
@@ -106,8 +199,8 @@ export default function App() {
               </div>
             )}
             {filteredGroups.slice(0, 10).map((group, idx) => (
-              <Card key={group.id} className="border-border hover:border-muted-foreground/40 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 animate-fade-in-up bg-card" style={{ animationDelay: `${idx * 40}ms`, animationFillMode: 'both' }}>
-                <CardHeader className="p-4 pb-2 border-b border-border bg-muted/20">
+              <Card key={group.id} className="flex flex-col overflow-hidden rounded-xl border-border hover:border-muted-foreground/40 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 animate-fade-in-up bg-card" style={{ animationDelay: `${idx * 40}ms`, animationFillMode: 'both' }}>
+                <CardHeader className="p-4 pb-2 border-b border-border bg-muted/20 shrink-0">
                   <CardTitle className="text-sm font-semibold flex justify-between items-center">
                     <span className="truncate text-foreground">{group.name || 'Saved Group'}</span>
                     <Badge variant="indigo">
@@ -115,43 +208,43 @@ export default function App() {
                     </Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-4 pt-3">
-                  <ul className="space-y-2 mb-4">
+                <CardContent className="p-4 overflow-y-auto max-h-48 custom-scrollbar flex-1">
+                  <ul className="space-y-2">
                     {group.tabs.map((tab, i) => (
-                      <li key={i} className="flex justify-between items-center group/tab p-1.5 -mx-1.5 rounded-md hover:bg-muted/50 transition-colors">
-                        <a href={tab.url} className="text-[13px] text-muted-foreground hover:text-primary truncate max-w-[260px] font-medium transition-colors" target="_blank" rel="noreferrer">
+                      <li key={i} className="flex justify-between items-center group/tab p-1.5 rounded-md hover:bg-muted/50 transition-colors">
+                        <a href={tab.url} className="text-[13px] text-muted-foreground hover:text-primary truncate max-w-[240px] font-medium transition-colors" target="_blank" rel="noreferrer">
                           {tab.title || tab.url}
                         </a>
                         <Button 
                           variant="ghost" 
                           size="icon" 
                           className="h-6 w-6 opacity-0 group-hover/tab:opacity-100 transition-all text-destructive hover:bg-destructive/20 hover:text-destructive active:scale-95" 
-                          onClick={() => handleDeleteTab(group.id, tab.url)}
+                          onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </li>
                     ))}
                   </ul>
-                  <div className="flex gap-2 justify-end pt-3 border-t border-border">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 text-xs font-semibold text-destructive hover:bg-destructive/20 hover:text-destructive active:scale-95 transition-all" 
-                      onClick={() => handleDeleteGroup(group.id)}
-                    >
-                      Delete
-                    </Button>
-                    <Button 
-                      variant="secondary" 
-                      size="sm" 
-                      className="h-8 text-xs bg-primary/20 text-primary-foreground hover:bg-primary/30 border border-primary/40 font-semibold transition-colors shadow-sm" 
-                      onClick={() => handleRestoreGroup(group)}
-                    >
-                      Restore
-                    </Button>
-                  </div>
                 </CardContent>
+                <CardFooter className="p-3 border-t border-border bg-muted/10 shrink-0 flex justify-end gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 text-xs font-semibold text-destructive hover:bg-destructive/20 hover:text-destructive active:scale-95 transition-all" 
+                    onClick={() => setDeleteConfirm({ type: 'group', id: group.id, title: group.name || 'Saved Group' })}
+                  >
+                    Delete
+                  </Button>
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    className="h-8 text-xs bg-primary/20 text-primary-foreground hover:bg-primary/30 border border-primary/40 font-semibold transition-colors shadow-sm" 
+                    onClick={() => handleRestoreGroup(group)}
+                  >
+                    Restore
+                  </Button>
+                </CardFooter>
               </Card>
             ))}
           </div>
