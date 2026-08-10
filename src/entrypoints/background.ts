@@ -1,33 +1,74 @@
 export default defineBackground(() => {
-  // In-memory tab cache to track active tab info prior to closure
-  const tabCache = new Map<number, { title: string; url: string }>();
+  const getStorageSession = () => chrome.storage.session || chrome.storage.local;
 
-  // Track active tab URL and title updates
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  // Populate open tab metadata into session storage on background service worker startup
+  const initializeTabCache = async () => {
+    try {
+      const tabs = await chrome.tabs.query({});
+      const cacheUpdate: Record<string, { title: string; url: string }> = {};
+      tabs.forEach(tab => {
+        if (tab.id !== undefined && tab.url && tab.title) {
+          cacheUpdate[`tab_${tab.id}`] = { title: tab.title, url: tab.url };
+        }
+      });
+      if (Object.keys(cacheUpdate).length > 0) {
+        await getStorageSession().set(cacheUpdate);
+      }
+    } catch (e) {
+      console.error('Error initializing tab cache in session storage:', e);
+    }
+  };
+
+  initializeTabCache();
+
+  // Track tab updates and persist metadata to storage.session
+  chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (tab.url && tab.title) {
-      tabCache.set(tabId, { title: tab.title, url: tab.url });
+      try {
+        await getStorageSession().set({
+          [`tab_${tabId}`]: { title: tab.title, url: tab.url }
+        });
+      } catch (e) {
+        console.error('Error updating tab cache in session storage:', e);
+      }
     }
   });
 
-  // Track closed tabs in real-time
-  chrome.tabs.onRemoved.addListener(async (tabId) => {
-    const cached = tabCache.get(tabId);
-    tabCache.delete(tabId);
-
-    if (!cached || !cached.url) return;
-
-    const lower = cached.url.toLowerCase();
-    if (
-      lower.startsWith('chrome-extension://') ||
-      lower.startsWith('chrome://') ||
-      lower.startsWith('about:') ||
-      lower.startsWith('edge:') ||
-      lower.startsWith('data:')
-    ) {
-      return;
+  // Track tab creation
+  chrome.tabs.onCreated.addListener(async (tab) => {
+    if (tab.id !== undefined && tab.url && tab.title) {
+      try {
+        await getStorageSession().set({
+          [`tab_${tab.id}`]: { title: tab.title, url: tab.url }
+        });
+      } catch (e) {
+        console.error('Error caching created tab in session storage:', e);
+      }
     }
+  });
 
+  // Handle tab closure reliably after service worker wakes up
+  chrome.tabs.onRemoved.addListener(async (tabId) => {
+    const key = `tab_${tabId}`;
     try {
+      const sessionData = await getStorageSession().get(key);
+      const cached = sessionData[key];
+      await getStorageSession().remove(key);
+
+      if (!cached || !cached.url) return;
+
+      const lower = cached.url.toLowerCase();
+      // Audit Protocol Filter Safeguard: Exclude internal system pages ONLY
+      if (
+        lower.startsWith('chrome-extension://') ||
+        lower.startsWith('chrome://') ||
+        lower.startsWith('about:') ||
+        lower.startsWith('edge:') ||
+        lower.startsWith('data:')
+      ) {
+        return;
+      }
+
       const data = await chrome.storage.local.get('recentlyClosed');
       const recentlyClosed = data.recentlyClosed || [];
       
@@ -42,7 +83,7 @@ export default defineBackground(() => {
       const updated = [newItem, ...recentlyClosed].slice(0, 50);
       await chrome.storage.local.set({ recentlyClosed: updated });
     } catch (e) {
-      console.error('Error saving recently closed tab:', e);
+      console.error('Error saving recently closed tab on tab removal:', e);
     }
   });
 
