@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getGroups, deleteGroup, deleteTabFromGroup, getRelativeTime, type TabGroup, getSafeDomain } from '@/lib/storage';
+import { getGroups, deleteGroup, deleteTabFromGroup, getRelativeTime, type TabGroup, getSafeDomain, formatDisplayUrl } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -238,7 +238,7 @@ export default function App() {
                               <Globe className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                             )}
                             <a href={tab.url} className="text-[13px] text-muted-foreground hover:text-primary truncate font-medium transition-colors" target="_blank" rel="noreferrer">
-                              {tab.title || tab.url}
+                              {tab.title || formatDisplayUrl(tab.url)}
                             </a>
                           </div>
                           <Button 

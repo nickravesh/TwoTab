@@ -174,13 +174,33 @@ export async function clearAllData(): Promise<void> {
   await chrome.storage.local.clear();
 }
 
-export function getRelativeTime(dateString: string): string {
-  if (!dateString) return 'N/A';
-  const date = new Date(dateString);
+export function formatDisplayUrl(url: string): string {
+  try {
+    if (!url) return '';
+    return decodeURIComponent(url);
+  } catch (e) {
+    return url;
+  }
+}
+
+export function getRelativeTime(input: string | number): string {
+  if (!input) return 'N/A';
+  let date: Date;
+  if (typeof input === 'number') {
+    date = new Date(input < 1e11 ? input * 1000 : input);
+  } else {
+    const num = Number(input);
+    if (!isNaN(num) && input.trim() !== '') {
+      date = new Date(num < 1e11 ? num * 1000 : num);
+    } else {
+      date = new Date(input);
+    }
+  }
+  
   const now = new Date();
   const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
   
-  if (diffSec < 60) return 'just now';
+  if (isNaN(diffSec) || diffSec < 0 || diffSec < 60) return 'just now';
   const diffMin = Math.floor(diffSec / 60);
   if (diffMin < 60) return `${diffMin}m ago`;
   const diffHr = Math.floor(diffMin / 60);

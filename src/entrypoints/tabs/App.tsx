@@ -17,6 +17,7 @@ import {
   getRecentlyClosedItems,
   removeRecentlyClosedItem,
   clearRecentlyClosedItems,
+  formatDisplayUrl,
   type ClosedTabItem
 } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
@@ -122,11 +123,12 @@ export default function App() {
             .map((s, idx) => {
               const title = s.tab?.title || (s.window?.tabs ? `Window (${s.window.tabs.length} tabs)` : 'Closed Item');
               const url = s.tab?.url || (s.window?.tabs?.[0]?.url || '');
+              const timestampMs = s.lastModified ? s.lastModified * 1000 : Date.now();
               return {
                 id: `session_${idx}_${Date.now()}`,
                 title,
                 url,
-                timestamp: new Date().toISOString(),
+                timestamp: new Date(timestampMs).toISOString(),
               };
             })
             .filter(item => item.url && getSafeDomain(item.url));
@@ -347,6 +349,17 @@ export default function App() {
     { id: 'help', label: 'Help', icon: HelpCircle },
   ] as const;
 
+  const getHeaderTitle = () => {
+    switch (activeTab) {
+      case 'dashboard': return 'Dashboard';
+      case 'archive': return 'Archive';
+      case 'closed': return 'Recently Closed';
+      case 'settings': return 'Settings';
+      case 'help': return 'Help & Guide';
+      default: return activeTab;
+    }
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-background font-sans relative text-foreground">
       {/* Toast Notification */}
@@ -450,7 +463,7 @@ export default function App() {
         {/* Header */}
         <header className="h-20 border-b border-border/40 flex items-center justify-between px-10 bg-card/75 backdrop-blur-xl sticky top-0 z-20 shadow-[0_4px_20px_rgba(0,0,0,0.25)]">
           <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground capitalize">{activeTab}</h2>
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">{getHeaderTitle()}</h2>
             {activeTab === 'dashboard' && groups.length > 0 && (
               <Button 
                 variant="outline" 
@@ -716,9 +729,9 @@ export default function App() {
                         </div>
                         <div className="truncate flex-1 min-w-0">
                           <a href={item.url} target="_blank" rel="noreferrer" className="font-semibold text-foreground truncate block hover:text-primary transition-colors text-sm">
-                            {item.title || item.url}
+                            {item.title || formatDisplayUrl(item.url)}
                           </a>
-                          <span className="text-xs text-muted-foreground truncate block">{item.url}</span>
+                          <span className="text-xs text-muted-foreground truncate block">{formatDisplayUrl(item.url)}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
