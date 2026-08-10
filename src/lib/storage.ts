@@ -1,4 +1,3 @@
-// Types
 export interface Tab {
   title: string;
   url: string;
@@ -9,6 +8,32 @@ export interface TabGroup {
   date: string;
   name?: string;
   tabs: Tab[];
+}
+
+export interface ClosedTabItem {
+  id: string;
+  title: string;
+  url: string;
+  timestamp: string;
+}
+
+export async function getRecentlyClosedItems(): Promise<ClosedTabItem[]> {
+  const data = await chrome.storage.local.get('recentlyClosed');
+  return data.recentlyClosed || [];
+}
+
+export async function saveRecentlyClosedItems(items: ClosedTabItem[]): Promise<void> {
+  await chrome.storage.local.set({ recentlyClosed: items.slice(0, 50) });
+}
+
+export async function removeRecentlyClosedItem(id: string): Promise<void> {
+  const items = await getRecentlyClosedItems();
+  const updated = items.filter(item => item.id !== id);
+  await saveRecentlyClosedItems(updated);
+}
+
+export async function clearRecentlyClosedItems(): Promise<void> {
+  await chrome.storage.local.remove('recentlyClosed');
 }
 
 export async function getGroups(): Promise<TabGroup[]> {

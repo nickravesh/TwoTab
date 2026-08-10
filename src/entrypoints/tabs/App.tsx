@@ -13,7 +13,11 @@ import {
   exportData, 
   importData, 
   clearAllData,
-  getSafeDomain
+  getSafeDomain,
+  getRecentlyClosedItems,
+  removeRecentlyClosedItem,
+  clearRecentlyClosedItems,
+  type ClosedTabItem
 } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,7 +91,7 @@ interface DeleteConfirmState {
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'archive' | 'closed' | 'settings' | 'help'>('dashboard');
   const [groups, setGroups] = useState<TabGroup[]>([]);
-  const [recentlyClosed, setRecentlyClosed] = useState<chrome.sessions.Session[]>([]);
+  const [recentlyClosed, setRecentlyClosed] = useState<ClosedTabItem[]>([]);
   const [search, setSearch] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
@@ -109,16 +113,43 @@ export default function App() {
       const data = await getArchivedGroups();
       setGroups(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     } else if (activeTab === 'closed') {
-      if (chrome?.sessions?.getRecentlyClosed) {
-        chrome.sessions.getRecentlyClosed({ maxResults: 15 }, (sessions) => {
-          setRecentlyClosed(sessions || []);
+      const items = await getRecentlyClosedItems();
+      if (items.length > 0) {
+        setRecentlyClosed(items);
+      } else if (chrome?.sessions?.getRecentlyClosed) {
+        chrome.sessions.getRecentlyClosed({ maxResults: 25 }, (sessions) => {
+          const mapped: ClosedTabItem[] = (sessions || [])
+            .map((s, idx) => {
+              const title = s.tab?.title || (s.window?.tabs ? `Window (${s.window.tabs.length} tabs)` : 'Closed Item');
+              const url = s.tab?.url || (s.window?.tabs?.[0]?.url || '');
+              return {
+                id: `session_${idx}_${Date.now()}`,
+                title,
+                url,
+                timestamp: new Date().toISOString(),
+              };
+            })
+            .filter(item => item.url && getSafeDomain(item.url));
+          setRecentlyClosed(mapped);
         });
+      } else {
+        setRecentlyClosed([]);
       }
     }
   };
 
   useEffect(() => {
     loadData();
+  }, [activeTab]);
+
+  useEffect(() => {
+    const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => {
+      if (areaName === 'local' && changes.recentlyClosed && activeTab === 'closed') {
+        loadData();
+      }
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
   }, [activeTab]);
 
   const handleSaveCurrentWindow = async () => {
@@ -237,6 +268,26 @@ export default function App() {
     }
     setEditingGroupId(null);
     loadData();
+  };
+
+  const handleRemoveClosedItem = async (id: string) => {
+    await removeRecentlyClosedItem(id);
+    showMessage('Removed item');
+    loadData();
+  };
+
+  const handleClearClosedItems = async () => {
+    await clearRecentlyClosedItems();
+    setRecentlyClosed([]);
+    showMessage('Cleared recently closed history');
+  };
+
+  const handleReopenClosedItem = (item: ClosedTabItem) => {
+    if (getSafeDomain(item.url)) {
+      chrome.tabs.create({ url: item.url, active: true });
+      removeRecentlyClosedItem(item.id);
+      loadData();
+    }
   };
 
   const handleRestoreSession = (session: chrome.sessions.Session) => {
@@ -622,28 +673,63 @@ export default function App() {
           {/* Recently Closed View */}
           {activeTab === 'closed' && (
             <div className="max-w-4xl mx-auto space-y-4 animate-fade-in-up">
+              {recentlyClosed.length > 0 && (
+                <div className="flex justify-between items-center px-1 mb-2">
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    {recentlyClosed.length} {recentlyClosed.length === 1 ? 'Closed Tab' : 'Closed Tabs'}
+                  </span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleClearClosedItems} 
+                    className="text-xs border-border hover:bg-destructive/10 hover:text-destructive transition-colors shadow-sm font-semibold"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Clear History
+                  </Button>
+                </div>
+              )}
               {recentlyClosed.length === 0 ? (
                 <Card className="p-16 border-border max-w-md mx-auto text-center flex flex-col items-center shadow-2xl bg-card/75 backdrop-blur-xl">
                   <History className="w-12 h-12 mb-4 text-primary opacity-80" />
-                  <h3 className="text-xl font-bold text-foreground mb-2">No Recently Closed Sessions</h3>
+                  <h3 className="text-xl font-bold text-foreground mb-2">No Recently Closed Tabs</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Tabs and windows you close in your browser will appear here so you can restore them anytime.
+                    Tabs and browser windows you close will automatically appear here so you can reopen them anytime.
                   </p>
                 </Card>
               ) : (
-                recentlyClosed.map((session, idx) => {
-                  const title = session.tab?.title || (session.window?.tabs ? `Window (${session.window.tabs.length} tabs)` : 'Closed Item');
-                  const url = session.tab?.url;
+                recentlyClosed.map((item) => {
+                  const domain = getSafeDomain(item.url);
                   return (
-                    <Card key={idx} className="p-4 rounded-xl flex items-center justify-between hover:bg-muted/50 transition-colors border-border bg-card shadow-md">
-                      <div className="flex items-center gap-3 truncate">
-                        <History className="w-5 h-5 text-primary shrink-0" />
-                        <span className="font-semibold text-foreground truncate">{title}</span>
-                        {url && <span className="text-xs text-muted-foreground truncate max-w-sm">{url}</span>}
+                    <Card key={item.id} className="p-4 rounded-xl flex items-center justify-between hover:bg-muted/50 transition-colors border-border bg-card shadow-md group">
+                      <div className="flex items-center gap-3 truncate min-w-0 flex-1 mr-4">
+                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 border border-border">
+                          {domain ? (
+                            <img 
+                              src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
+                              alt="" 
+                              className="w-4 h-4 opacity-90" 
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          ) : (
+                            <Globe className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="truncate flex-1 min-w-0">
+                          <a href={item.url} target="_blank" rel="noreferrer" className="font-semibold text-foreground truncate block hover:text-primary transition-colors text-sm">
+                            {item.title || item.url}
+                          </a>
+                          <span className="text-xs text-muted-foreground truncate block">{item.url}</span>
+                        </div>
                       </div>
-                      <Button size="sm" variant="secondary" onClick={() => handleRestoreSession(session)} className="bg-primary/20 text-primary-foreground hover:bg-primary/30 border border-primary/40 shrink-0 font-semibold">
-                        Restore
-                      </Button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs text-muted-foreground font-medium hidden sm:inline mr-2">{getRelativeTime(item.timestamp)}</span>
+                        <Button size="sm" variant="secondary" onClick={() => handleReopenClosedItem(item)} className="bg-primary/20 text-primary-foreground hover:bg-primary/30 border border-primary/40 font-semibold text-xs shadow-sm">
+                          Reopen Tab
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => handleRemoveClosedItem(item.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/20 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </Card>
                   );
                 })
