@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -314,8 +315,8 @@ export default function App() {
       <div className="absolute bottom-0 left-64 w-[500px] h-[500px] bg-accent/10 rounded-full blur-[120px] pointer-events-none" />
 
       {/* Sidebar */}
-      <div className="w-64 border-r border-border bg-card/60 backdrop-blur-3xl p-6 flex flex-col z-10 shadow-2xl">
-        <h1 className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent mb-10 tracking-tight">TwoTab</h1>
+      <div className="w-64 border-r border-border/40 bg-card/75 backdrop-blur-2xl p-6 flex flex-col z-20 shadow-[4px_0_24px_rgba(0,0,0,0.35)]">
+        <h1 className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-400 to-accent mb-10 tracking-tight">TwoTab</h1>
         
         <nav className="space-y-1.5 flex-1">
           {navItems.map((item) => {
@@ -337,7 +338,9 @@ export default function App() {
             );
           })}
 
-          <div className="pt-6 pb-2">
+          <Separator className="my-5 bg-border/40" />
+
+          <div className="pb-2">
             <p className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wider px-4">PREFERENCES</p>
           </div>
 
@@ -365,7 +368,7 @@ export default function App() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col z-10 relative">
         {/* Header */}
-        <header className="h-20 border-b border-border flex items-center justify-between px-10 bg-card/40 backdrop-blur-xl sticky top-0 z-20">
+        <header className="h-20 border-b border-border/40 flex items-center justify-between px-10 bg-card/75 backdrop-blur-xl sticky top-0 z-20 shadow-[0_4px_20px_rgba(0,0,0,0.25)]">
           <div className="flex items-center gap-4">
             <h2 className="text-2xl font-bold tracking-tight text-foreground capitalize">{activeTab}</h2>
             {activeTab === 'dashboard' && groups.length > 0 && (
@@ -466,7 +469,7 @@ export default function App() {
                 </div>
               ) : (
                 filteredGroups.map((group, idx) => (
-                  <Card key={group.id} className="flex flex-col overflow-hidden rounded-xl border-border hover:border-muted-foreground/40 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 animate-fade-in-up bg-card" style={{ animationDelay: `${idx * 40}ms`, animationFillMode: 'both' }}>
+                  <Card key={group.id} className="flex flex-col h-[360px] overflow-hidden rounded-xl border-border hover:border-muted-foreground/40 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 animate-fade-in-up bg-card" style={{ animationDelay: `${idx * 40}ms`, animationFillMode: 'both' }}>
                     <CardHeader className="pb-3 border-b border-border bg-muted/20 shrink-0">
                       <CardTitle className="text-base flex justify-between items-center mb-1">
                         {editingGroupId === group.id ? (
@@ -492,13 +495,13 @@ export default function App() {
                           </div>
                         )}
                         <Badge variant="indigo">
-                          {group.tabs.length} tabs
+                          {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'}
                         </Badge>
                       </CardTitle>
                       <div className="text-xs text-muted-foreground font-medium">{getRelativeTime(group.date)}</div>
                     </CardHeader>
 
-                    <CardContent className="p-4 overflow-y-auto max-h-64 custom-scrollbar space-y-2 flex-1">
+                    <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-4 space-y-2">
                       {group.tabs.map((tab, i) => (
                         <div key={i} className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group/link p-1.5 rounded-lg hover:bg-muted/50">
                           <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 border border-border group-hover/link:border-muted-foreground/30 transition-colors">
@@ -527,7 +530,7 @@ export default function App() {
                       ))}
                     </CardContent>
 
-                    <CardFooter className="p-3 border-t border-border bg-muted/10 shrink-0 flex justify-end gap-2">
+                    <CardFooter className="p-3 border-t border-border bg-card shrink-0 flex justify-end gap-2 relative z-10">
                       <Button 
                         variant="ghost" 
                         size="sm" 

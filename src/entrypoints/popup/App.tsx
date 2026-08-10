@@ -199,16 +199,16 @@ export default function App() {
               </div>
             )}
             {filteredGroups.slice(0, 10).map((group, idx) => (
-              <Card key={group.id} className="flex flex-col overflow-hidden rounded-xl border-border hover:border-muted-foreground/40 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 animate-fade-in-up bg-card" style={{ animationDelay: `${idx * 40}ms`, animationFillMode: 'both' }}>
+              <Card key={group.id} className="flex flex-col h-[300px] overflow-hidden rounded-xl border-border hover:border-muted-foreground/40 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 animate-fade-in-up bg-card" style={{ animationDelay: `${idx * 40}ms`, animationFillMode: 'both' }}>
                 <CardHeader className="p-4 pb-2 border-b border-border bg-muted/20 shrink-0">
                   <CardTitle className="text-sm font-semibold flex justify-between items-center">
                     <span className="truncate text-foreground">{group.name || 'Saved Group'}</span>
                     <Badge variant="indigo">
-                      {group.tabs.length} tabs • {getRelativeTime(group.date)}
+                      {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} • {getRelativeTime(group.date)}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-4 overflow-y-auto max-h-48 custom-scrollbar flex-1">
+                <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-4 space-y-2">
                   <ul className="space-y-2">
                     {group.tabs.map((tab, i) => (
                       <li key={i} className="flex justify-between items-center group/tab p-1.5 rounded-md hover:bg-muted/50 transition-colors">
@@ -227,7 +227,7 @@ export default function App() {
                     ))}
                   </ul>
                 </CardContent>
-                <CardFooter className="p-3 border-t border-border bg-muted/10 shrink-0 flex justify-end gap-2">
+                <CardFooter className="p-3 border-t border-border bg-card shrink-0 flex justify-end gap-2 relative z-10">
                   <Button 
                     variant="ghost" 
                     size="sm" 
