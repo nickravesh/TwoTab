@@ -49,7 +49,17 @@ export default defineBackground(() => {
 
   async function processTabsForWindow(tabs: chrome.tabs.Tab[]) {
     const tabData = tabs
-      .filter(tab => tab.url && !tab.url.startsWith('chrome-extension://') && !tab.pinned)
+      .filter(tab => {
+        if (!tab.url || tab.pinned) return false;
+        const lower = tab.url.toLowerCase();
+        return !(
+          lower.startsWith('chrome-extension://') ||
+          lower.startsWith('chrome://') ||
+          lower.startsWith('about:') ||
+          lower.startsWith('edge:') ||
+          lower.startsWith('data:')
+        );
+      })
       .map(tab => ({ title: tab.title || tab.url || '', url: tab.url || '' }));
 
     if (tabData.length === 0) return;

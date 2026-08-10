@@ -91,6 +91,26 @@ export async function renameGroup(id: number, newName: string): Promise<void> {
   await saveGroups(updated);
 }
 
+export function getSafeDomain(url: string): string | null {
+  try {
+    if (!url) return null;
+    const lower = url.toLowerCase();
+    if (
+      lower.startsWith('chrome://') ||
+      lower.startsWith('chrome-extension://') ||
+      lower.startsWith('about:') ||
+      lower.startsWith('data:') ||
+      lower.startsWith('edge://')
+    ) {
+      return null;
+    }
+    const parsed = new URL(url);
+    return parsed.hostname || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 export async function exportData(): Promise<string> {
   const data = await chrome.storage.local.get(null);
   return JSON.stringify(data, null, 2);
@@ -99,8 +119,24 @@ export async function exportData(): Promise<string> {
 export async function importData(jsonString: string): Promise<boolean> {
   try {
     const parsed = JSON.parse(jsonString);
-    if (parsed.tabGroups || parsed.archivedGroups) {
-      await chrome.storage.local.set(parsed);
+    if (!parsed || typeof parsed !== 'object') return false;
+
+    const isValidGroup = (g: any) => (
+      typeof g === 'object' &&
+      g !== null &&
+      typeof g.id === 'number' &&
+      Array.isArray(g.tabs) &&
+      g.tabs.every((t: any) => typeof t === 'object' && t !== null && typeof t.url === 'string')
+    );
+
+    const hasValidTabGroups = Array.isArray(parsed.tabGroups) && parsed.tabGroups.every(isValidGroup);
+    const hasValidArchived = !parsed.archivedGroups || (Array.isArray(parsed.archivedGroups) && parsed.archivedGroups.every(isValidGroup));
+
+    if (hasValidTabGroups && hasValidArchived) {
+      await chrome.storage.local.set({
+        tabGroups: parsed.tabGroups,
+        archivedGroups: parsed.archivedGroups || [],
+      });
       return true;
     }
     return false;

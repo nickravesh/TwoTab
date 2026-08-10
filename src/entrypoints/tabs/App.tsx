@@ -12,7 +12,8 @@ import {
   renameGroup, 
   exportData, 
   importData, 
-  clearAllData 
+  clearAllData,
+  getSafeDomain
 } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +35,23 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { 
   Search, 
   Trash2, 
@@ -52,7 +70,10 @@ import {
   Sparkles,
   Info,
   Layers,
-  ChevronDown
+  ChevronDown,
+  BookOpen,
+  ShieldAlert,
+  Globe
 } from 'lucide-react';
 
 interface DeleteConfirmState {
@@ -181,16 +202,24 @@ export default function App() {
   };
 
   const handleRestoreGroup = (group: TabGroup) => {
-    group.tabs.forEach(tab => chrome.tabs.create({ url: tab.url, active: false }));
-    showMessage(`Restored ${group.tabs.length} tabs`);
+    let count = 0;
+    group.tabs.forEach(tab => {
+      if (getSafeDomain(tab.url)) {
+        chrome.tabs.create({ url: tab.url, active: false });
+        count++;
+      }
+    });
+    showMessage(`Restored ${count} tabs`);
   };
 
   const handleRestoreAllGroups = () => {
     let count = 0;
     groups.forEach(group => {
       group.tabs.forEach(tab => {
-        chrome.tabs.create({ url: tab.url, active: false });
-        count++;
+        if (getSafeDomain(tab.url)) {
+          chrome.tabs.create({ url: tab.url, active: false });
+          count++;
+        }
       });
     });
     showMessage(`Restoring ${count} tabs across ${groups.length} groups`);
@@ -211,11 +240,11 @@ export default function App() {
   };
 
   const handleRestoreSession = (session: chrome.sessions.Session) => {
-    if (session.tab && session.tab.url) {
+    if (session.tab && session.tab.url && getSafeDomain(session.tab.url)) {
       chrome.tabs.create({ url: session.tab.url });
     } else if (session.window && session.window.tabs) {
       session.window.tabs.forEach(tab => {
-        if (tab.url) chrome.tabs.create({ url: tab.url, active: false });
+        if (tab.url && getSafeDomain(tab.url)) chrome.tabs.create({ url: tab.url, active: false });
       });
     }
     showMessage('Session restored');
@@ -389,10 +418,21 @@ export default function App() {
                 <Search className="absolute left-3.5 top-3 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                 <Input 
                   placeholder="Search saved tabs..." 
-                  className="pl-10 bg-muted/60 border-input text-foreground placeholder:text-muted-foreground focus-visible:ring-primary h-10 shadow-inner" 
+                  className="pl-10 pr-9 bg-muted/60 border-input text-foreground placeholder:text-muted-foreground focus-visible:ring-primary h-10 shadow-inner" 
                   value={search} 
                   onChange={e => setSearch(e.target.value)} 
+                  onKeyDown={e => e.key === 'Escape' && setSearch('')}
                 />
+                {search && (
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="absolute right-2 top-2 h-6 w-6 text-muted-foreground hover:text-foreground" 
+                    onClick={() => setSearch('')}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                )}
               </div>
             )}
             {/* Split Button: Save Current Window + Save All Windows */}
@@ -489,12 +529,12 @@ export default function App() {
                             </Button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2 group/title truncate max-w-[200px] cursor-pointer" onClick={() => handleStartRename(group)}>
+                          <div className="flex items-center gap-2 group/title min-w-0 flex-1 mr-2 cursor-pointer" onClick={() => handleStartRename(group)}>
                             <span className="truncate font-semibold text-foreground">{group.name || 'Saved Group'}</span>
-                            <Edit2 className="w-3.5 h-3.5 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground" />
+                            <Edit2 className="w-3.5 h-3.5 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
                           </div>
                         )}
-                        <Badge variant="indigo">
+                        <Badge variant="indigo" className="shrink-0">
                           {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'}
                         </Badge>
                       </CardTitle>
@@ -502,32 +542,38 @@ export default function App() {
                     </CardHeader>
 
                     <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-4 space-y-2">
-                      {group.tabs.map((tab, i) => (
-                        <div key={i} className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group/link p-1.5 rounded-lg hover:bg-muted/50">
-                          <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 border border-border group-hover/link:border-muted-foreground/30 transition-colors">
-                            <img 
-                              src={`https://www.google.com/s2/favicons?domain=${new URL(tab.url).hostname}&sz=16`} 
-                              alt="" 
-                              className="w-3.5 h-3.5 opacity-90 group-hover/link:opacity-100" 
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                                e.currentTarget.parentElement!.innerHTML = `<svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-width="2" d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>`;
-                              }} 
-                            />
+                      {group.tabs.map((tab, i) => {
+                        const domain = getSafeDomain(tab.url);
+                        return (
+                          <div key={i} className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group/link p-1.5 rounded-lg hover:bg-muted/50">
+                            <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 border border-border group-hover/link:border-muted-foreground/30 transition-colors">
+                              {domain ? (
+                                <img 
+                                  src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
+                                  alt="" 
+                                  className="w-3.5 h-3.5 opacity-90 group-hover/link:opacity-100" 
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }} 
+                                />
+                              ) : (
+                                <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                              )}
+                            </div>
+                            <a href={tab.url} target="_blank" rel="noreferrer" className="truncate flex-1 font-medium hover:text-primary transition-colors">
+                              {tab.title || tab.url}
+                            </a>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 opacity-0 group-hover/link:opacity-100 transition-all text-destructive hover:bg-destructive/20 hover:text-destructive active:scale-95" 
+                              onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
-                          <a href={tab.url} target="_blank" rel="noreferrer" className="truncate flex-1 font-medium hover:text-primary transition-colors">
-                            {tab.title || tab.url}
-                          </a>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-6 w-6 opacity-0 group-hover/link:opacity-100 transition-all text-destructive hover:bg-destructive/20 hover:text-destructive active:scale-95" 
-                            onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </CardContent>
 
                     <CardFooter className="p-3 border-t border-border bg-card shrink-0 flex justify-end gap-2 relative z-10">
@@ -575,18 +621,21 @@ export default function App() {
 
           {/* Recently Closed View */}
           {activeTab === 'closed' && (
-            <div className="max-w-4xl space-y-4 animate-fade-in-up">
-              <h3 className="text-xl font-bold text-foreground mb-4">Recently Closed Browser Sessions</h3>
+            <div className="max-w-4xl mx-auto space-y-4 animate-fade-in-up">
               {recentlyClosed.length === 0 ? (
-                <Card className="p-12 text-center text-muted-foreground rounded-2xl border-border bg-card">
-                  No recently closed sessions found.
+                <Card className="p-16 border-border max-w-md mx-auto text-center flex flex-col items-center shadow-2xl bg-card/75 backdrop-blur-xl">
+                  <History className="w-12 h-12 mb-4 text-primary opacity-80" />
+                  <h3 className="text-xl font-bold text-foreground mb-2">No Recently Closed Sessions</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Tabs and windows you close in your browser will appear here so you can restore them anytime.
+                  </p>
                 </Card>
               ) : (
                 recentlyClosed.map((session, idx) => {
                   const title = session.tab?.title || (session.window?.tabs ? `Window (${session.window.tabs.length} tabs)` : 'Closed Item');
                   const url = session.tab?.url;
                   return (
-                    <Card key={idx} className="p-4 rounded-xl flex items-center justify-between hover:bg-muted/50 transition-colors border-border bg-card">
+                    <Card key={idx} className="p-4 rounded-xl flex items-center justify-between hover:bg-muted/50 transition-colors border-border bg-card shadow-md">
                       <div className="flex items-center gap-3 truncate">
                         <History className="w-5 h-5 text-primary shrink-0" />
                         <span className="font-semibold text-foreground truncate">{title}</span>
@@ -604,34 +653,70 @@ export default function App() {
 
           {/* Settings View */}
           {activeTab === 'settings' && (
-            <div className="max-w-2xl space-y-8 animate-fade-in-up">
-              <Card className="border-border bg-card">
+            <div className="max-w-3xl mx-auto space-y-6 animate-fade-in-up">
+              <Card className="border-border bg-card shadow-lg">
                 <CardHeader>
-                  <CardTitle className="text-foreground">Data Backup & Sync</CardTitle>
-                  <CardDescription className="text-muted-foreground">Export your saved tab groups to JSON or restore from a backup file.</CardDescription>
+                  <CardTitle className="text-foreground text-xl flex items-center gap-2">
+                    <Download className="w-5 h-5 text-primary" /> Data Backup & Synchronization
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">
+                    Export a local JSON copy of your saved tab groups or restore your workspace from a backup file.
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="pt-2">
                   <div className="flex gap-4">
-                    <Button onClick={handleExport} variant="outline" className="border-border hover:bg-muted text-foreground font-medium">
+                    <Button onClick={handleExport} variant="outline" className="border-border hover:bg-muted text-foreground font-semibold shadow-sm">
                       <Download className="w-4 h-4 mr-2 text-primary" /> Export Backup (JSON)
                     </Button>
                     <input type="file" ref={fileInputRef} onChange={handleImportFile} accept=".json" className="hidden" />
-                    <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="border-border hover:bg-muted text-foreground font-medium">
+                    <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="border-border hover:bg-muted text-foreground font-semibold shadow-sm">
                       <Upload className="w-4 h-4 mr-2 text-primary" /> Import Backup (JSON)
                     </Button>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-destructive/30 bg-destructive/10">
+              <Card className="border-destructive/30 bg-destructive/10 shadow-lg">
                 <CardHeader>
-                  <CardTitle className="text-destructive">Danger Zone</CardTitle>
-                  <CardDescription className="text-muted-foreground">Permanently clear all saved tab groups and settings.</CardDescription>
+                  <CardTitle className="text-destructive text-xl flex items-center gap-2">
+                    <ShieldAlert className="w-5 h-5 text-destructive" /> Danger Zone
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">
+                    Permanently delete all saved tab collections, archived groups, and user settings from local storage.
+                  </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <Button onClick={() => setDeleteConfirm({ type: 'all' })} variant="destructive" className="font-bold shadow-lg shadow-destructive/20">
-                    <Trash2 className="w-4 h-4 mr-2" /> Clear All Saved Data
-                  </Button>
+                <CardContent className="pt-2">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="font-bold shadow-lg shadow-destructive/20">
+                        <Trash2 className="w-4 h-4 mr-2" /> Clear All Saved Data
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="border-border bg-card">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="text-foreground flex items-center gap-2">
+                          <ShieldAlert className="w-5 h-5 text-destructive" />
+                          Are you absolutely sure?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-muted-foreground pt-2">
+                          This action will permanently delete <strong className="text-destructive font-semibold">ALL saved tab collections, archives, and extension preferences</strong> from this browser. This cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter className="pt-4">
+                        <AlertDialogCancel className="font-semibold">Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={async () => {
+                            await clearAllData();
+                            showMessage('All data cleared');
+                            loadData();
+                          }} 
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-bold shadow-md shadow-destructive/20"
+                        >
+                          Yes, Clear All Data
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </CardContent>
               </Card>
             </div>
@@ -639,23 +724,55 @@ export default function App() {
 
           {/* Help View */}
           {activeTab === 'help' && (
-            <div className="max-w-3xl space-y-6 animate-fade-in-up">
-              <Card className="border-border bg-card p-8">
-                <h3 className="text-2xl font-bold text-foreground mb-4">How to use TwoTab</h3>
-                <div className="space-y-4 text-muted-foreground leading-relaxed text-sm">
-                  <p>
-                    <strong className="text-foreground">1. Save Tabs:</strong> Click <span className="text-primary font-semibold">"Save Current Window"</span> to save tabs in your active window, or use the dropdown to select <span className="text-primary font-semibold">"Save All Windows"</span>.
-                  </p>
-                  <p>
-                    <strong className="text-foreground">2. Restore Tabs:</strong> Click <span className="text-primary font-semibold">"Restore Group"</span> on any card to reopen that set of tabs into your browser.
-                  </p>
-                  <p>
-                    <strong className="text-foreground">3. Organize & Search:</strong> Use the search bar in the header to find specific links or rename groups by clicking on their title.
-                  </p>
-                  <p>
-                    <strong className="text-foreground">4. Backup:</strong> Visit Settings anytime to export a JSON copy of your tab collections.
-                  </p>
+            <div className="max-w-3xl mx-auto space-y-6 animate-fade-in-up">
+              <Card className="border-border bg-card shadow-xl p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2.5 rounded-xl bg-primary/20 text-primary border border-primary/30">
+                    <BookOpen className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-foreground">TwoTab User Guide & FAQ</h3>
+                    <p className="text-sm text-muted-foreground">Everything you need to know about managing, restoring, and exporting tab collections.</p>
+                  </div>
                 </div>
+
+                <Accordion type="single" collapsible className="w-full space-y-2">
+                  <AccordionItem value="item-1" className="border-border">
+                    <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-base">
+                      How do I save active browser tabs?
+                    </AccordionTrigger>
+                    <AccordionContent className="text-muted-foreground leading-relaxed text-sm">
+                      Click the <strong className="text-foreground">"Save Current Window"</strong> button in the top header (or popup) to capture all tabs in your active window into a organized group. Click the dropdown chevron arrow next to it to select <strong className="text-foreground">"Save All Windows"</strong> to save your entire multi-window workspace at once.
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="item-2" className="border-border">
+                    <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-base">
+                      How do I restore saved tab groups?
+                    </AccordionTrigger>
+                    <AccordionContent className="text-muted-foreground leading-relaxed text-sm">
+                      Click <strong className="text-foreground">"Restore Group"</strong> on any saved card to reopen all tabs in that collection into your browser. You can also click individual tab links inside a card to open specific pages independently.
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="item-3" className="border-border">
+                    <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-base">
+                      Can I search or rename tab collections?
+                    </AccordionTrigger>
+                    <AccordionContent className="text-muted-foreground leading-relaxed text-sm">
+                      Yes! Use the search bar in the header to filter saved tabs instantly by title or URL. To rename a group, click directly on the group name on any card, type your desired title, and press Enter or click the checkmark button.
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="item-4" className="border-border">
+                    <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-base">
+                      How do data backups and privacy work?
+                    </AccordionTrigger>
+                    <AccordionContent className="text-muted-foreground leading-relaxed text-sm">
+                      TwoTab operates 100% locally inside your Chrome browser—your data is never sent to external servers or third parties. Visit <strong className="text-foreground">Settings</strong> anytime to export a JSON backup file or import existing backups onto new devices.
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </Card>
             </div>
           )}
