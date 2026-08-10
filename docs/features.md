@@ -13,7 +13,7 @@ This document describes the user-facing features of **TwoTab** and explains how 
   - Calls `saveTabs()` in UI script, which sends `{ action: 'saveTabs' }` to [background.js](file:///Users/ali/Documents/Programming/MyGitHub/TwoTab/background.js).
   - Background queries current window tabs, filters out pinned tabs and pages starting with `chrome-extension://`.
   - Appends to `tabGroups` in local storage.
-  - Automatically triggers backup downloads (`TwoTab_newgroup_*.txt` and `TwoTab_fullbackup_*.csv`).
+  - Displays a transient glassmorphic toast notification with an **Undo Save** button that stays visible for 6 seconds. Clicking Undo restores all tabs and deletes the newly created group.
   - Opens `chrome://newtab` in the window and closes the original non-pinned tabs.
 
 ---
@@ -92,5 +92,44 @@ This document describes the user-facing features of **TwoTab** and explains how 
 - **UI Element**:
   - Popup & Full Page: "Clear All" button.
 - **Implementation**:
-  - Asks for user confirmation via `confirm(...)`.
+  - Asks for user confirmation via the custom glassmorphic confirm modal.
   - Sets the storage key `tabGroups` to an empty array `[]` and refreshes the view.
+
+---
+
+## 9. Archive Groups
+- **Description**: Moves tab groups from the active dashboard to a dedicated Archive tab to reduce visual clutter while retaining the groups long-term.
+- **UI Element**:
+  - Action Menu: "Archive Group" inside active cards.
+  - Sidebar: "Archive" navigation button to view all archived groups.
+- **Implementation**:
+  - Moves the TabGroup object from the `tabGroups` array to the `archivedGroups` array in `chrome.storage.local`.
+
+---
+
+## 10. Recently Closed (Recycle Bin)
+- **Description**: A recycle bin safety net that preserves deleted or restored groups for up to 15 items, allowing users to restore them or delete them permanently.
+- **UI Element**:
+  - Sidebar: "Recently Closed" navigation button.
+  - Action Menu: "Delete Forever" or "Restore" inside closed group cards.
+- **Implementation**:
+  - Deleting groups moves them to the `recentlyClosed` storage array, capped at 15 items.
+
+---
+
+## 11. Custom Modals & Toasts
+- **Description**: Custom UI dialogues matching the premium dark glassmorphic theme that replace standard blocking browser prompts.
+- **UI Element**:
+  - Modals: `#confirm-modal` and `#alert-modal` rendered inside UI contexts.
+  - Toasts: Sleek sliding and fading toast alerts for active action feedback.
+- **Implementation**:
+  - Replaces `window.alert`, `window.confirm`, and `window.prompt` with promise-based modal controllers using `<dialog>` and backdrop blur filters.
+
+---
+
+## 12. Capped Favicon Card Preview
+- **Description**: Prevents cards with many tabs from stretching vertically and cluttering the grid layout.
+- **UI Element**:
+  - Group Cards: Limits favicons to 8 blocks. The 8th block is rendered as a custom `+X more` tile that opens the details modal.
+- **Implementation**:
+  - Slices the tabs array when generating grid items, adding a conditional `.more-tile` if `tabs.length > 8`.

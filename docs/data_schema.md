@@ -94,8 +94,7 @@ TwoTab supports three kinds of file outputs: TXT backups, CSV backups, and Full 
 When importing via [tabs.js](file:///Users/ali/Documents/Programming/MyGitHub/TwoTab/tabs.js) (`importTabs()`):
 - **TXT Files**: Every line that is not empty is treated as a URL. The title of the tab is initialized to the URL itself.
 - **CSV Files**:
-  - Splitted by newlines and commas (naive parsing: `line.split(',')`).
-  - Expects the structure to be `Title,URL` or `URL` only. If a line splits into multiple parts, it checks if the second column exists and treats it as the URL, otherwise the first column is the URL.
+  - Uses a quote-respecting CSV line parser (`parseCSV` in `utils.js`) which correctly handles embedded commas, quotes, and escaped quotes.
+  - Automatically maps groups, dates, names, titles, and URLs if a header is present. If no header is present, it defaults to a `Title,URL` structure.
   - Skips rows that don't start with `http` in their URL field.
-  - Unquotes strings by replacing starting/ending double quotes: `.replace(/^"|"$/g, '')`.
-- **JSON Files**: Currently `.json` is accepted in the file selection filter (`accept=".txt,.csv,.json"`), but the parsing logic inside [tabs.js](file:///Users/ali/Documents/Programming/MyGitHub/TwoTab/tabs.js) does not implement JSON parsing yet.
+- **JSON Files**: Fully supported. Imports backups generated as an array of TabGroup objects containing metadata (id, date, name) and tab objects (title, url). Validates structure using `parseJSONToGroups` in `utils.js` before saving.

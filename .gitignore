@@ -1,0 +1,10 @@
+# Dependencies
+node_modules/
+
+# Build and temp directories
+.output/
+.wxt/
+
+# OS files
+.DS_Store
+*.log
