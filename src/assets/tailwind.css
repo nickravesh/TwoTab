@@ -6,32 +6,32 @@
 
 @layer base {
   :root {
-    --background: 222.2 84% 4.9%;
+    --background: 222 40% 6%; /* #0a0e17 */
     --foreground: 210 40% 98%;
 
-    --card: 224 71% 4%;
-    --card-foreground: 213 31% 91%;
+    --card: 222 25% 12%; /* #151b26 elevated surface */
+    --card-foreground: 210 40% 98%;
 
-    --popover: 224 71% 4%;
-    --popover-foreground: 215 20.2% 65.1%;
+    --popover: 222 25% 12%;
+    --popover-foreground: 210 40% 98%;
 
     --primary: 252 87% 67%; /* Vibrant Indigo */
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 222 47% 11%;
+    --secondary: 222 30% 16%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 223 47% 11%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 222 30% 16%;
+    --muted-foreground: 215 20% 75%;
 
-    --accent: 216 34% 17%;
+    --accent: 217 25% 20%;
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
+    --border: 217 20% 22%; /* #272e3f */
+    --input: 217 20% 22%;
     --ring: 252 87% 67%;
 
     --radius: 0.75rem;
@@ -47,12 +47,12 @@
   }
 }
 
-/* Custom Utilities for Premium Polish */
+/* Custom Utilities for Premium Separation & Elevation */
 @layer utilities {
   .glass {
-    @apply bg-background/70 backdrop-blur-xl border border-white/5;
+    @apply bg-background/80 backdrop-blur-xl border border-white/[0.08];
   }
   .glass-card {
-    @apply bg-card/60 backdrop-blur-lg border border-white/10 shadow-xl shadow-black/20;
+    @apply bg-card/90 backdrop-blur-xl border border-white/[0.1] shadow-xl shadow-black/40;
   }
 }
