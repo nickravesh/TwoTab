@@ -1,7 +1,50 @@
+import { migrateIfNeeded, runHealthCheck, createRollingBackup } from '@/lib/storage';
+
 export default defineBackground(() => {
   const getStorageSession = () => chrome.storage.session || chrome.storage.local;
 
-  // Populate open tab metadata into session storage on background service worker startup
+  // ==========================================================================
+  // Service Worker Startup: Schema Migration + Health Check + Tab Cache Init
+  // ==========================================================================
+
+  const onStartup = async () => {
+    // 1. Run schema migrations
+    await migrateIfNeeded();
+
+    // 2. Run health check
+    const health = await runHealthCheck();
+    if (!health.valid) {
+      console.warn('[TwoTab] Startup health check found issues:', health.errors);
+    }
+    console.log(`[TwoTab] Storage usage: ${(health.bytesUsed / 1024).toFixed(1)} KB`);
+
+    // 3. Initialize tab cache in session storage
+    await initializeTabCache();
+
+    // 4. Set up rolling backup alarm (every 6 hours)
+    chrome.alarms.create('autoBackup', { periodInMinutes: 360 });
+  };
+
+  onStartup();
+
+  // ==========================================================================
+  // Rolling Backup Alarm Handler
+  // ==========================================================================
+
+  chrome.alarms.onAlarm.addListener(async (alarm) => {
+    if (alarm.name === 'autoBackup') {
+      try {
+        await createRollingBackup();
+      } catch (e) {
+        console.error('[TwoTab] Rolling backup failed:', e);
+      }
+    }
+  });
+
+  // ==========================================================================
+  // Persistent Tab Metadata Cache (chrome.storage.session)
+  // ==========================================================================
+
   const initializeTabCache = async () => {
     try {
       const tabs = await chrome.tabs.query({});
@@ -15,11 +58,9 @@ export default defineBackground(() => {
         await getStorageSession().set(cacheUpdate);
       }
     } catch (e) {
-      console.error('Error initializing tab cache in session storage:', e);
+      console.error('[TwoTab] Error initializing tab cache:', e);
     }
   };
-
-  initializeTabCache();
 
   // Track tab updates and persist metadata to storage.session
   chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
@@ -29,7 +70,7 @@ export default defineBackground(() => {
           [`tab_${tabId}`]: { title: tab.title, url: tab.url }
         });
       } catch (e) {
-        console.error('Error updating tab cache in session storage:', e);
+        console.error('[TwoTab] Error updating tab cache:', e);
       }
     }
   });
@@ -42,12 +83,15 @@ export default defineBackground(() => {
           [`tab_${tab.id}`]: { title: tab.title, url: tab.url }
         });
       } catch (e) {
-        console.error('Error caching created tab in session storage:', e);
+        console.error('[TwoTab] Error caching created tab:', e);
       }
     }
   });
 
-  // Handle tab closure reliably after service worker wakes up
+  // ==========================================================================
+  // Tab Closure → Recently Closed Tracking
+  // ==========================================================================
+
   chrome.tabs.onRemoved.addListener(async (tabId) => {
     const key = `tab_${tabId}`;
     try {
@@ -58,7 +102,7 @@ export default defineBackground(() => {
       if (!cached || !cached.url) return;
 
       const lower = cached.url.toLowerCase();
-      // Audit Protocol Filter Safeguard: Exclude internal system pages ONLY
+      // Protocol filter: exclude internal system pages ONLY
       if (
         lower.startsWith('chrome-extension://') ||
         lower.startsWith('chrome://') ||
@@ -71,7 +115,7 @@ export default defineBackground(() => {
 
       const data = await chrome.storage.local.get('recentlyClosed');
       const recentlyClosed = data.recentlyClosed || [];
-      
+
       const newItem = {
         id: `closed_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
         title: cached.title || cached.url,
@@ -79,13 +123,16 @@ export default defineBackground(() => {
         timestamp: new Date().toISOString(),
       };
 
-      // Prepend closed tab and cap list at 50 items
       const updated = [newItem, ...recentlyClosed].slice(0, 50);
       await chrome.storage.local.set({ recentlyClosed: updated });
     } catch (e) {
-      console.error('Error saving recently closed tab on tab removal:', e);
+      console.error('[TwoTab] Error saving recently closed tab:', e);
     }
   });
+
+  // ==========================================================================
+  // Message Handler: Save Tabs Actions
+  // ==========================================================================
 
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'saveTabs') {
@@ -113,6 +160,10 @@ export default defineBackground(() => {
     }
   });
 
+  // ==========================================================================
+  // Tab Saving Logic
+  // ==========================================================================
+
   async function saveCurrentWindowTabs() {
     const tabs = await chrome.tabs.query({ currentWindow: true });
     await processTabsForWindow(tabs);
@@ -120,8 +171,7 @@ export default defineBackground(() => {
 
   async function saveAllWindowsTabs() {
     const tabs = await chrome.tabs.query({});
-    
-    // Group tabs by windowId
+
     const tabsByWindow: Record<number, chrome.tabs.Tab[]> = {};
     tabs.forEach(tab => {
       if (tab.windowId !== undefined) {
@@ -155,7 +205,7 @@ export default defineBackground(() => {
     const windowId = tabs[0].windowId;
     const data = await chrome.storage.local.get('tabGroups');
     const tabGroups = data.tabGroups || [];
-    
+
     const newGroup = {
       id: Date.now() + Math.floor(Math.random() * 1000),
       date: new Date().toISOString(),
@@ -163,18 +213,18 @@ export default defineBackground(() => {
       tabs: tabData
     };
     tabGroups.push(newGroup);
-    
+
     await chrome.storage.local.set({ tabGroups });
-    
+
     // Open a new blank tab in the window first
     await chrome.tabs.create({ url: 'chrome://newtab', windowId });
-    
+
     // Close non-pinned tabs
     const tabIds = tabs
       .filter(tab => !tab.pinned)
       .map(tab => tab.id)
       .filter(id => id !== undefined && id !== chrome.tabs.TAB_ID_NONE);
-    
+
     await chrome.tabs.remove(tabIds as number[]);
   }
 });

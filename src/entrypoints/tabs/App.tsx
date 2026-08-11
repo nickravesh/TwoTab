@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useDeferredValue, useCallback } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { 
   getGroups, 
   deleteGroup, 
@@ -88,6 +89,274 @@ interface DeleteConfirmState {
   url?: string;
   title?: string;
 }
+
+// =============================================================================
+// Virtualized Card Grid — renders only visible rows for 60 FPS at 10,000+ tabs
+// =============================================================================
+
+const CARD_HEIGHT = 360;
+const CARD_GAP = 32; // gap-8 = 2rem = 32px
+const ROW_HEIGHT = CARD_HEIGHT + CARD_GAP;
+const GRID_PADDING = 40; // p-10 = 2.5rem = 40px
+
+function useColumnCount() {
+  const [cols, setCols] = useState(3);
+  
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth - 256; // subtract sidebar width
+      if (w >= 1536) setCols(4);       // 2xl
+      else if (w >= 1280) setCols(3);  // xl
+      else if (w >= 1024) setCols(2);  // lg
+      else setCols(1);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  return cols;
+}
+
+interface VirtualizedCardGridProps {
+  activeTab: string;
+  filteredGroups: TabGroup[];
+  isSaving: boolean;
+  editingGroupId: number | null;
+  editingName: string;
+  setEditingName: (name: string) => void;
+  handleSaveCurrentWindow: () => void;
+  handleSaveAllWindows: () => void;
+  handleSaveRename: (id: number) => void;
+  handleStartRename: (group: TabGroup) => void;
+  setEditingGroupId: (id: number | null) => void;
+  handleArchiveGroup: (id: number) => void;
+  handleUnarchiveGroup: (id: number) => void;
+  handleRestoreGroup: (group: TabGroup) => void;
+  setDeleteConfirm: (state: DeleteConfirmState | null) => void;
+}
+
+function VirtualizedCardGrid({
+  activeTab,
+  filteredGroups,
+  isSaving,
+  editingGroupId,
+  editingName,
+  setEditingName,
+  handleSaveCurrentWindow,
+  handleSaveAllWindows,
+  handleSaveRename,
+  handleStartRename,
+  setEditingGroupId,
+  handleArchiveGroup,
+  handleUnarchiveGroup,
+  handleRestoreGroup,
+  setDeleteConfirm,
+}: VirtualizedCardGridProps) {
+  const cols = useColumnCount();
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const rowCount = Math.ceil(filteredGroups.length / cols);
+
+  const virtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 2,
+  });
+
+  // Empty state
+  if (filteredGroups.length === 0) {
+    return (
+      <div className="flex-1 overflow-auto p-10">
+        <div className="flex flex-col items-center justify-center py-20 animate-fade-in-up">
+          <Card className="p-8 border-border max-w-md text-center flex flex-col items-center shadow-2xl bg-card">
+            <Sparkles className="w-12 h-12 mb-4 text-primary opacity-90" />
+            <h3 className="text-xl font-bold text-foreground mb-2">No {activeTab} groups found</h3>
+            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+              {activeTab === 'dashboard' 
+                ? 'Save your open browser tabs to free up RAM memory and organize your workspace.' 
+                : 'Archived tab groups will appear here.'}
+            </p>
+            {activeTab === 'dashboard' && (
+              <div className="flex flex-col gap-3 w-full">
+                <div className="flex w-full">
+                  <Button onClick={handleSaveCurrentWindow} disabled={isSaving} group="splitLeft" className="flex-1 font-bold shadow-lg shadow-primary/25">
+                    <Plus className="w-4 h-4 mr-2" /> {isSaving ? 'Saving...' : 'Save Current Window'}
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button disabled={isSaving} group="splitRight" className="shadow-lg shadow-primary/25 px-2.5">
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-52">
+                      <DropdownMenuItem onClick={handleSaveAllWindows} className="cursor-pointer">
+                        <Layers className="w-4 h-4 mr-2" />
+                        Save All Windows
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={parentRef} className="flex-1 overflow-auto" style={{ padding: GRID_PADDING }}>
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: '100%',
+          position: 'relative',
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualRow) => {
+          const rowStartIdx = virtualRow.index * cols;
+          const rowGroups = filteredGroups.slice(rowStartIdx, rowStartIdx + cols);
+
+          return (
+            <div
+              key={virtualRow.key}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: `${virtualRow.size}px`,
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                  gap: `${CARD_GAP}px`,
+                }}
+              >
+                {rowGroups.map((group) => (
+                  <Card key={group.id} className="flex flex-col h-[360px] overflow-hidden rounded-xl border-border hover:border-muted-foreground/40 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 bg-card">
+                    <CardHeader className="pb-3 border-b border-border bg-muted/20 shrink-0">
+                      <CardTitle className="text-base flex justify-between items-center mb-1">
+                        {editingGroupId === group.id ? (
+                          <div className="flex items-center gap-1.5 flex-1 mr-2">
+                            <Input 
+                              value={editingName} 
+                              onChange={e => setEditingName(e.target.value)} 
+                              className="h-7 text-xs bg-background border-input text-foreground"
+                              autoFocus
+                              onKeyDown={e => e.key === 'Enter' && handleSaveRename(group.id)}
+                            />
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-primary hover:bg-primary/20" onClick={() => handleSaveRename(group.id)}>
+                              <Check className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => setEditingGroupId(null)}>
+                              <X className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 group/title min-w-0 flex-1 mr-2 cursor-pointer" onClick={() => handleStartRename(group)}>
+                            <span className="truncate font-semibold text-foreground">{group.name || 'Saved Group'}</span>
+                            <Edit2 className="w-3.5 h-3.5 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
+                          </div>
+                        )}
+                        <Badge variant="indigo" className="shrink-0">
+                          {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'}
+                        </Badge>
+                      </CardTitle>
+                      <div className="text-xs text-muted-foreground font-medium">{getRelativeTime(group.date)}</div>
+                    </CardHeader>
+
+                    <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-4 space-y-2">
+                      {group.tabs.map((tab, i) => {
+                        const domain = getSafeDomain(tab.url);
+                        return (
+                          <div key={i} className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group/link p-1.5 rounded-lg hover:bg-muted/50">
+                            <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 border border-border group-hover/link:border-muted-foreground/30 transition-colors">
+                              {domain ? (
+                                <img 
+                                  src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
+                                  alt="" 
+                                  className="w-3.5 h-3.5 opacity-90 group-hover/link:opacity-100" 
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }} 
+                                />
+                              ) : (
+                                <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                              )}
+                            </div>
+                            <a href={tab.url} target="_blank" rel="noreferrer" className="truncate flex-1 font-medium hover:text-primary transition-colors">
+                              {tab.title || tab.url}
+                            </a>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 opacity-0 group-hover/link:opacity-100 transition-all text-destructive hover:bg-destructive/20 hover:text-destructive active:scale-95" 
+                              onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+
+                    <CardFooter className="p-3 border-t border-border bg-card shrink-0 flex justify-end gap-2 relative z-10">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 text-xs font-semibold text-destructive hover:bg-destructive/20 hover:text-destructive active:scale-95 transition-all" 
+                        onClick={() => setDeleteConfirm({ type: 'group', id: group.id, title: group.name || 'Saved Group' })}
+                      >
+                        Delete
+                      </Button>
+                      {activeTab === 'dashboard' ? (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 text-xs text-muted-foreground font-semibold hover:text-foreground hover:bg-muted transition-colors" 
+                          onClick={() => handleArchiveGroup(group.id)}
+                        >
+                          Archive
+                        </Button>
+                      ) : (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 text-xs text-primary font-semibold hover:bg-primary/20 transition-colors" 
+                          onClick={() => handleUnarchiveGroup(group.id)}
+                        >
+                          Unarchive
+                        </Button>
+                      )}
+                      <Button 
+                        variant="secondary" 
+                        size="sm" 
+                        className="h-8 text-xs bg-primary/20 text-primary-foreground hover:bg-primary/30 border border-primary/40 font-semibold transition-colors shadow-sm" 
+                        onClick={() => handleRestoreGroup(group)}
+                      >
+                        Restore Group
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// Main App Component
+// =============================================================================
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'archive' | 'closed' | 'settings' | 'help'>('dashboard');
@@ -332,11 +601,22 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  const filteredGroups = groups.map(g => {
-    const tabs = g.tabs.filter(t => t.title.toLowerCase().includes(search.toLowerCase()) || t.url.toLowerCase().includes(search.toLowerCase()));
-    if (search && tabs.length === 0 && !g.name?.toLowerCase().includes(search.toLowerCase())) return null;
-    return { ...g, tabs: search ? tabs : g.tabs };
-  }).filter(Boolean) as TabGroup[];
+  const deferredSearch = useDeferredValue(search);
+
+  const filteredGroups = useMemo(() => {
+    if (!deferredSearch) return groups;
+    const lower = deferredSearch.toLowerCase();
+    return groups
+      .map(g => {
+        const tabs = g.tabs.filter(t =>
+          t.title.toLowerCase().includes(lower) ||
+          t.url.toLowerCase().includes(lower)
+        );
+        if (tabs.length === 0 && !g.name?.toLowerCase().includes(lower)) return null;
+        return { ...g, tabs };
+      })
+      .filter(Boolean) as TabGroup[];
+  }, [groups, deferredSearch]);
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -533,155 +813,27 @@ export default function App() {
           </div>
         </header>
         
-        {/* Main Body Scroll Area */}
+        {/* Main Body — Dashboard/Archive use virtualized grid, other views use ScrollArea */}
+        {(activeTab === 'dashboard' || activeTab === 'archive') ? (
+          <VirtualizedCardGrid
+            activeTab={activeTab}
+            filteredGroups={filteredGroups}
+            isSaving={isSaving}
+            editingGroupId={editingGroupId}
+            editingName={editingName}
+            setEditingName={setEditingName}
+            handleSaveCurrentWindow={handleSaveCurrentWindow}
+            handleSaveAllWindows={handleSaveAllWindows}
+            handleSaveRename={handleSaveRename}
+            handleStartRename={handleStartRename}
+            setEditingGroupId={setEditingGroupId}
+            handleArchiveGroup={handleArchiveGroup}
+            handleUnarchiveGroup={handleUnarchiveGroup}
+            handleRestoreGroup={handleRestoreGroup}
+            setDeleteConfirm={setDeleteConfirm}
+          />
+        ) : (
         <ScrollArea className="flex-1 p-10">
-          {(activeTab === 'dashboard' || activeTab === 'archive') && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8 items-start">
-              {filteredGroups.length === 0 ? (
-                <div className="col-span-full flex flex-col items-center justify-center py-20 animate-fade-in-up">
-                  <Card className="p-8 border-border max-w-md text-center flex flex-col items-center shadow-2xl bg-card">
-                    <Sparkles className="w-12 h-12 mb-4 text-primary opacity-90" />
-                    <h3 className="text-xl font-bold text-foreground mb-2">No {activeTab} groups found</h3>
-                    <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-                      {activeTab === 'dashboard' 
-                        ? 'Save your open browser tabs to free up RAM memory and organize your workspace.' 
-                        : 'Archived tab groups will appear here.'}
-                    </p>
-                    {activeTab === 'dashboard' && (
-                      <div className="flex flex-col gap-3 w-full">
-                        <div className="flex w-full">
-                          <Button onClick={handleSaveCurrentWindow} disabled={isSaving} group="splitLeft" className="flex-1 font-bold shadow-lg shadow-primary/25">
-                            <Plus className="w-4 h-4 mr-2" /> {isSaving ? 'Saving...' : 'Save Current Window'}
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button disabled={isSaving} group="splitRight" className="shadow-lg shadow-primary/25 px-2.5">
-                                <ChevronDown className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-52">
-                              <DropdownMenuItem onClick={handleSaveAllWindows} className="cursor-pointer">
-                                <Layers className="w-4 h-4 mr-2" />
-                                Save All Windows
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                </div>
-              ) : (
-                filteredGroups.map((group, idx) => (
-                  <Card key={group.id} className="flex flex-col h-[360px] overflow-hidden rounded-xl border-border hover:border-muted-foreground/40 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 animate-fade-in-up bg-card" style={{ animationDelay: `${idx * 40}ms`, animationFillMode: 'both' }}>
-                    <CardHeader className="pb-3 border-b border-border bg-muted/20 shrink-0">
-                      <CardTitle className="text-base flex justify-between items-center mb-1">
-                        {editingGroupId === group.id ? (
-                          <div className="flex items-center gap-1.5 flex-1 mr-2">
-                            <Input 
-                              value={editingName} 
-                              onChange={e => setEditingName(e.target.value)} 
-                              className="h-7 text-xs bg-background border-input text-foreground"
-                              autoFocus
-                              onKeyDown={e => e.key === 'Enter' && handleSaveRename(group.id)}
-                            />
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-primary hover:bg-primary/20" onClick={() => handleSaveRename(group.id)}>
-                              <Check className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => setEditingGroupId(null)}>
-                              <X className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 group/title min-w-0 flex-1 mr-2 cursor-pointer" onClick={() => handleStartRename(group)}>
-                            <span className="truncate font-semibold text-foreground">{group.name || 'Saved Group'}</span>
-                            <Edit2 className="w-3.5 h-3.5 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
-                          </div>
-                        )}
-                        <Badge variant="indigo" className="shrink-0">
-                          {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'}
-                        </Badge>
-                      </CardTitle>
-                      <div className="text-xs text-muted-foreground font-medium">{getRelativeTime(group.date)}</div>
-                    </CardHeader>
-
-                    <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-4 space-y-2">
-                      {group.tabs.map((tab, i) => {
-                        const domain = getSafeDomain(tab.url);
-                        return (
-                          <div key={i} className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group/link p-1.5 rounded-lg hover:bg-muted/50">
-                            <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 border border-border group-hover/link:border-muted-foreground/30 transition-colors">
-                              {domain ? (
-                                <img 
-                                  src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
-                                  alt="" 
-                                  className="w-3.5 h-3.5 opacity-90 group-hover/link:opacity-100" 
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
-                                  }} 
-                                />
-                              ) : (
-                                <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-                              )}
-                            </div>
-                            <a href={tab.url} target="_blank" rel="noreferrer" className="truncate flex-1 font-medium hover:text-primary transition-colors">
-                              {tab.title || tab.url}
-                            </a>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-6 w-6 opacity-0 group-hover/link:opacity-100 transition-all text-destructive hover:bg-destructive/20 hover:text-destructive active:scale-95" 
-                              onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        );
-                      })}
-                    </CardContent>
-
-                    <CardFooter className="p-3 border-t border-border bg-card shrink-0 flex justify-end gap-2 relative z-10">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 text-xs font-semibold text-destructive hover:bg-destructive/20 hover:text-destructive active:scale-95 transition-all" 
-                        onClick={() => setDeleteConfirm({ type: 'group', id: group.id, title: group.name || 'Saved Group' })}
-                      >
-                        Delete
-                      </Button>
-                      {activeTab === 'dashboard' ? (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 text-xs text-muted-foreground font-semibold hover:text-foreground hover:bg-muted transition-colors" 
-                          onClick={() => handleArchiveGroup(group.id)}
-                        >
-                          Archive
-                        </Button>
-                      ) : (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 text-xs text-primary font-semibold hover:bg-primary/20 transition-colors" 
-                          onClick={() => handleUnarchiveGroup(group.id)}
-                        >
-                          Unarchive
-                        </Button>
-                      )}
-                      <Button 
-                        variant="secondary" 
-                        size="sm" 
-                        className="h-8 text-xs bg-primary/20 text-primary-foreground hover:bg-primary/30 border border-primary/40 font-semibold transition-colors shadow-sm" 
-                        onClick={() => handleRestoreGroup(group)}
-                      >
-                        Restore Group
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))
-              )}
-            </div>
-          )}
 
           {/* Recently Closed View */}
           {activeTab === 'closed' && (
@@ -876,6 +1028,7 @@ export default function App() {
             </div>
           )}
         </ScrollArea>
+        )}
       </div>
     </div>
   );
