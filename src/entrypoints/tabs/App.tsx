@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo, useDeferredValue, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useDeferredValue, useCallback, useLayoutEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { 
   getGroups, 
@@ -101,38 +101,47 @@ const ROW_HEIGHT = CARD_HEIGHT + CARD_GAP;
 const GRID_PADDING = 40; // p-10 = 2.5rem = 40px
 
 function useContainerColumnCount(containerRef: React.RefObject<HTMLDivElement | null>) {
-  const [cols, setCols] = useState(3);
+  const [cols, setCols] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const approxWidth = Math.max(0, window.innerWidth - 256 - GRID_PADDING * 2);
+      return Math.max(1, Math.floor((approxWidth + CARD_GAP) / (MIN_CARD_WIDTH + CARD_GAP)));
+    }
+    return 1;
+  });
 
-  useEffect(() => {
+  const updateCols = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
-
-    const updateCols = (targetEl: HTMLElement) => {
-      const width = targetEl.clientWidth;
+    const width = el.clientWidth || el.getBoundingClientRect().width;
+    if (width > 0) {
       const netWidth = Math.max(0, width - GRID_PADDING * 2);
       const calculatedCols = Math.max(
         1,
         Math.floor((netWidth + CARD_GAP) / (MIN_CARD_WIDTH + CARD_GAP))
       );
-      console.log('[Grid ResizeObserver] Measured netWidth:', netWidth, 'Calculated Cols:', calculatedCols);
-      setCols(calculatedCols);
-    };
+      console.log('[Grid ResizeObserver] Measured width:', width, 'netWidth:', netWidth, 'Calculated Cols:', calculatedCols);
+      setCols(prev => (prev !== calculatedCols ? calculatedCols : prev));
+    }
+  }, [containerRef]);
 
-    updateCols(el);
+  useLayoutEffect(() => {
+    updateCols();
+    const rafId = requestAnimationFrame(updateCols);
 
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const target = (entry.target as HTMLElement) || el;
-        updateCols(target);
-      }
+    const el = containerRef.current;
+    if (!el) return () => cancelAnimationFrame(rafId);
+
+    const observer = new ResizeObserver(() => {
+      updateCols();
     });
 
     observer.observe(el);
 
     return () => {
+      cancelAnimationFrame(rafId);
       observer.disconnect();
     };
-  }, [containerRef]);
+  }, [containerRef, updateCols]);
 
   return cols;
 }
