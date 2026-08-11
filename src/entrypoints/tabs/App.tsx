@@ -107,21 +107,23 @@ function useContainerColumnCount(containerRef: React.RefObject<HTMLDivElement | 
     const el = containerRef.current;
     if (!el) return;
 
-    const updateCols = (width: number) => {
+    const updateCols = (targetEl: HTMLElement) => {
+      const width = targetEl.clientWidth;
       const netWidth = Math.max(0, width - GRID_PADDING * 2);
       const calculatedCols = Math.max(
         1,
         Math.floor((netWidth + CARD_GAP) / (MIN_CARD_WIDTH + CARD_GAP))
       );
+      console.log('[Grid ResizeObserver] Measured netWidth:', netWidth, 'Calculated Cols:', calculatedCols);
       setCols(calculatedCols);
     };
 
-    updateCols(el.clientWidth);
+    updateCols(el);
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const width = entry.contentRect.width || el.clientWidth;
-        updateCols(width);
+        const target = (entry.target as HTMLElement) || el;
+        updateCols(target);
       }
     });
 
@@ -756,7 +758,7 @@ export default function App() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col z-10 relative">
+      <div className="flex-1 min-w-0 w-full flex flex-col z-10 relative">
         {/* Header */}
         <header className="h-20 border-b border-border/40 flex items-center justify-between px-10 bg-card/75 backdrop-blur-xl sticky top-0 z-20 shadow-[0_4px_20px_rgba(0,0,0,0.25)]">
           <div className="flex items-center gap-4">
