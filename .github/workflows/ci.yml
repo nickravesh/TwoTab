@@ -45,6 +45,7 @@ jobs:
         with:
           name: twotab-extension-build
           path: .output/*.zip
+          include-hidden-files: true
           retention-days: 14
 
       - name: Create GitHub Release
