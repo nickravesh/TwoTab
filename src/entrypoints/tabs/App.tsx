@@ -96,7 +96,7 @@ interface DeleteConfirmState {
 
 const CARD_HEIGHT = 360;
 const CARD_GAP = 24; // gap-6 = 1.5rem = 24px
-const MIN_CARD_WIDTH = 320;
+const MIN_CARD_WIDTH = 280;
 const ROW_HEIGHT = CARD_HEIGHT + CARD_GAP;
 const GRID_PADDING = 40; // p-10 = 2.5rem = 40px
 
@@ -185,7 +185,7 @@ function VirtualizedCardGrid({
   // Empty state
   if (filteredGroups.length === 0) {
     return (
-      <div className="flex-1 overflow-auto p-10">
+      <div className="flex-1 overflow-auto p-10 w-full">
         <div className="flex flex-col items-center justify-center py-20 animate-fade-in-up">
           <Card className="p-8 border-border max-w-md text-center flex flex-col items-center shadow-2xl bg-card">
             <Sparkles className="w-12 h-12 mb-4 text-primary opacity-90" />
@@ -224,7 +224,7 @@ function VirtualizedCardGrid({
   }
 
   return (
-    <div ref={parentRef} className="flex-1 overflow-auto" style={{ padding: GRID_PADDING }}>
+    <div ref={parentRef} className="flex-1 overflow-auto w-full" style={{ padding: GRID_PADDING }}>
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
