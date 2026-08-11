@@ -95,25 +95,42 @@ interface DeleteConfirmState {
 // =============================================================================
 
 const CARD_HEIGHT = 360;
-const CARD_GAP = 32; // gap-8 = 2rem = 32px
+const CARD_GAP = 24; // gap-6 = 1.5rem = 24px
+const MIN_CARD_WIDTH = 320;
 const ROW_HEIGHT = CARD_HEIGHT + CARD_GAP;
 const GRID_PADDING = 40; // p-10 = 2.5rem = 40px
 
-function useColumnCount() {
+function useContainerColumnCount(containerRef: React.RefObject<HTMLDivElement | null>) {
   const [cols, setCols] = useState(3);
-  
+
   useEffect(() => {
-    const update = () => {
-      const w = window.innerWidth - 256; // subtract sidebar width
-      if (w >= 1536) setCols(4);       // 2xl
-      else if (w >= 1280) setCols(3);  // xl
-      else if (w >= 1024) setCols(2);  // lg
-      else setCols(1);
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateCols = (width: number) => {
+      const netWidth = Math.max(0, width - GRID_PADDING * 2);
+      const calculatedCols = Math.max(
+        1,
+        Math.floor((netWidth + CARD_GAP) / (MIN_CARD_WIDTH + CARD_GAP))
+      );
+      setCols(calculatedCols);
     };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
+
+    updateCols(el.clientWidth);
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = entry.contentRect.width || el.clientWidth;
+        updateCols(width);
+      }
+    });
+
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [containerRef]);
 
   return cols;
 }
@@ -153,8 +170,8 @@ function VirtualizedCardGrid({
   handleRestoreGroup,
   setDeleteConfirm,
 }: VirtualizedCardGridProps) {
-  const cols = useColumnCount();
   const parentRef = useRef<HTMLDivElement>(null);
+  const cols = useContainerColumnCount(parentRef);
 
   const rowCount = Math.ceil(filteredGroups.length / cols);
 
