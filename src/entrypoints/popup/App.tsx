@@ -39,8 +39,11 @@ import {
   Sun,
   Moon,
   Monitor,
+  Palette,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { THEME_PALETTES } from '@/lib/theme';
+import { Separator } from '@/components/ui/separator';
 
 interface DeleteConfirmState {
   id: number;
@@ -207,12 +210,12 @@ export default function App() {
       </Dialog>
 
       {/* 1. Header (Compact Top Bar) */}
-      <header className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-card/40 backdrop-blur-md shrink-0 relative z-10">
+      <header className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-card/80 backdrop-blur-md shrink-0 relative z-10">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary via-purple-500 to-indigo-600 flex items-center justify-center shadow-sm shadow-primary/25">
-            <Layers className="w-3.5 h-3.5 text-white" />
+          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary via-primary/80 to-accent flex items-center justify-center shadow-sm text-primary-foreground">
+            <Layers className="w-3.5 h-3.5 text-primary-foreground" />
           </div>
-          <span className="font-extrabold text-sm bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-400 to-accent tracking-tight">
+          <span className="font-extrabold text-sm bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent tracking-tight">
             TwoTab
           </span>
         </div>
@@ -226,52 +229,74 @@ export default function App() {
                 className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-md transition-colors"
                 title={`Theme: ${themeMode} (${resolvedTheme})`}
               >
-                {themeMode === 'system' ? (
-                  <Monitor className="w-3.5 h-3.5 text-primary" />
-                ) : themeMode === 'light' ? (
-                  <Sun className="w-3.5 h-3.5 text-amber-500" />
-                ) : (
-                  <Moon className="w-3.5 h-3.5 text-indigo-400" />
-                )}
+                <Palette className="w-3.5 h-3.5 text-primary" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-32 bg-card border-border">
-              <DropdownMenuItem
-                onClick={() => setThemeMode('light')}
-                className={`cursor-pointer text-xs font-medium py-1.5 flex items-center justify-between ${
-                  themeMode === 'light' ? 'text-primary font-bold bg-primary/10' : ''
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Sun className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Light</span>
-                </div>
-                {themeMode === 'light' && <span className="text-[10px] text-primary">✓</span>}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setThemeMode('dark')}
-                className={`cursor-pointer text-xs font-medium py-1.5 flex items-center justify-between ${
-                  themeMode === 'dark' ? 'text-primary font-bold bg-primary/10' : ''
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Moon className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Dark</span>
-                </div>
-                {themeMode === 'dark' && <span className="text-[10px] text-primary">✓</span>}
-              </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-56 p-1.5 bg-popover border-border shadow-apple-popover text-popover-foreground rounded-xl">
               <DropdownMenuItem
                 onClick={() => setThemeMode('system')}
-                className={`cursor-pointer text-xs font-medium py-1.5 flex items-center justify-between ${
-                  themeMode === 'system' ? 'text-primary font-bold bg-primary/10' : ''
+                className={`cursor-pointer text-xs font-medium py-1.5 px-2 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted ${
+                  themeMode === 'system' ? 'text-primary font-semibold bg-primary/10' : ''
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <Monitor className="w-3.5 h-3.5 text-primary" />
-                  <span>System</span>
+                  <Monitor className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>System Preference</span>
                 </div>
-                {themeMode === 'system' && <span className="text-[10px] text-primary">✓</span>}
+                {themeMode === 'system' && <span className="text-xs text-primary font-bold">✓</span>}
               </DropdownMenuItem>
+
+              <Separator className="my-1 bg-border/60" />
+
+              <div className="px-2 py-0.5 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Dark Palettes
+              </div>
+              {THEME_PALETTES.filter(p => p.category === 'dark').map((palette) => (
+                <DropdownMenuItem
+                  key={palette.id}
+                  onClick={() => setThemeMode(palette.id)}
+                  className={`cursor-pointer text-xs font-medium py-1 px-2 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted ${
+                    themeMode === palette.id ? 'text-primary font-semibold bg-primary/10' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div 
+                      className="w-3.5 h-3.5 rounded-full border border-white/20 flex items-center justify-center shrink-0 shadow-xs"
+                      style={{ backgroundColor: palette.bgHex }}
+                    >
+                      <div className="w-1 h-1 rounded-full" style={{ backgroundColor: palette.accentHex }} />
+                    </div>
+                    <span className="truncate">{palette.name}</span>
+                  </div>
+                  {themeMode === palette.id && <span className="text-xs text-primary font-bold shrink-0">✓</span>}
+                </DropdownMenuItem>
+              ))}
+
+              <Separator className="my-1 bg-border/60" />
+
+              <div className="px-2 py-0.5 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Light Palettes
+              </div>
+              {THEME_PALETTES.filter(p => p.category === 'light').map((palette) => (
+                <DropdownMenuItem
+                  key={palette.id}
+                  onClick={() => setThemeMode(palette.id)}
+                  className={`cursor-pointer text-xs font-medium py-1 px-2 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted ${
+                    themeMode === palette.id ? 'text-primary font-semibold bg-primary/10' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div 
+                      className="w-3.5 h-3.5 rounded-full border border-black/10 flex items-center justify-center shrink-0 shadow-xs"
+                      style={{ backgroundColor: palette.bgHex }}
+                    >
+                      <div className="w-1 h-1 rounded-full" style={{ backgroundColor: palette.accentHex }} />
+                    </div>
+                    <span className="truncate">{palette.name}</span>
+                  </div>
+                  {themeMode === palette.id && <span className="text-xs text-primary font-bold shrink-0">✓</span>}
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
 

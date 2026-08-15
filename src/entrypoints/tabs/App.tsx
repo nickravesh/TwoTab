@@ -208,13 +208,13 @@ function VirtualizedCardGrid({
   if (filteredGroups.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[400px]">
-        <div className="w-16 h-16 rounded-2xl bg-muted/60 dark:bg-white/[0.04] border border-border/80 dark:border-white/[0.08] flex items-center justify-center mb-4 text-muted-foreground shadow-sm">
-          <Layers className="w-8 h-8 opacity-40" />
+        <div className="w-16 h-16 rounded-2xl bg-muted/60 border border-border flex items-center justify-center mb-4 text-muted-foreground shadow-sm">
+          <Layers className="w-8 h-8 opacity-40 text-primary" />
         </div>
-        <h3 className="text-base font-semibold text-foreground dark:text-zinc-100 mb-1">
+        <h3 className="text-base font-semibold text-foreground mb-1">
           {activeTab === 'dashboard' ? 'No Saved Tabs Yet' : 'No Archived Groups'}
         </h3>
-        <p className="text-xs text-muted-foreground dark:text-zinc-400 max-w-sm mb-6 leading-relaxed">
+        <p className="text-xs text-muted-foreground max-w-sm mb-6 leading-relaxed">
           {activeTab === 'dashboard' 
             ? 'Click "+ Save Window" in the top bar to save all open tabs from this window into a clean collection.'
             : 'Archived tab groups will appear here for safekeeping.'}
@@ -223,7 +223,7 @@ function VirtualizedCardGrid({
           <Button 
             onClick={handleSaveCurrentWindow} 
             disabled={isSaving}
-            className="shadow-sm bg-[#5e5ce6] hover:bg-[#5250d4] text-white text-xs px-4 h-9 font-medium rounded-lg"
+            className="shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground text-xs px-4 h-9 font-medium rounded-lg"
           >
             <Plus className="w-4 h-4 mr-1.5" /> Save Current Window
           </Button>
@@ -273,10 +273,10 @@ function VirtualizedCardGrid({
                 {rowGroups.map((group) => (
                   <Card 
                     key={group.id} 
-                    className="flex flex-col justify-between h-[220px] overflow-hidden rounded-2xl border border-border/80 dark:border-white/[0.08] hover:border-border dark:hover:border-white/[0.18] bg-card dark:bg-[#1c1c1f] text-card-foreground shadow-apple-card hover:shadow-apple-card-hover hover:-translate-y-0.5 transition-all duration-200 ease-out"
+                    className="flex flex-col justify-between h-[220px] overflow-hidden rounded-2xl border border-border/80 hover:border-primary/40 bg-card text-card-foreground shadow-apple-card hover:shadow-apple-card-hover hover:-translate-y-0.5 transition-all duration-200 ease-out"
                   >
                     {/* Card Header (flex-shrink-0) */}
-                    <CardHeader className="p-3.5 pb-2 border-b border-border/60 dark:border-white/[0.04] bg-muted/20 dark:bg-white/[0.02] flex items-center justify-between shrink-0">
+                    <CardHeader className="p-3.5 pb-2 border-b border-border/60 bg-muted/30 flex items-center justify-between shrink-0">
                       <div className="flex items-center justify-between gap-2 min-w-0 w-full">
                         {editingGroupId === group.id ? (
                           <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
@@ -296,11 +296,11 @@ function VirtualizedCardGrid({
                           </div>
                         ) : (
                           <div className="flex items-center gap-2 group/title min-w-0 flex-1 cursor-pointer" onClick={() => handleStartRename(group)} title="Click to rename">
-                            <span className="truncate font-semibold text-sm text-foreground dark:text-zinc-100">{group.name || 'Saved Group'}</span>
+                            <span className="truncate font-semibold text-sm text-foreground group-hover/title:text-primary transition-colors">{group.name || 'Saved Group'}</span>
                             <Edit2 className="w-3 h-3 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
                           </div>
                         )}
-                        <span className="shrink-0 text-xs bg-muted/60 dark:bg-white/[0.06] text-muted-foreground dark:text-zinc-400 border border-border/60 dark:border-white/[0.06] px-2 py-0.5 rounded-full font-normal whitespace-nowrap">
+                        <span className="shrink-0 text-xs bg-muted/70 text-muted-foreground border border-border/60 px-2 py-0.5 rounded-full font-normal whitespace-nowrap">
                           {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} • {getRelativeTime(group.date)}
                         </span>
                       </div>
@@ -311,7 +311,7 @@ function VirtualizedCardGrid({
                       {group.tabs.map((tab, i) => {
                         const domain = getSafeDomain(tab.url);
                         return (
-                          <div key={i} className="flex items-center justify-between p-1.5 rounded-md hover:bg-muted/50 dark:hover:bg-white/[0.04] group transition-colors">
+                          <div key={i} className="flex items-center justify-between p-1.5 rounded-md hover:bg-primary/10 group transition-colors">
                             <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                               <div className="w-4 h-4 rounded flex items-center justify-center shrink-0">
                                 {domain ? (
@@ -327,14 +327,14 @@ function VirtualizedCardGrid({
                                   <Globe className="w-3.5 h-3.5 text-muted-foreground" />
                                 )}
                               </div>
-                              <a href={tab.url} target="_blank" rel="noreferrer" className="truncate text-xs text-muted-foreground group-hover:text-foreground dark:text-zinc-400 dark:group-hover:text-zinc-200 font-normal hover:underline transition-colors">
+                              <a href={tab.url} target="_blank" rel="noreferrer" className="truncate text-xs text-muted-foreground group-hover:text-foreground font-normal hover:underline transition-colors">
                                 {tab.title || tab.url}
                               </a>
                             </div>
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 shrink-0" 
+                              className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" 
                               onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
                               title="Remove tab"
                             >
@@ -346,12 +346,12 @@ function VirtualizedCardGrid({
                     </CardContent>
 
                     {/* Card Footer (flex-shrink-0 border-t border-border p-2.5 pt-2 flex items-center justify-between rounded-b-2xl) */}
-                    <CardFooter className="shrink-0 border-t border-border/60 dark:border-white/[0.06] bg-card dark:bg-[#18181b]/50 p-2.5 pt-2 flex items-center justify-between rounded-b-2xl relative z-10">
+                    <CardFooter className="shrink-0 border-t border-border/60 bg-muted/20 p-2.5 pt-2 flex items-center justify-between rounded-b-2xl relative z-10">
                       <div className="flex items-center gap-1">
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-7 w-7 text-muted-foreground dark:text-zinc-400 hover:text-destructive dark:hover:text-rose-400 hover:bg-destructive/10 dark:hover:bg-white/[0.08] rounded-md transition-colors" 
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" 
                           onClick={() => setDeleteConfirm({ type: 'group', id: group.id, title: group.name || 'Saved Group' })}
                           title="Delete group"
                         >
@@ -360,7 +360,7 @@ function VirtualizedCardGrid({
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-7 w-7 text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-100 hover:bg-muted dark:hover:bg-white/[0.08] rounded-md transition-colors" 
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" 
                           onClick={() => handleCopyGroupUrls(group)}
                           title="Copy all URLs in group"
                         >
@@ -370,7 +370,7 @@ function VirtualizedCardGrid({
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-7 w-7 text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-100 hover:bg-muted dark:hover:bg-white/[0.08] rounded-md transition-colors" 
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" 
                             onClick={() => handleArchiveGroup(group.id)}
                             title="Archive group"
                           >
@@ -380,7 +380,7 @@ function VirtualizedCardGrid({
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-7 w-7 text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-100 hover:bg-muted dark:hover:bg-white/[0.08] rounded-md transition-colors" 
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" 
                             onClick={() => handleUnarchiveGroup(group.id)}
                             title="Unarchive group"
                           >
@@ -391,10 +391,10 @@ function VirtualizedCardGrid({
                       <Button 
                         variant="secondary" 
                         size="sm" 
-                        className="h-7 px-3 text-xs font-medium bg-secondary dark:bg-white/[0.08] hover:bg-secondary/80 dark:hover:bg-white/[0.12] text-foreground dark:text-zinc-100 border border-border/60 dark:border-white/[0.08] rounded-lg shadow-xs transition-colors flex items-center gap-1.5" 
+                        className="h-7 px-3 text-xs font-medium bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 rounded-lg shadow-xs transition-colors flex items-center gap-1.5" 
                         onClick={() => handleRestoreGroup(group)}
                       >
-                        <RotateCcw className="h-3 w-3 text-primary dark:text-[#5e5ce6]" /> Restore
+                        <RotateCcw className="h-3 w-3 text-primary" /> Restore
                       </Button>
                     </CardFooter>
                   </Card>
@@ -743,7 +743,7 @@ export default function App() {
 
       {/* Delete Confirmation Alert Dialog */}
       <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
-        <AlertDialogContent className="border-border dark:border-white/[0.08] bg-card dark:bg-[#141417] max-w-md">
+        <AlertDialogContent className="border-border bg-card shadow-apple-popover max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-foreground flex items-center gap-2 text-base font-semibold">
               <Trash2 className="w-4 h-4 text-destructive" />
@@ -762,7 +762,7 @@ export default function App() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0 pt-4">
-            <AlertDialogCancel onClick={() => setDeleteConfirm(null)} className="h-8 text-xs font-medium border-border/60 dark:border-white/[0.08] text-foreground hover:bg-muted dark:hover:bg-white/[0.08]">
+            <AlertDialogCancel onClick={() => setDeleteConfirm(null)} className="h-8 text-xs font-medium border-border text-foreground hover:bg-muted">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 font-medium shadow-sm">
@@ -774,18 +774,18 @@ export default function App() {
 
       {/* Restore All Confirmation Alert Dialog */}
       <AlertDialog open={restoreAllConfirm} onOpenChange={setRestoreAllConfirm}>
-        <AlertDialogContent className="border-border dark:border-white/[0.08] bg-card dark:bg-[#141417] max-w-md">
+        <AlertDialogContent className="border-border bg-card shadow-apple-popover max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground dark:text-zinc-100 flex items-center gap-2 text-base font-semibold">
-              <RotateCcw className="w-4 h-4 text-primary dark:text-indigo-400" />
+            <AlertDialogTitle className="text-foreground flex items-center gap-2 text-base font-semibold">
+              <RotateCcw className="w-4 h-4 text-primary" />
               Restore All Saved Tabs?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground dark:text-zinc-400 pt-1.5 text-sm leading-relaxed">
-              This will open <strong className="text-foreground dark:text-zinc-200 font-semibold">{groups.reduce((acc, g) => acc + g.tabs.length, 0)} {groups.reduce((acc, g) => acc + g.tabs.length, 0) === 1 ? 'tab' : 'tabs'}</strong> across <strong className="text-foreground dark:text-zinc-200 font-semibold">{groups.length} {groups.length === 1 ? 'group' : 'groups'}</strong>. Do you want to proceed?
+            <AlertDialogDescription className="text-muted-foreground pt-1.5 text-sm leading-relaxed">
+              This will open <strong className="text-foreground font-semibold">{groups.reduce((acc, g) => acc + g.tabs.length, 0)} {groups.reduce((acc, g) => acc + g.tabs.length, 0) === 1 ? 'tab' : 'tabs'}</strong> across <strong className="text-foreground font-semibold">{groups.length} {groups.length === 1 ? 'group' : 'groups'}</strong>. Do you want to proceed?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0 pt-4">
-            <AlertDialogCancel onClick={() => setRestoreAllConfirm(false)} className="h-8 text-xs font-medium border-border/60 dark:border-white/[0.08] text-foreground hover:bg-muted dark:hover:bg-white/[0.08]">
+            <AlertDialogCancel onClick={() => setRestoreAllConfirm(false)} className="h-8 text-xs font-medium border-border text-foreground hover:bg-muted">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction 
@@ -793,7 +793,7 @@ export default function App() {
                 setRestoreAllConfirm(false);
                 handleRestoreAllGroups();
               }} 
-              className="h-8 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-sm"
+              className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-sm"
             >
               Restore All
             </AlertDialogAction>
@@ -802,12 +802,12 @@ export default function App() {
       </AlertDialog>
 
       {/* Sidebar */}
-      <div className="w-64 border-r border-border/80 dark:border-white/[0.08] bg-card/95 dark:bg-[#161618] p-6 flex flex-col z-20 backdrop-blur-md">
+      <div className="w-64 border-r border-border bg-card/75 p-6 flex flex-col z-20 backdrop-blur-xl">
         <div className="flex items-center gap-2.5 mb-8">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#5e5ce6] via-indigo-600 to-purple-600 flex items-center justify-center shadow-sm">
-            <Layers className="w-4 h-4 text-white" />
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary via-primary/80 to-accent flex items-center justify-center shadow-sm text-primary-foreground">
+            <Layers className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-300 to-indigo-200 tracking-tight">
+          <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent tracking-tight">
             TwoTab
           </span>
         </div>
@@ -822,20 +822,20 @@ export default function App() {
                 onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs transition-colors font-medium ${
                   isActive 
-                    ? 'bg-muted dark:bg-white/[0.08] text-foreground dark:text-white font-medium border border-border/60 dark:border-white/[0.08] pl-3' 
-                    : 'text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-white hover:bg-muted/50 dark:hover:bg-white/[0.04]'
+                    ? 'bg-primary/10 text-primary font-semibold border border-primary/20 pl-3' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-primary dark:text-[#5e5ce6]' : 'text-muted-foreground dark:text-zinc-500'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
                 {item.label}
               </button>
             );
           })}
 
-          <Separator className="my-4 bg-border/60 dark:bg-white/[0.06]" />
+          <Separator className="my-4 bg-border/60" />
 
           <div className="pb-1.5">
-            <p className="text-[11px] font-semibold text-muted-foreground/70 dark:text-zinc-500 uppercase tracking-wider px-3.5">Preferences</p>
+            <p className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider px-3.5">Preferences</p>
           </div>
 
           {prefItems.map((item) => {
@@ -847,11 +847,11 @@ export default function App() {
                 onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs transition-colors font-medium ${
                   isActive 
-                    ? 'bg-muted dark:bg-white/[0.08] text-foreground dark:text-white font-medium border border-border/60 dark:border-white/[0.08] pl-3' 
-                    : 'text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-white hover:bg-muted/50 dark:hover:bg-white/[0.04]'
+                    ? 'bg-primary/10 text-primary font-semibold border border-primary/20 pl-3' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-primary dark:text-[#5e5ce6]' : 'text-muted-foreground dark:text-zinc-500'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
                 {item.label}
               </button>
             );
@@ -862,12 +862,12 @@ export default function App() {
       {/* Main Content */}
       <div className="flex-1 min-w-0 w-full flex flex-col z-10 relative animate-dashboard-in">
         {/* Header */}
-        <header className="h-14 border-b border-border/80 dark:border-white/[0.08] flex items-center justify-between px-8 bg-card/80 dark:bg-[#161618]/90 backdrop-blur-xl sticky top-0 z-20">
+        <header className="h-14 border-b border-border flex items-center justify-between px-8 bg-card/80 backdrop-blur-xl sticky top-0 z-20">
           {/* Title & Count Badge (Left) */}
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold tracking-tight text-foreground dark:text-zinc-100">{getHeaderTitle()}</h2>
+            <h2 className="text-lg font-bold tracking-tight text-foreground">{getHeaderTitle()}</h2>
             {activeTab === 'dashboard' && groups.length > 0 && (
-              <Badge variant="outline" className="text-muted-foreground dark:text-zinc-400 text-xs font-normal border-border/60 dark:border-white/[0.08] bg-muted/30 dark:bg-white/[0.02]">
+              <Badge variant="outline" className="text-muted-foreground text-xs font-normal border-border bg-muted/30">
                 {groups.length} {groups.length === 1 ? 'group' : 'groups'} · {groups.reduce((acc, g) => acc + g.tabs.length, 0)} {groups.reduce((acc, g) => acc + g.tabs.length, 0) === 1 ? 'tab' : 'tabs'}
               </Badge>
             )}
@@ -878,10 +878,10 @@ export default function App() {
             {/* 1. Search input */}
             {(activeTab === 'dashboard' || activeTab === 'archive') && (
               <div className="relative max-w-xs w-64 group">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground dark:text-zinc-500 transition-colors group-focus-within:text-primary dark:group-focus-within:text-[#5e5ce6]" />
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                 <Input 
                   placeholder="Search saved tabs..." 
-                  className="pl-9 pr-8 bg-muted/50 dark:bg-[#0e0e10] border-input dark:border-white/[0.08] text-foreground dark:text-zinc-200 placeholder:text-muted-foreground dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-[#5e5ce6]/80 focus:border-indigo-500/80 h-9 text-sm shadow-none rounded-lg" 
+                  className="pl-9 pr-8 bg-muted/50 border-input text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary focus:border-primary h-9 text-sm shadow-none rounded-lg" 
                   value={search} 
                   onChange={e => setSearch(e.target.value)} 
                   onKeyDown={e => e.key === 'Escape' && setSearch('')}
@@ -890,7 +890,7 @@ export default function App() {
                   <Button 
                     size="icon" 
                     variant="ghost" 
-                    className="absolute right-1.5 top-1.5 h-6 w-6 text-muted-foreground hover:text-foreground dark:text-zinc-400 dark:hover:text-zinc-200" 
+                    className="absolute right-1.5 top-1.5 h-6 w-6 text-muted-foreground hover:text-foreground" 
                     onClick={() => setSearch('')}
                   >
                     <X className="w-3.5 h-3.5" />
@@ -905,7 +905,7 @@ export default function App() {
                 variant="outline" 
                 size="sm" 
                 onClick={() => setRestoreAllConfirm(true)} 
-                className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground dark:text-zinc-400 dark:hover:text-zinc-100 border-border/60 dark:border-white/[0.08] bg-muted/40 dark:bg-white/[0.04] hover:bg-muted dark:hover:bg-white/[0.08] rounded-lg"
+                className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border bg-muted/40 hover:bg-muted rounded-lg"
               >
                 <RotateCcw className="w-3.5 h-3.5" /> Restore All
               </Button>
@@ -917,17 +917,17 @@ export default function App() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-100 border border-border/60 dark:border-white/[0.08] shadow-sm rounded-lg"
+                  className="h-9 w-9 text-muted-foreground hover:text-foreground border border-border shadow-sm rounded-lg"
                   title={`Theme: ${themeMode} (${resolvedTheme})`}
                 >
-                  <Palette className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
+                  <Palette className="w-4 h-4 text-primary" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 p-1.5 bg-card dark:bg-[#1c1c1f] border-border dark:border-white/[0.08] shadow-apple-popover rounded-xl text-foreground">
+              <DropdownMenuContent align="end" className="w-64 p-1.5 bg-popover border-border shadow-apple-popover rounded-xl text-popover-foreground">
                 <DropdownMenuItem
                   onClick={() => setThemeMode('system')}
-                  className={`cursor-pointer text-xs font-medium py-2 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08] ${
-                    themeMode === 'system' ? 'text-primary dark:text-[#5e5ce6] font-semibold bg-primary/10 dark:bg-white/[0.06]' : ''
+                  className={`cursor-pointer text-xs font-medium py-2 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted ${
+                    themeMode === 'system' ? 'text-primary font-semibold bg-primary/10' : ''
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -937,10 +937,10 @@ export default function App() {
                       <span className="text-[10px] text-muted-foreground font-normal">Auto match OS theme</span>
                     </div>
                   </div>
-                  {themeMode === 'system' && <span className="text-xs text-primary dark:text-[#5e5ce6]">✓</span>}
+                  {themeMode === 'system' && <span className="text-xs text-primary">✓</span>}
                 </DropdownMenuItem>
 
-                <Separator className="my-1.5 bg-border/60 dark:border-white/[0.06]" />
+                <Separator className="my-1.5 bg-border/60" />
 
                 <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-left">
                   Dark Themes
@@ -949,8 +949,8 @@ export default function App() {
                   <DropdownMenuItem
                     key={palette.id}
                     onClick={() => setThemeMode(palette.id)}
-                    className={`cursor-pointer text-xs font-medium py-1.5 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08] ${
-                      themeMode === palette.id ? 'text-primary dark:text-[#5e5ce6] font-semibold bg-primary/10 dark:bg-white/[0.06]' : ''
+                    className={`cursor-pointer text-xs font-medium py-1.5 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted ${
+                      themeMode === palette.id ? 'text-primary font-semibold bg-primary/10' : ''
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0 text-left">
@@ -965,11 +965,11 @@ export default function App() {
                         <span className="text-[10px] text-muted-foreground font-normal truncate">{palette.description}</span>
                       </div>
                     </div>
-                    {themeMode === palette.id && <span className="text-xs text-primary dark:text-[#5e5ce6] shrink-0 ml-1">✓</span>}
+                    {themeMode === palette.id && <span className="text-xs text-primary shrink-0 ml-1">✓</span>}
                   </DropdownMenuItem>
                 ))}
 
-                <Separator className="my-1.5 bg-border/60 dark:border-white/[0.06]" />
+                <Separator className="my-1.5 bg-border/60" />
 
                 <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-left">
                   Light Themes
@@ -978,7 +978,7 @@ export default function App() {
                   <DropdownMenuItem
                     key={palette.id}
                     onClick={() => setThemeMode(palette.id)}
-                    className={`cursor-pointer text-xs font-medium py-1.5 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08] ${
+                    className={`cursor-pointer text-xs font-medium py-1.5 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted ${
                       themeMode === palette.id ? 'text-primary font-semibold bg-primary/10' : ''
                     }`}
                   >
@@ -1007,7 +1007,7 @@ export default function App() {
                 disabled={isSaving} 
                 variant="default"
                 group="splitLeft"
-                className="h-9 px-4 text-sm font-medium shadow-sm bg-[#5e5ce6] hover:bg-[#5250d4] text-white rounded-l-lg transition-colors"
+                className="h-9 px-4 text-sm font-medium shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground rounded-l-lg transition-colors"
                 title="Save all open tabs in current window (⌘S)"
               >
                 <Plus className="w-4 h-4 mr-1.5" /> {isSaving ? 'Saving...' : 'Save Window'}
@@ -1019,34 +1019,34 @@ export default function App() {
                     size="icon" 
                     group="splitRight" 
                     disabled={isSaving}
-                    className="shadow-sm h-9 w-8 bg-[#5e5ce6] hover:bg-[#5250d4] text-white rounded-r-lg border-l border-white/20 transition-colors"
+                    className="shadow-sm h-9 w-8 bg-primary hover:bg-primary/90 text-primary-foreground rounded-r-lg border-l border-primary-foreground/20 transition-colors"
                   >
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-60 p-1.5 bg-card dark:bg-[#1c1c1f] border-border dark:border-white/[0.08] shadow-apple-popover rounded-xl text-card-foreground">
-                  <DropdownMenuItem onClick={handleSaveCurrentWindow} className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08]">
+                <DropdownMenuContent align="end" className="w-60 p-1.5 bg-popover border-border shadow-apple-popover rounded-xl text-popover-foreground">
+                  <DropdownMenuItem onClick={handleSaveCurrentWindow} className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted">
                     <div className="flex items-center gap-2">
-                      <LayoutDashboard className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
+                      <LayoutDashboard className="w-4 h-4 text-primary" />
                       <span className="text-xs font-medium">Save Current Window</span>
                     </div>
-                    <kbd className="text-[10px] bg-muted/70 dark:bg-white/[0.08] px-1.5 py-0.5 rounded font-mono text-muted-foreground dark:text-zinc-400">⌘S</kbd>
+                    <kbd className="text-[10px] bg-muted/70 px-1.5 py-0.5 rounded font-mono text-muted-foreground">⌘S</kbd>
                   </DropdownMenuItem>
 
-                  <DropdownMenuItem onClick={handleSaveAllWindows} className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08]">
+                  <DropdownMenuItem onClick={handleSaveAllWindows} className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted">
                     <div className="flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
+                      <Layers className="w-4 h-4 text-primary" />
                       <span className="text-xs font-medium">Save All Windows</span>
                     </div>
-                    <kbd className="text-[10px] bg-muted/70 dark:bg-white/[0.08] px-1.5 py-0.5 rounded font-mono text-muted-foreground dark:text-zinc-400">⌘⇧S</kbd>
+                    <kbd className="text-[10px] bg-muted/70 px-1.5 py-0.5 rounded font-mono text-muted-foreground">⌘⇧S</kbd>
                   </DropdownMenuItem>
 
-                  <DropdownMenuItem onClick={handleSaveActiveTab} className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08]">
+                  <DropdownMenuItem onClick={handleSaveActiveTab} className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted">
                     <div className="flex items-center gap-2">
-                      <Bookmark className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
+                      <Bookmark className="w-4 h-4 text-primary" />
                       <span className="text-xs font-medium">Save Active Tab Only</span>
                     </div>
-                    <kbd className="text-[10px] bg-muted/70 dark:bg-white/[0.08] px-1.5 py-0.5 rounded font-mono text-muted-foreground dark:text-zinc-400">⌘⌥S</kbd>
+                    <kbd className="text-[10px] bg-muted/70 px-1.5 py-0.5 rounded font-mono text-muted-foreground">⌘⌥S</kbd>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1151,77 +1151,67 @@ export default function App() {
               <Card className="border-border bg-card shadow-lg">
                 <CardHeader>
                   <CardTitle className="text-foreground text-xl flex items-center gap-2">
-                    {themeMode === 'system' ? (
-                      <Monitor className="w-5 h-5 text-primary" />
-                    ) : themeMode === 'light' ? (
-                      <Sun className="w-5 h-5 text-amber-500" />
-                    ) : (
-                      <Moon className="w-5 h-5 text-indigo-400" />
-                    )}
-                    Appearance & Theme
+                    <Palette className="w-5 h-5 text-primary" />
+                    Appearance & Curated Themes
                   </CardTitle>
                   <CardDescription className="text-muted-foreground">
-                    Choose how TwoTab looks on your device. Changes synchronize across all extension windows in real time.
+                    Choose how TwoTab looks on your device. Every theme dynamically harmonizes surfaces, accents, and borders in real time.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="pt-2">
-                  <div className="grid grid-cols-3 gap-3">
-                    {/* Light option */}
-                    <button
-                      type="button"
-                      onClick={() => setThemeMode('light')}
-                      className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all text-center gap-2 ${
-                        themeMode === 'light'
-                          ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-md font-bold text-foreground'
-                          : 'border-border bg-muted/30 hover:bg-muted/60 text-muted-foreground hover:text-foreground font-medium'
-                      }`}
-                    >
-                      <div className="w-9 h-9 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500 shadow-sm">
-                        <Sun className="w-5 h-5" />
+                <CardContent className="pt-2 space-y-4">
+                  {/* System Preference */}
+                  <button
+                    type="button"
+                    onClick={() => setThemeMode('system')}
+                    className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
+                      themeMode === 'system'
+                        ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm font-semibold text-foreground'
+                        : 'border-border bg-muted/30 hover:bg-muted/60 text-muted-foreground hover:text-foreground font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shadow-xs">
+                        <Monitor className="w-4 h-4" />
                       </div>
-                      <div>
-                        <div className="text-sm font-semibold">Light</div>
-                        <div className="text-[11px] text-muted-foreground font-normal">Clean bright canvas</div>
+                      <div className="text-left">
+                        <div className="text-xs font-semibold">System Preference</div>
+                        <div className="text-[11px] text-muted-foreground font-normal">Automatically adapt to OS theme (Currently: {resolvedTheme})</div>
                       </div>
-                    </button>
+                    </div>
+                    {themeMode === 'system' && <span className="text-sm text-primary font-bold mr-2">✓ Active</span>}
+                  </button>
 
-                    {/* Dark option */}
-                    <button
-                      type="button"
-                      onClick={() => setThemeMode('dark')}
-                      className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all text-center gap-2 ${
-                        themeMode === 'dark'
-                          ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-md font-bold text-foreground'
-                          : 'border-border bg-muted/30 hover:bg-muted/60 text-muted-foreground hover:text-foreground font-medium'
-                      }`}
-                    >
-                      <div className="w-9 h-9 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-sm">
-                        <Moon className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold">Dark</div>
-                        <div className="text-[11px] text-muted-foreground font-normal">Deep dark palette</div>
-                      </div>
-                    </button>
-
-                    {/* System option */}
-                    <button
-                      type="button"
-                      onClick={() => setThemeMode('system')}
-                      className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all text-center gap-2 ${
-                        themeMode === 'system'
-                          ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-md font-bold text-foreground'
-                          : 'border-border bg-muted/30 hover:bg-muted/60 text-muted-foreground hover:text-foreground font-medium'
-                      }`}
-                    >
-                      <div className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shadow-sm">
-                        <Monitor className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold">System</div>
-                        <div className="text-[11px] text-muted-foreground font-normal">Auto ({resolvedTheme})</div>
-                      </div>
-                    </button>
+                  {/* 7 Curated Theme Palettes */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                    {THEME_PALETTES.map((palette) => {
+                      const isSelected = themeMode === palette.id;
+                      return (
+                        <button
+                          key={palette.id}
+                          type="button"
+                          onClick={() => setThemeMode(palette.id)}
+                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                            isSelected
+                              ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm font-semibold text-foreground'
+                              : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
+                          }`}
+                        >
+                          <div 
+                            className="w-7 h-7 rounded-full border border-black/15 dark:border-white/20 flex items-center justify-center shrink-0 shadow-xs"
+                            style={{ backgroundColor: palette.bgHex }}
+                          >
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: palette.accentHex }} />
+                          </div>
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-semibold text-foreground truncate">{palette.name}</span>
+                              {isSelected && <span className="text-xs text-primary font-bold">✓</span>}
+                            </div>
+                            <span className="text-[10px] text-muted-foreground font-normal truncate">{palette.description}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
