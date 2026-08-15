@@ -68,6 +68,66 @@
     --ring: 21 86% 48%;
   }
 
+  [data-theme="frost"] {
+    --background: 168 28% 96%; /* Crisp Glacier Canvas #f0f7f6 */
+    --foreground: 175 40% 12%; /* Deep Slate Forest #122320 */
+
+    --card: 0 0% 100%;
+    --card-foreground: 175 40% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 175 40% 12%;
+
+    --primary: 174 84% 32%; /* Rich Teal Emerald #0d9488 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 168 25% 91%;
+    --secondary-foreground: 175 40% 12%;
+
+    --muted: 168 25% 91%;
+    --muted-foreground: 170 14% 38%;
+
+    --accent: 174 84% 32%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 168 20% 84%;
+    --input: 168 20% 84%;
+    --ring: 174 84% 32%;
+  }
+
+  [data-theme="rose"] {
+    --background: 350 45% 97%; /* Porcelain Rosé Canvas #fdf2f4 */
+    --foreground: 345 35% 15%; /* Deep Plum #2d131a */
+
+    --card: 0 0% 100%;
+    --card-foreground: 345 35% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 345 35% 15%;
+
+    --primary: 347 77% 50%; /* Vibrant Berry Rose #e11d48 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 350 35% 92%;
+    --secondary-foreground: 345 35% 15%;
+
+    --muted: 350 35% 92%;
+    --muted-foreground: 345 14% 40%;
+
+    --accent: 347 77% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 350 30% 86%;
+    --input: 350 30% 86%;
+    --ring: 347 77% 50%;
+  }
+
   .dark,
   [data-theme="midnight"] {
     --background: 240 6% 6%; /* Soothing Recessed Slate #0e0e10 */

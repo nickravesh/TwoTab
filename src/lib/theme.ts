@@ -5,7 +5,9 @@ export type ThemePalette =
   | 'ocean'
   | 'amber'
   | 'light'
-  | 'paper';
+  | 'paper'
+  | 'frost'
+  | 'rose';
 
 export type ThemeMode = 'system' | 'dark' | 'light' | ThemePalette;
 export type ResolvedTheme = 'dark' | 'light';
@@ -79,6 +81,22 @@ export const THEME_PALETTES: ThemeOption[] = [
     accentHex: '#ea580c',
     description: 'Cozy linen cream & terracotta',
   },
+  {
+    id: 'frost',
+    name: 'Nordic Frost',
+    category: 'light',
+    bgHex: '#f0f7f6',
+    accentHex: '#0d9488',
+    description: 'Glacial mist & teal emerald',
+  },
+  {
+    id: 'rose',
+    name: 'Rose Quartz',
+    category: 'light',
+    bgHex: '#fdf2f4',
+    accentHex: '#e11d48',
+    description: 'Porcelain rosé & vibrant berry',
+  },
 ];
 
 const VALID_MODES: ThemeMode[] = [
@@ -90,7 +108,10 @@ const VALID_MODES: ThemeMode[] = [
   'nord',
   'ocean',
   'amber',
+  'light',
   'paper',
+  'frost',
+  'rose',
 ];
 
 /**
@@ -133,10 +154,11 @@ export function resolveTheme(mode: ThemeMode): ResolvedTheme {
     }
     return 'dark';
   }
-  if (mode === 'light' || mode === 'paper') {
-    return 'light';
+  const found = THEME_PALETTES.find((p) => p.id === mode);
+  if (found) {
+    return found.category;
   }
-  return 'dark';
+  return mode === 'light' ? 'light' : 'dark';
 }
 
 /**

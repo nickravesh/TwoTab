@@ -103,6 +103,8 @@ describe('TwoTab Theme Engine Unit Tests', () => {
   it('resolveTheme: resolves light palette modes to "light"', () => {
     expect(resolveTheme('light')).toBe('light');
     expect(resolveTheme('paper')).toBe('light');
+    expect(resolveTheme('frost')).toBe('light');
+    expect(resolveTheme('rose')).toBe('light');
   });
 
   it('resolvePalette: maps legacy and specific theme modes to valid palettes', () => {
@@ -114,6 +116,8 @@ describe('TwoTab Theme Engine Unit Tests', () => {
     expect(resolvePalette('amber')).toBe('amber');
     expect(resolvePalette('light')).toBe('light');
     expect(resolvePalette('paper')).toBe('paper');
+    expect(resolvePalette('frost')).toBe('frost');
+    expect(resolvePalette('rose')).toBe('rose');
   });
 
   it('resolveTheme: resolves "system" mode based on matchMedia prefers-color-scheme', () => {
@@ -148,8 +152,8 @@ describe('TwoTab Theme Engine Unit Tests', () => {
     expect(resolvePalette('system')).toBe('light');
   });
 
-  it('THEME_PALETTES: defines 7 curated palettes with complete metadata', () => {
-    expect(THEME_PALETTES.length).toBe(7);
+  it('THEME_PALETTES: defines 9 curated palettes with complete metadata', () => {
+    expect(THEME_PALETTES.length).toBe(9);
     const ids = THEME_PALETTES.map((p) => p.id);
     expect(ids).toContain('midnight');
     expect(ids).toContain('obsidian');
@@ -158,6 +162,8 @@ describe('TwoTab Theme Engine Unit Tests', () => {
     expect(ids).toContain('amber');
     expect(ids).toContain('light');
     expect(ids).toContain('paper');
+    expect(ids).toContain('frost');
+    expect(ids).toContain('rose');
   });
 
   // ---------------------------------------------------------------------------
