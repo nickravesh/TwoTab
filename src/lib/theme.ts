@@ -176,25 +176,59 @@ export function resolvePalette(mode: ThemeMode): ThemePalette {
   return mode;
 }
 
+let transitionTimeout: ReturnType<typeof setTimeout> | null = null;
+
 /**
  * Applies the given theme mode to document.documentElement:
  * - Sets the data-theme attribute
  * - Adds or removes the 'dark' CSS class
  * - Sets color-scheme to 'dark' or 'light'
+ * - Optionally triggers a smooth theme transition animation (View Transitions API / CSS transition)
  * Returns the resolved theme ('dark' | 'light').
  */
-export function applyThemeToDOM(mode: ThemeMode): ResolvedTheme {
+export function applyThemeToDOM(mode: ThemeMode, animated = false): ResolvedTheme {
   const resolved = resolveTheme(mode);
   const palette = resolvePalette(mode);
 
   if (typeof document !== 'undefined' && document.documentElement) {
-    document.documentElement.setAttribute('data-theme', palette);
-    if (resolved === 'dark') {
-      document.documentElement.classList.add('dark');
-      document.documentElement.style.colorScheme = 'dark';
+    const prefersReducedMotion =
+      typeof window !== 'undefined' && window.matchMedia
+        ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        : false;
+
+    const performDomUpdate = () => {
+      document.documentElement.setAttribute('data-theme', palette);
+      if (resolved === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.style.colorScheme = 'light';
+      }
+    };
+
+    if (animated && !prefersReducedMotion) {
+      const docWithTransitions = document as Document & {
+        startViewTransition?: (callback: () => void) => void;
+      };
+
+      if (typeof docWithTransitions.startViewTransition === 'function') {
+        docWithTransitions.startViewTransition(() => {
+          performDomUpdate();
+        });
+      } else {
+        // Fallback smooth CSS transition class
+        document.documentElement.classList.add('theme-transitioning');
+        performDomUpdate();
+        if (transitionTimeout) clearTimeout(transitionTimeout);
+        transitionTimeout = setTimeout(() => {
+          if (typeof document !== 'undefined' && document.documentElement) {
+            document.documentElement.classList.remove('theme-transitioning');
+          }
+        }, 350);
+      }
     } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.style.colorScheme = 'light';
+      performDomUpdate();
     }
   }
   return resolved;

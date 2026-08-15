@@ -21,7 +21,7 @@ export function useTheme() {
     getStoredThemeMode().then((mode) => {
       if (!mounted) return;
       setThemeModeState(mode);
-      const resolved = applyThemeToDOM(mode);
+      const resolved = applyThemeToDOM(mode, false);
       setResolvedTheme(resolved);
     });
 
@@ -33,7 +33,7 @@ export function useTheme() {
       if (areaName === 'local' && changes[THEME_STORAGE_KEY]) {
         const newMode = (changes[THEME_STORAGE_KEY].newValue as ThemeMode) || DEFAULT_THEME_MODE;
         setThemeModeState(newMode);
-        const resolved = applyThemeToDOM(newMode);
+        const resolved = applyThemeToDOM(newMode, true);
         setResolvedTheme(resolved);
       }
     };
@@ -52,7 +52,7 @@ export function useTheme() {
       getStoredThemeMode().then((mode) => {
         if (!mounted) return;
         if (mode === 'system') {
-          const resolved = applyThemeToDOM('system');
+          const resolved = applyThemeToDOM('system', true);
           setResolvedTheme(resolved);
         }
       });
@@ -83,7 +83,7 @@ export function useTheme() {
 
   const setThemeMode = useCallback(async (mode: ThemeMode) => {
     setThemeModeState(mode);
-    const resolved = applyThemeToDOM(mode);
+    const resolved = applyThemeToDOM(mode, true);
     setResolvedTheme(resolved);
     await setStoredThemeMode(mode);
   }, []);
