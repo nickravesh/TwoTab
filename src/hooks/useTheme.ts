@@ -110,8 +110,34 @@ export function useTheme() {
         typeof docWithTransitions.startViewTransition === 'function' &&
         !prefersReducedMotion
       ) {
-        const x = event?.clientX ?? (typeof window !== 'undefined' ? window.innerWidth - 60 : 0);
-        const y = event?.clientY ?? 40;
+        let x = typeof window !== 'undefined' ? window.innerWidth - 60 : 0;
+        let y = 40;
+
+        if (event && 'currentTarget' in event && event.currentTarget instanceof HTMLElement) {
+          // Precisely pin the origin to the icon / swatch inside the clicked element
+          const iconEl =
+            (event.currentTarget.querySelector('svg, img, [style*="background-color"]') as HTMLElement) ||
+            event.currentTarget;
+          const rect = iconEl.getBoundingClientRect();
+          x = rect.left + rect.width / 2;
+          y = rect.top + rect.height / 2;
+        } else if (
+          event &&
+          typeof (event as any).clientX === 'number' &&
+          typeof (event as any).clientY === 'number'
+        ) {
+          x = (event as any).clientX;
+          y = (event as any).clientY;
+        } else if (typeof document !== 'undefined') {
+          // Fallback: pin to the theme trigger button in the header if available
+          const themeBtn = document.querySelector('button[title*="Theme:"]');
+          if (themeBtn) {
+            const rect = themeBtn.getBoundingClientRect();
+            x = rect.left + rect.width / 2;
+            y = rect.top + rect.height / 2;
+          }
+        }
+
         const endRadius =
           typeof window !== 'undefined'
             ? Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y))
@@ -137,8 +163,8 @@ export function useTheme() {
                     clipPath: clipPath,
                   },
                   {
-                    duration: 500,
-                    easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+                    duration: 650,
+                    easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
                     pseudoElement: '::view-transition-new(root)',
                   }
                 );
