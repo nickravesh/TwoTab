@@ -36,7 +36,11 @@ import {
   Clock,
   Sparkles,
   Bookmark,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
+import { useTheme } from '@/hooks/useTheme';
 
 interface DeleteConfirmState {
   id: number;
@@ -44,6 +48,7 @@ interface DeleteConfirmState {
 }
 
 export default function App() {
+  const { themeMode, resolvedTheme, setThemeMode } = useTheme();
   const [groups, setGroups] = useState<TabGroup[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
@@ -212,16 +217,75 @@ export default function App() {
           </span>
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleOpenDashboard}
-          className="h-7 px-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 flex items-center gap-1.5 rounded-md transition-colors"
-          title="Open Full Dashboard in new tab"
-        >
-          <span className="text-[11px]">Dashboard</span>
-          <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-md transition-colors"
+                title={`Theme: ${themeMode} (${resolvedTheme})`}
+              >
+                {themeMode === 'system' ? (
+                  <Monitor className="w-3.5 h-3.5 text-primary" />
+                ) : themeMode === 'light' ? (
+                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                ) : (
+                  <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-32 bg-card border-border">
+              <DropdownMenuItem
+                onClick={() => setThemeMode('light')}
+                className={`cursor-pointer text-xs font-medium py-1.5 flex items-center justify-between ${
+                  themeMode === 'light' ? 'text-primary font-bold bg-primary/10' : ''
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Light</span>
+                </div>
+                {themeMode === 'light' && <span className="text-[10px] text-primary">✓</span>}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setThemeMode('dark')}
+                className={`cursor-pointer text-xs font-medium py-1.5 flex items-center justify-between ${
+                  themeMode === 'dark' ? 'text-primary font-bold bg-primary/10' : ''
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Dark</span>
+                </div>
+                {themeMode === 'dark' && <span className="text-[10px] text-primary">✓</span>}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setThemeMode('system')}
+                className={`cursor-pointer text-xs font-medium py-1.5 flex items-center justify-between ${
+                  themeMode === 'system' ? 'text-primary font-bold bg-primary/10' : ''
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Monitor className="w-3.5 h-3.5 text-primary" />
+                  <span>System</span>
+                </div>
+                {themeMode === 'system' && <span className="text-[10px] text-primary">✓</span>}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleOpenDashboard}
+            className="h-7 px-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 flex items-center gap-1.5 rounded-md transition-colors"
+            title="Open Full Dashboard in new tab"
+          >
+            <span className="text-[11px]">Dashboard</span>
+            <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+          </Button>
+        </div>
       </header>
 
       {/* 2. Primary Quick-Action Controls */}

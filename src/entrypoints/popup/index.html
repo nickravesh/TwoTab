@@ -4,6 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TwoTab</title>
+    <script>
+      try {
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.get('twotab_theme_mode', function (res) {
+            var mode = res && res.twotab_theme_mode ? res.twotab_theme_mode : 'dark';
+            var isDark =
+              mode === 'dark' ||
+              (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) {
+              document.documentElement.classList.add('dark');
+              document.documentElement.style.colorScheme = 'dark';
+            } else {
+              document.documentElement.classList.remove('dark');
+              document.documentElement.style.colorScheme = 'light';
+            }
+          });
+        }
+      } catch (e) {}
+    </script>
     <style>
       body {
         width: 360px;

@@ -79,8 +79,12 @@ import {
   ChevronDown,
   BookOpen,
   ShieldAlert,
-  Globe
+  Globe,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
+import { useTheme } from '@/hooks/useTheme';
 
 interface DeleteConfirmState {
   type: 'group' | 'tab' | 'all';
@@ -387,6 +391,7 @@ function VirtualizedCardGrid({
 // =============================================================================
 
 export default function App() {
+  const { themeMode, resolvedTheme, setThemeMode } = useTheme();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'archive' | 'closed' | 'settings' | 'help'>('dashboard');
   const [groups, setGroups] = useState<TabGroup[]>([]);
   const [recentlyClosed, setRecentlyClosed] = useState<ClosedTabItem[]>([]);
@@ -807,6 +812,65 @@ export default function App() {
                 )}
               </div>
             )}
+
+            {/* Theme Selector */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="border-border bg-card hover:bg-muted text-foreground h-10 w-10 shadow-sm"
+                  title={`Theme: ${themeMode} (${resolvedTheme})`}
+                >
+                  {themeMode === 'system' ? (
+                    <Monitor className="w-4 h-4 text-primary" />
+                  ) : themeMode === 'light' ? (
+                    <Sun className="w-4 h-4 text-amber-500" />
+                  ) : (
+                    <Moon className="w-4 h-4 text-indigo-400" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-36 bg-card border-border">
+                <DropdownMenuItem
+                  onClick={() => setThemeMode('light')}
+                  className={`cursor-pointer text-xs font-medium py-2 flex items-center justify-between ${
+                    themeMode === 'light' ? 'text-primary font-bold bg-primary/10' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Sun className="w-4 h-4 text-amber-500" />
+                    <span>Light</span>
+                  </div>
+                  {themeMode === 'light' && <span className="text-xs text-primary">✓</span>}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setThemeMode('dark')}
+                  className={`cursor-pointer text-xs font-medium py-2 flex items-center justify-between ${
+                    themeMode === 'dark' ? 'text-primary font-bold bg-primary/10' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Moon className="w-4 h-4 text-indigo-400" />
+                    <span>Dark</span>
+                  </div>
+                  {themeMode === 'dark' && <span className="text-xs text-primary">✓</span>}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setThemeMode('system')}
+                  className={`cursor-pointer text-xs font-medium py-2 flex items-center justify-between ${
+                    themeMode === 'system' ? 'text-primary font-bold bg-primary/10' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Monitor className="w-4 h-4 text-primary" />
+                    <span>System</span>
+                  </div>
+                  {themeMode === 'system' && <span className="text-xs text-primary">✓</span>}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {/* Split Button: Save Current Window + Save All Windows */}
             <div className="flex items-center">
               <Button 
@@ -823,7 +887,7 @@ export default function App() {
                   <Button 
                     variant="default" 
                     size="icon" 
-                    group="splitRight"
+                    group="splitRight" 
                     disabled={isSaving}
                     className="shadow-lg shadow-primary/25 h-10 w-9"
                   >
@@ -933,6 +997,85 @@ export default function App() {
           {/* Settings View */}
           {activeTab === 'settings' && (
             <div className="max-w-3xl mx-auto space-y-6 animate-fade-in-up">
+              {/* Appearance & Theme Settings */}
+              <Card className="border-border bg-card shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-foreground text-xl flex items-center gap-2">
+                    {themeMode === 'system' ? (
+                      <Monitor className="w-5 h-5 text-primary" />
+                    ) : themeMode === 'light' ? (
+                      <Sun className="w-5 h-5 text-amber-500" />
+                    ) : (
+                      <Moon className="w-5 h-5 text-indigo-400" />
+                    )}
+                    Appearance & Theme
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">
+                    Choose how TwoTab looks on your device. Changes synchronize across all extension windows in real time.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <div className="grid grid-cols-3 gap-3">
+                    {/* Light option */}
+                    <button
+                      type="button"
+                      onClick={() => setThemeMode('light')}
+                      className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all text-center gap-2 ${
+                        themeMode === 'light'
+                          ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-md font-bold text-foreground'
+                          : 'border-border bg-muted/30 hover:bg-muted/60 text-muted-foreground hover:text-foreground font-medium'
+                      }`}
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500 shadow-sm">
+                        <Sun className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold">Light</div>
+                        <div className="text-[11px] text-muted-foreground font-normal">Clean bright canvas</div>
+                      </div>
+                    </button>
+
+                    {/* Dark option */}
+                    <button
+                      type="button"
+                      onClick={() => setThemeMode('dark')}
+                      className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all text-center gap-2 ${
+                        themeMode === 'dark'
+                          ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-md font-bold text-foreground'
+                          : 'border-border bg-muted/30 hover:bg-muted/60 text-muted-foreground hover:text-foreground font-medium'
+                      }`}
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-sm">
+                        <Moon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold">Dark</div>
+                        <div className="text-[11px] text-muted-foreground font-normal">Deep dark palette</div>
+                      </div>
+                    </button>
+
+                    {/* System option */}
+                    <button
+                      type="button"
+                      onClick={() => setThemeMode('system')}
+                      className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all text-center gap-2 ${
+                        themeMode === 'system'
+                          ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-md font-bold text-foreground'
+                          : 'border-border bg-muted/30 hover:bg-muted/60 text-muted-foreground hover:text-foreground font-medium'
+                      }`}
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shadow-sm">
+                        <Monitor className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold">System</div>
+                        <div className="text-[11px] text-muted-foreground font-normal">Auto ({resolvedTheme})</div>
+                      </div>
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card className="border-border bg-card shadow-lg">
                 <CardHeader>
                   <CardTitle className="text-foreground text-xl flex items-center gap-2">
