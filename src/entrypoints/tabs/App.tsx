@@ -202,10 +202,10 @@ function VirtualizedCardGrid({
     return (
       <div className="flex-1 overflow-auto p-10 w-full">
         <div className="flex flex-col items-center justify-center py-20 animate-fade-in-up">
-          <Card className="p-8 border-border max-w-md text-center flex flex-col items-center shadow-2xl bg-card">
-            <Sparkles className="w-12 h-12 mb-4 text-primary opacity-90" />
-            <h3 className="text-xl font-bold text-foreground mb-2">No {activeTab} groups found</h3>
-            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+          <Card className="p-8 border-border max-w-md text-center flex flex-col items-center shadow-sm bg-card">
+            <Sparkles className="w-10 h-10 mb-4 text-primary opacity-90" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">No {activeTab} groups found</h3>
+            <p className="text-xs text-muted-foreground mb-6 leading-relaxed">
               {activeTab === 'dashboard' 
                 ? 'Save your open browser tabs to free up RAM memory and organize your workspace.' 
                 : 'Archived tab groups will appear here.'}
@@ -213,18 +213,18 @@ function VirtualizedCardGrid({
             {activeTab === 'dashboard' && (
               <div className="flex flex-col gap-3 w-full">
                 <div className="flex w-full">
-                  <Button onClick={handleSaveCurrentWindow} disabled={isSaving} group="splitLeft" className="flex-1 font-bold shadow-lg shadow-primary/25">
-                    <Plus className="w-4 h-4 mr-2" /> {isSaving ? 'Saving...' : 'Save Current Window'}
+                  <Button onClick={handleSaveCurrentWindow} disabled={isSaving} group="splitLeft" className="flex-1 font-semibold shadow-sm hover:bg-primary/90 transition-colors">
+                    <Plus className="w-4 h-4 mr-1.5" /> {isSaving ? 'Saving...' : 'Save Current Window'}
                   </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button disabled={isSaving} group="splitRight" className="shadow-lg shadow-primary/25 px-2.5">
+                      <Button disabled={isSaving} group="splitRight" className="shadow-sm px-2.5 hover:bg-primary/90">
                         <ChevronDown className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuContent align="end" className="w-52 bg-card border-border">
                       <DropdownMenuItem onClick={handleSaveAllWindows} className="cursor-pointer">
-                        <Layers className="w-4 h-4 mr-2" />
+                        <Layers className="w-4 h-4 mr-2 text-primary" />
                         Save All Windows
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -271,9 +271,9 @@ function VirtualizedCardGrid({
                 }}
               >
                 {rowGroups.map((group) => (
-                  <Card key={group.id} className="flex flex-col h-[360px] overflow-hidden rounded-xl border-border hover:border-muted-foreground/40 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 bg-card">
-                    <CardHeader className="pb-3 border-b border-border bg-muted/20 shrink-0">
-                      <CardTitle className="text-base flex justify-between items-center mb-1">
+                  <Card key={group.id} className="flex flex-col h-[360px] overflow-hidden rounded-xl border-border bg-card shadow-sm hover:shadow-md hover:border-border/80 transition-all duration-200">
+                    <CardHeader className="pb-2.5 border-b border-border bg-muted/20 shrink-0">
+                      <CardTitle className="text-sm font-semibold flex justify-between items-center mb-1">
                         {editingGroupId === group.id ? (
                           <div className="flex items-center gap-1.5 flex-1 mr-2">
                             <Input 
@@ -296,19 +296,19 @@ function VirtualizedCardGrid({
                             <Edit2 className="w-3.5 h-3.5 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
                           </div>
                         )}
-                        <Badge variant="indigo" className="shrink-0">
+                        <Badge variant="secondary" className="shrink-0 text-[11px] font-normal border border-border/50">
                           {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'}
                         </Badge>
                       </CardTitle>
-                      <div className="text-xs text-muted-foreground font-medium">{getRelativeTime(group.date)}</div>
+                      <div className="text-xs text-muted-foreground font-normal">{getRelativeTime(group.date)}</div>
                     </CardHeader>
 
-                    <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-4 space-y-2">
+                    <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3 space-y-1.5">
                       {group.tabs.map((tab, i) => {
                         const domain = getSafeDomain(tab.url);
                         return (
-                          <div key={i} className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group/link p-1.5 rounded-lg hover:bg-muted/50">
-                            <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 border border-border group-hover/link:border-muted-foreground/30 transition-colors">
+                          <div key={i} className="flex items-center gap-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors group/link p-1.5 rounded-md hover:bg-muted/60">
+                            <div className="w-5 h-5 rounded bg-muted/80 flex items-center justify-center shrink-0 border border-border/60">
                               {domain ? (
                                 <img 
                                   src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
@@ -319,7 +319,7 @@ function VirtualizedCardGrid({
                                   }} 
                                 />
                               ) : (
-                                <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                                <Globe className="w-3 h-3 text-muted-foreground" />
                               )}
                             </div>
                             <a href={tab.url} target="_blank" rel="noreferrer" className="truncate flex-1 font-medium hover:text-primary transition-colors">
@@ -328,51 +328,51 @@ function VirtualizedCardGrid({
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-6 w-6 opacity-0 group-hover/link:opacity-100 transition-all text-destructive hover:bg-destructive/20 hover:text-destructive active:scale-95" 
+                              className="h-5 w-5 opacity-0 group-hover/link:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10" 
                               onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
                         );
                       })}
                     </CardContent>
 
-                    <CardFooter className="p-3 border-t border-border bg-card shrink-0 flex justify-end gap-2 relative z-10">
+                    <CardFooter className="p-2.5 border-t border-border bg-card shrink-0 flex justify-end gap-1.5 relative z-10">
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="h-8 text-xs font-semibold text-destructive hover:bg-destructive/20 hover:text-destructive active:scale-95 transition-all" 
+                        className="h-7 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 font-normal transition-colors" 
                         onClick={() => setDeleteConfirm({ type: 'group', id: group.id, title: group.name || 'Saved Group' })}
                       >
-                        Delete
+                        <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
                       </Button>
                       {activeTab === 'dashboard' ? (
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="h-8 text-xs text-muted-foreground font-semibold hover:text-foreground hover:bg-muted transition-colors" 
+                          className="h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-muted font-normal transition-colors" 
                           onClick={() => handleArchiveGroup(group.id)}
                         >
-                          Archive
+                          <Archive className="w-3.5 h-3.5 mr-1" /> Archive
                         </Button>
                       ) : (
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="h-8 text-xs text-primary font-semibold hover:bg-primary/20 transition-colors" 
+                          className="h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-muted font-normal transition-colors" 
                           onClick={() => handleUnarchiveGroup(group.id)}
                         >
-                          Unarchive
+                          <RotateCcw className="w-3.5 h-3.5 mr-1" /> Unarchive
                         </Button>
                       )}
                       <Button 
                         variant="secondary" 
                         size="sm" 
-                        className="h-8 text-xs bg-primary/20 text-primary-foreground hover:bg-primary/30 border border-primary/40 font-semibold transition-colors shadow-sm" 
+                        className="h-7 text-xs border border-border/60 font-medium transition-colors" 
                         onClick={() => handleRestoreGroup(group)}
                       >
-                        Restore Group
+                        <RotateCcw className="w-3.5 h-3.5 mr-1 text-primary" /> Restore Group
                       </Button>
                     </CardFooter>
                   </Card>
@@ -685,46 +685,49 @@ export default function App() {
         </div>
       )}
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
-        <DialogContent className="border-border bg-card max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <Trash2 className="w-5 h-5 text-destructive" />
+      {/* Delete Confirmation Alert Dialog */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <AlertDialogContent className="border-border bg-card max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground flex items-center gap-2 text-base font-semibold">
+              <Trash2 className="w-4 h-4 text-destructive" />
               Confirm Deletion
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground pt-2">
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground pt-1.5 text-sm leading-relaxed">
               {deleteConfirm?.type === 'group' && (
-                <>Are you sure you want to delete <strong className="text-foreground">"{deleteConfirm.title}"</strong>? This action cannot be undone.</>
+                <>Are you sure you want to delete <strong className="text-foreground font-medium">"{deleteConfirm.title}"</strong>? This action cannot be undone.</>
               )}
               {deleteConfirm?.type === 'tab' && (
-                <>Are you sure you want to remove <strong className="text-foreground">"{deleteConfirm.title}"</strong> from this group?</>
+                <>Are you sure you want to remove <strong className="text-foreground font-medium">"{deleteConfirm.title}"</strong> from this group?</>
               )}
               {deleteConfirm?.type === 'all' && (
                 <>Are you sure you want to clear <strong className="text-destructive font-semibold">ALL saved data</strong>? This will permanently delete all saved tab groups and settings.</>
               )}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0 pt-4">
-            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0 pt-4">
+            <AlertDialogCancel onClick={() => setDeleteConfirm(null)} className="h-8 text-xs font-medium">
               Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete} className="font-bold shadow-lg shadow-destructive/20">
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 font-semibold shadow-sm">
               Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Ambient background glow */}
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 left-64 w-[500px] h-[500px] bg-accent/10 rounded-full blur-[120px] pointer-events-none" />
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Sidebar */}
-      <div className="w-64 border-r border-border/40 bg-card/75 backdrop-blur-2xl p-6 flex flex-col z-20 shadow-[4px_0_24px_rgba(0,0,0,0.35)]">
-        <h1 className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-400 to-accent mb-10 tracking-tight">TwoTab</h1>
+      <div className="w-64 border-r border-border bg-card p-6 flex flex-col z-20">
+        <div className="flex items-center gap-2.5 mb-8">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary via-purple-500 to-indigo-600 flex items-center justify-center shadow-sm">
+            <Layers className="w-4 h-4 text-white" />
+          </div>
+          <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-400 to-accent tracking-tight">
+            TwoTab
+          </span>
+        </div>
         
-        <nav className="space-y-1.5 flex-1">
+        <nav className="space-y-1 flex-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -732,10 +735,10 @@ export default function App() {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all duration-200 ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs transition-colors font-medium ${
                   isActive 
-                    ? 'bg-primary/20 text-foreground font-bold border-l-4 border-primary pl-3 shadow-md' 
-                    : 'text-muted-foreground/70 hover:text-foreground hover:bg-muted/50 font-medium'
+                    ? 'bg-muted text-foreground font-semibold border-l-2 border-primary pl-3' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
                 <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -744,10 +747,10 @@ export default function App() {
             );
           })}
 
-          <Separator className="my-5 bg-border/40" />
+          <Separator className="my-4 bg-border" />
 
-          <div className="pb-2">
-            <p className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wider px-4">PREFERENCES</p>
+          <div className="pb-1.5">
+            <p className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider px-3.5">Preferences</p>
           </div>
 
           {prefItems.map((item) => {
@@ -757,10 +760,10 @@ export default function App() {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all duration-200 ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs transition-colors font-medium ${
                   isActive 
-                    ? 'bg-primary/20 text-foreground font-bold border-l-4 border-primary pl-3 shadow-md' 
-                    : 'text-muted-foreground/70 hover:text-foreground hover:bg-muted/50 font-medium'
+                    ? 'bg-muted text-foreground font-semibold border-l-2 border-primary pl-3' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
                 <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -774,28 +777,28 @@ export default function App() {
       {/* Main Content */}
       <div className="flex-1 min-w-0 w-full flex flex-col z-10 relative">
         {/* Header */}
-        <header className="h-20 border-b border-border/40 flex items-center justify-between px-10 bg-card/75 backdrop-blur-xl sticky top-0 z-20 shadow-[0_4px_20px_rgba(0,0,0,0.25)]">
-          <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">{getHeaderTitle()}</h2>
+        <header className="h-16 border-b border-border flex items-center justify-between px-8 bg-card/80 backdrop-blur-md sticky top-0 z-20">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold tracking-tight text-foreground">{getHeaderTitle()}</h2>
             {activeTab === 'dashboard' && groups.length > 0 && (
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={handleRestoreAllGroups} 
-                className="border-border bg-muted/40 hover:bg-muted text-foreground text-xs font-medium"
+                className="h-8 text-xs border-border bg-muted/40 hover:bg-muted text-foreground font-medium"
               >
                 <RotateCcw className="w-3.5 h-3.5 mr-1.5 text-primary" /> Restore All ({groups.reduce((acc, g) => acc + g.tabs.length, 0)} tabs)
               </Button>
             )}
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {(activeTab === 'dashboard' || activeTab === 'archive') && (
-              <div className="relative w-80 group">
-                <Search className="absolute left-3.5 top-3 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+              <div className="relative w-72 group">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                 <Input 
                   placeholder="Search saved tabs..." 
-                  className="pl-10 pr-9 bg-muted/60 border-input text-foreground placeholder:text-muted-foreground focus-visible:ring-primary h-10 shadow-inner" 
+                  className="pl-9 pr-8 bg-muted/50 border-input text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary h-9 text-xs shadow-none" 
                   value={search} 
                   onChange={e => setSearch(e.target.value)} 
                   onKeyDown={e => e.key === 'Escape' && setSearch('')}
@@ -804,7 +807,7 @@ export default function App() {
                   <Button 
                     size="icon" 
                     variant="ghost" 
-                    className="absolute right-2 top-2 h-6 w-6 text-muted-foreground hover:text-foreground" 
+                    className="absolute right-1.5 top-1.5 h-6 w-6 text-muted-foreground hover:text-foreground" 
                     onClick={() => setSearch('')}
                   >
                     <X className="w-3.5 h-3.5" />
@@ -819,7 +822,7 @@ export default function App() {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="border-border bg-card hover:bg-muted text-foreground h-10 w-10 shadow-sm"
+                  className="border-border bg-card hover:bg-muted text-foreground h-9 w-9 shadow-sm"
                   title={`Theme: ${themeMode} (${resolvedTheme})`}
                 >
                   {themeMode === 'system' ? (
@@ -878,9 +881,9 @@ export default function App() {
                 disabled={isSaving} 
                 variant="default"
                 group="splitLeft"
-                className="font-bold shadow-lg shadow-primary/25 hover:scale-[1.01] active:scale-[0.99] transition-all"
+                className="h-9 font-semibold shadow-sm hover:bg-primary/90 transition-colors text-xs"
               >
-                <Plus className="w-4 h-4 mr-2" /> {isSaving ? 'Saving...' : 'Save Current Window'}
+                <Plus className="w-3.5 h-3.5 mr-1.5" /> {isSaving ? 'Saving...' : 'Save Current Window'}
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -889,14 +892,14 @@ export default function App() {
                     size="icon" 
                     group="splitRight" 
                     disabled={isSaving}
-                    className="shadow-lg shadow-primary/25 h-10 w-9"
+                    className="shadow-sm h-9 w-8 hover:bg-primary/90"
                   >
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuContent align="end" className="w-52 bg-card border-border">
                   <DropdownMenuItem onClick={handleSaveAllWindows} className="cursor-pointer">
-                    <Layers className="w-4 h-4 mr-2" />
+                    <Layers className="w-4 h-4 mr-2 text-primary" />
                     Save All Windows
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -957,18 +960,18 @@ export default function App() {
                 recentlyClosed.map((item) => {
                   const domain = getSafeDomain(item.url);
                   return (
-                    <Card key={item.id} className="p-4 rounded-xl flex items-center justify-between hover:bg-muted/50 transition-colors border-border bg-card shadow-md group">
+                    <Card key={item.id} className="p-3 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors border-border bg-card shadow-sm group">
                       <div className="flex items-center gap-3 truncate min-w-0 flex-1 mr-4">
-                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 border border-border">
+                        <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0 border border-border">
                           {domain ? (
                             <img 
                               src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
                               alt="" 
-                              className="w-4 h-4 opacity-90" 
+                              className="w-3.5 h-3.5 opacity-90" 
                               onError={(e) => { e.currentTarget.style.display = 'none'; }}
                             />
                           ) : (
-                            <Globe className="w-4 h-4 text-muted-foreground" />
+                            <Globe className="w-3.5 h-3.5 text-muted-foreground" />
                           )}
                         </div>
                         <div className="truncate flex-1 min-w-0">
@@ -980,10 +983,10 @@ export default function App() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-xs text-muted-foreground font-medium hidden sm:inline mr-2">{getRelativeTime(item.timestamp)}</span>
-                        <Button size="sm" variant="secondary" onClick={() => handleReopenClosedItem(item)} className="bg-primary/20 text-primary-foreground hover:bg-primary/30 border border-primary/40 font-semibold text-xs shadow-sm">
+                        <Button size="sm" variant="secondary" onClick={() => handleReopenClosedItem(item)} className="border border-border/60 font-medium text-xs h-7">
                           Reopen Tab
                         </Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleRemoveClosedItem(item.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/20 transition-colors">
+                        <Button size="icon" variant="ghost" onClick={() => handleRemoveClosedItem(item.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </div>
