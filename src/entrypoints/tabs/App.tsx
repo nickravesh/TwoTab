@@ -273,10 +273,10 @@ function VirtualizedCardGrid({
                 {rowGroups.map((group) => (
                   <Card 
                     key={group.id} 
-                    className="flex flex-col justify-between h-[220px] overflow-hidden rounded-xl border border-border bg-card shadow-sm hover:border-border/80 transition-all duration-200"
+                    className="flex flex-col justify-between h-[220px] overflow-hidden rounded-xl border border-border/80 dark:border-white/[0.08] hover:border-border dark:hover:border-white/[0.18] bg-card text-card-foreground shadow-sm transition-all duration-150"
                   >
                     {/* Card Header (flex-shrink-0) */}
-                    <CardHeader className="p-3 pb-2 border-b border-border bg-muted/20 shrink-0">
+                    <CardHeader className="p-3 pb-2 border-b border-border/60 dark:border-white/[0.06] bg-muted/20 dark:bg-white/[0.02] shrink-0">
                       <div className="flex items-center justify-between gap-2 min-w-0">
                         {editingGroupId === group.id ? (
                           <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
@@ -296,11 +296,11 @@ function VirtualizedCardGrid({
                           </div>
                         ) : (
                           <div className="flex items-center gap-2 group/title min-w-0 flex-1 cursor-pointer" onClick={() => handleStartRename(group)} title="Click to rename">
-                            <span className="truncate font-medium text-sm text-foreground">{group.name || 'Saved Group'}</span>
+                            <span className="truncate font-semibold text-sm text-foreground dark:text-zinc-100">{group.name || 'Saved Group'}</span>
                             <Edit2 className="w-3 h-3 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
                           </div>
                         )}
-                        <span className="shrink-0 text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md font-normal whitespace-nowrap">
+                        <span className="shrink-0 text-xs bg-muted/60 dark:bg-white/[0.06] text-muted-foreground dark:text-zinc-400 border border-border/60 dark:border-white/[0.06] px-2 py-0.5 rounded-full font-normal whitespace-nowrap">
                           {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} • {getRelativeTime(group.date)}
                         </span>
                       </div>
@@ -311,7 +311,7 @@ function VirtualizedCardGrid({
                       {group.tabs.map((tab, i) => {
                         const domain = getSafeDomain(tab.url);
                         return (
-                          <div key={i} className="flex items-center justify-between p-1.5 rounded-md hover:bg-muted/50 group transition-colors">
+                          <div key={i} className="flex items-center justify-between p-1.5 rounded-md hover:bg-muted/50 dark:hover:bg-white/[0.04] group transition-colors">
                             <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                               <div className="w-4 h-4 rounded flex items-center justify-center shrink-0">
                                 {domain ? (
@@ -327,14 +327,14 @@ function VirtualizedCardGrid({
                                   <Globe className="w-3.5 h-3.5 text-muted-foreground" />
                                 )}
                               </div>
-                              <a href={tab.url} target="_blank" rel="noreferrer" className="truncate text-xs text-muted-foreground group-hover:text-foreground font-normal hover:underline transition-colors">
+                              <a href={tab.url} target="_blank" rel="noreferrer" className="truncate text-xs text-muted-foreground group-hover:text-foreground dark:text-zinc-400 dark:group-hover:text-zinc-200 font-normal hover:underline transition-colors">
                                 {tab.title || tab.url}
                               </a>
                             </div>
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" 
+                              className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 shrink-0" 
                               onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
                               title="Remove tab"
                             >
@@ -346,46 +346,46 @@ function VirtualizedCardGrid({
                     </CardContent>
 
                     {/* Card Footer (flex-shrink-0 border-t border-border p-2.5 flex items-center justify-between) */}
-                    <CardFooter className="shrink-0 border-t border-border bg-card p-2.5 flex items-center justify-between relative z-10">
+                    <CardFooter className="shrink-0 border-t border-border/60 dark:border-white/[0.06] bg-card p-2.5 flex items-center justify-between relative z-10">
                       <div className="flex items-center gap-1">
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" 
+                          className="h-7 w-7 text-muted-foreground dark:text-zinc-400 hover:text-destructive dark:hover:text-rose-400 hover:bg-destructive/10 dark:hover:bg-white/[0.08] rounded-md transition-colors" 
                           onClick={() => setDeleteConfirm({ type: 'group', id: group.id, title: group.name || 'Saved Group' })}
                           title="Delete group"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                         {activeTab === 'dashboard' ? (
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" 
+                            className="h-7 w-7 text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-100 hover:bg-muted dark:hover:bg-white/[0.08] rounded-md transition-colors" 
                             onClick={() => handleArchiveGroup(group.id)}
                             title="Archive group"
                           >
-                            <Archive className="h-4 w-4" />
+                            <Archive className="h-3.5 w-3.5" />
                           </Button>
                         ) : (
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" 
+                            className="h-7 w-7 text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-100 hover:bg-muted dark:hover:bg-white/[0.08] rounded-md transition-colors" 
                             onClick={() => handleUnarchiveGroup(group.id)}
                             title="Unarchive group"
                           >
-                            <RotateCcw className="h-4 w-4" />
+                            <RotateCcw className="h-3.5 w-3.5" />
                           </Button>
                         )}
                       </div>
                       <Button 
                         variant="secondary" 
                         size="sm" 
-                        className="h-8 px-3 text-xs font-medium border border-border/60 transition-colors" 
+                        className="h-7 px-3 text-xs font-medium bg-secondary dark:bg-zinc-800/80 hover:bg-secondary/80 dark:hover:bg-zinc-700 text-foreground dark:text-zinc-100 border border-border/60 dark:border-white/[0.10] rounded-md shadow-xs transition-colors flex items-center gap-1.5" 
                         onClick={() => handleRestoreGroup(group)}
                       >
-                        <RotateCcw className="h-3.5 w-3.5 mr-1.5 text-primary" /> Restore
+                        <RotateCcw className="h-3 w-3 text-primary" /> Restore
                       </Button>
                     </CardFooter>
                   </Card>
@@ -730,12 +730,12 @@ export default function App() {
       </AlertDialog>
 
       {/* Sidebar */}
-      <div className="w-64 border-r border-border bg-card/50 backdrop-blur-md p-6 flex flex-col z-20">
+      <div className="w-64 border-r border-border/80 dark:border-white/[0.06] bg-card/95 dark:bg-[#0c0d10]/95 p-6 flex flex-col z-20 backdrop-blur-md">
         <div className="flex items-center gap-2.5 mb-8">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary via-purple-500 to-indigo-600 flex items-center justify-center shadow-sm">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 flex items-center justify-center shadow-sm">
             <Layers className="w-4 h-4 text-white" />
           </div>
-          <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-400 to-accent tracking-tight">
+          <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-300 to-indigo-200 tracking-tight">
             TwoTab
           </span>
         </div>
@@ -750,20 +750,20 @@ export default function App() {
                 onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs transition-colors font-medium ${
                   isActive 
-                    ? 'bg-muted text-foreground font-semibold border-l-2 border-primary pl-3' 
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    ? 'bg-muted dark:bg-white/[0.08] text-foreground dark:text-white font-medium border border-border/60 dark:border-white/[0.08] pl-3' 
+                    : 'text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-white hover:bg-muted/50 dark:hover:bg-white/[0.04]'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-primary dark:text-indigo-400' : 'text-muted-foreground dark:text-zinc-500'}`} />
                 {item.label}
               </button>
             );
           })}
 
-          <Separator className="my-4 bg-border" />
+          <Separator className="my-4 bg-border/60 dark:bg-white/[0.06]" />
 
           <div className="pb-1.5">
-            <p className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider px-3.5">Preferences</p>
+            <p className="text-[11px] font-semibold text-muted-foreground/70 dark:text-zinc-500 uppercase tracking-wider px-3.5">Preferences</p>
           </div>
 
           {prefItems.map((item) => {
@@ -775,11 +775,11 @@ export default function App() {
                 onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs transition-colors font-medium ${
                   isActive 
-                    ? 'bg-muted text-foreground font-semibold border-l-2 border-primary pl-3' 
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    ? 'bg-muted dark:bg-white/[0.08] text-foreground dark:text-white font-medium border border-border/60 dark:border-white/[0.08] pl-3' 
+                    : 'text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-white hover:bg-muted/50 dark:hover:bg-white/[0.04]'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-primary dark:text-indigo-400' : 'text-muted-foreground dark:text-zinc-500'}`} />
                 {item.label}
               </button>
             );
@@ -790,17 +790,17 @@ export default function App() {
       {/* Main Content */}
       <div className="flex-1 min-w-0 w-full flex flex-col z-10 relative">
         {/* Header */}
-        <header className="h-16 border-b border-border flex items-center justify-between px-8 bg-card/50 backdrop-blur-md sticky top-0 z-20">
+        <header className="h-16 border-b border-border/80 dark:border-white/[0.06] flex items-center justify-between px-8 bg-card/80 dark:bg-[#09090b]/80 backdrop-blur-md sticky top-0 z-20">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold tracking-tight text-foreground">{getHeaderTitle()}</h2>
+            <h2 className="text-lg font-bold tracking-tight text-foreground dark:text-zinc-100">{getHeaderTitle()}</h2>
             {activeTab === 'dashboard' && groups.length > 0 && (
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={handleRestoreAllGroups} 
-                className="h-8 text-xs border-border bg-muted/40 hover:bg-muted text-foreground font-medium"
+                className="h-8 text-xs border-border/60 dark:border-white/[0.08] bg-muted/40 dark:bg-white/[0.04] hover:bg-muted dark:hover:bg-white/[0.08] text-foreground dark:text-zinc-200 font-medium"
               >
-                <RotateCcw className="w-3.5 h-3.5 mr-1.5 text-primary" /> Restore All ({groups.reduce((acc, g) => acc + g.tabs.length, 0)} tabs)
+                <RotateCcw className="w-3.5 h-3.5 mr-1.5 text-primary dark:text-indigo-400" /> Restore All ({groups.reduce((acc, g) => acc + g.tabs.length, 0)} tabs)
               </Button>
             )}
           </div>
@@ -808,10 +808,10 @@ export default function App() {
           <div className="flex items-center gap-3">
             {(activeTab === 'dashboard' || activeTab === 'archive') && (
               <div className="relative max-w-sm w-72 group">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground dark:text-zinc-500 transition-colors group-focus-within:text-primary dark:group-focus-within:text-indigo-400" />
                 <Input 
                   placeholder="Search saved tabs..." 
-                  className="pl-9 pr-8 bg-muted/50 border-input text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary h-9 text-sm shadow-none" 
+                  className="pl-9 pr-8 bg-muted/50 dark:bg-white/[0.04] border-input dark:border-white/[0.08] text-foreground dark:text-zinc-200 placeholder:text-muted-foreground dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-indigo-500 h-9 text-sm shadow-none" 
                   value={search} 
                   onChange={e => setSearch(e.target.value)} 
                   onKeyDown={e => e.key === 'Escape' && setSearch('')}
@@ -820,7 +820,7 @@ export default function App() {
                   <Button 
                     size="icon" 
                     variant="ghost" 
-                    className="absolute right-1.5 top-1.5 h-6 w-6 text-muted-foreground hover:text-foreground" 
+                    className="absolute right-1.5 top-1.5 h-6 w-6 text-muted-foreground hover:text-foreground dark:text-zinc-400 dark:hover:text-zinc-200" 
                     onClick={() => setSearch('')}
                   >
                     <X className="w-3.5 h-3.5" />
@@ -835,22 +835,22 @@ export default function App() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 text-muted-foreground hover:text-foreground border border-border/60 shadow-sm"
+                  className="h-9 w-9 text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-100 border border-border/60 dark:border-white/[0.08] shadow-sm"
                   title={`Theme: ${themeMode} (${resolvedTheme})`}
                 >
                   {themeMode === 'system' ? (
-                    <Monitor className="w-4 h-4 text-primary" />
+                    <Monitor className="w-4 h-4 text-primary dark:text-indigo-400" />
                   ) : themeMode === 'light' ? (
                     <Sun className="w-4 h-4 text-amber-500" />
                   ) : (
-                    <Moon className="w-4 h-4 text-primary" />
+                    <Moon className="w-4 h-4 text-primary dark:text-indigo-400" />
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-36 bg-card border-border text-foreground">
+              <DropdownMenuContent align="end" className="w-36 bg-card dark:bg-[#141417] border-border dark:border-white/[0.08] text-foreground">
                 <DropdownMenuItem
                   onClick={() => setThemeMode('light')}
-                  className={`cursor-pointer text-xs font-medium py-2 flex items-center justify-between hover:bg-muted focus:bg-muted ${
+                  className={`cursor-pointer text-xs font-medium py-2 flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08] ${
                     themeMode === 'light' ? 'text-primary font-bold bg-primary/10' : ''
                   }`}
                 >
@@ -862,27 +862,27 @@ export default function App() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setThemeMode('dark')}
-                  className={`cursor-pointer text-xs font-medium py-2 flex items-center justify-between hover:bg-muted focus:bg-muted ${
-                    themeMode === 'dark' ? 'text-primary font-bold bg-primary/10' : ''
+                  className={`cursor-pointer text-xs font-medium py-2 flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08] ${
+                    themeMode === 'dark' ? 'text-primary dark:text-indigo-400 font-bold bg-primary/10 dark:bg-white/[0.06]' : ''
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <Moon className="w-4 h-4 text-primary" />
+                    <Moon className="w-4 h-4 text-primary dark:text-indigo-400" />
                     <span>Dark</span>
                   </div>
-                  {themeMode === 'dark' && <span className="text-xs text-primary">✓</span>}
+                  {themeMode === 'dark' && <span className="text-xs text-primary dark:text-indigo-400">✓</span>}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setThemeMode('system')}
-                  className={`cursor-pointer text-xs font-medium py-2 flex items-center justify-between hover:bg-muted focus:bg-muted ${
-                    themeMode === 'system' ? 'text-primary font-bold bg-primary/10' : ''
+                  className={`cursor-pointer text-xs font-medium py-2 flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08] ${
+                    themeMode === 'system' ? 'text-primary dark:text-indigo-400 font-bold bg-primary/10 dark:bg-white/[0.06]' : ''
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <Monitor className="w-4 h-4 text-primary" />
+                    <Monitor className="w-4 h-4 text-primary dark:text-indigo-400" />
                     <span>System</span>
                   </div>
-                  {themeMode === 'system' && <span className="text-xs text-primary">✓</span>}
+                  {themeMode === 'system' && <span className="text-xs text-primary dark:text-indigo-400">✓</span>}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -894,7 +894,7 @@ export default function App() {
                 disabled={isSaving} 
                 variant="default"
                 group="splitLeft"
-                className="h-9 px-4 text-sm font-medium shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 rounded-l-lg transition-colors"
+                className="h-9 px-3.5 text-sm font-medium shadow-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-l-lg transition-colors"
               >
                 <Plus className="w-4 h-4 mr-1.5" /> {isSaving ? 'Saving...' : 'Save Window'}
               </Button>
@@ -905,14 +905,14 @@ export default function App() {
                     size="icon" 
                     group="splitRight" 
                     disabled={isSaving}
-                    className="shadow-sm h-9 w-8 bg-primary text-primary-foreground hover:bg-primary/90 rounded-r-lg border-l border-primary-foreground/20 transition-colors"
+                    className="shadow-sm h-9 w-8 bg-indigo-600 hover:bg-indigo-500 text-white rounded-r-lg border-l border-white/20 transition-colors"
                   >
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52 bg-card border-border text-card-foreground">
-                  <DropdownMenuItem onClick={handleSaveAllWindows} className="cursor-pointer hover:bg-muted focus:bg-muted">
-                    <Layers className="w-4 h-4 mr-2 text-primary" />
+                <DropdownMenuContent align="end" className="w-52 bg-card dark:bg-[#141417] border-border dark:border-white/[0.08] text-card-foreground">
+                  <DropdownMenuItem onClick={handleSaveAllWindows} className="cursor-pointer hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08]">
+                    <Layers className="w-4 h-4 mr-2 text-primary dark:text-indigo-400" />
                     Save All Windows
                   </DropdownMenuItem>
                 </DropdownMenuContent>
