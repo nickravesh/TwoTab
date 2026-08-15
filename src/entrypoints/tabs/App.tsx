@@ -277,9 +277,9 @@ function VirtualizedCardGrid({
                   >
                     {/* Card Header (flex-shrink-0) */}
                     <CardHeader className="p-3 pb-2 border-b border-border bg-muted/20 shrink-0">
-                      <CardTitle className="text-sm font-semibold text-foreground flex justify-between items-center mb-0.5">
+                      <div className="flex items-center justify-between gap-2 min-w-0">
                         {editingGroupId === group.id ? (
-                          <div className="flex items-center gap-1.5 flex-1 mr-2">
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
                             <Input 
                               value={editingName} 
                               onChange={e => setEditingName(e.target.value)} 
@@ -287,56 +287,58 @@ function VirtualizedCardGrid({
                               autoFocus
                               onKeyDown={e => e.key === 'Enter' && handleSaveRename(group.id)}
                             />
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-primary hover:bg-primary/20" onClick={() => handleSaveRename(group.id)}>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-primary hover:bg-primary/20 shrink-0" onClick={() => handleSaveRename(group.id)} title="Save name">
                               <Check className="w-3.5 h-3.5" />
                             </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => setEditingGroupId(null)}>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0" onClick={() => setEditingGroupId(null)} title="Cancel">
                               <X className="w-3.5 h-3.5" />
                             </Button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2 group/title min-w-0 flex-1 mr-2 cursor-pointer" onClick={() => handleStartRename(group)}>
-                            <span className="truncate font-semibold text-foreground">{group.name || 'Saved Group'}</span>
-                            <Edit2 className="w-3.5 h-3.5 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
+                          <div className="flex items-center gap-2 group/title min-w-0 flex-1 cursor-pointer" onClick={() => handleStartRename(group)} title="Click to rename">
+                            <span className="truncate font-medium text-sm text-foreground">{group.name || 'Saved Group'}</span>
+                            <Edit2 className="w-3 h-3 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
                           </div>
                         )}
-                        <Badge variant="secondary" className="shrink-0 text-[11px] font-normal border border-border/50">
-                          {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'}
-                        </Badge>
-                      </CardTitle>
-                      <div className="text-[11px] text-muted-foreground font-normal">{getRelativeTime(group.date)}</div>
+                        <span className="shrink-0 text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md font-normal whitespace-nowrap">
+                          {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} • {getRelativeTime(group.date)}
+                        </span>
+                      </div>
                     </CardHeader>
 
-                    {/* Card Body (flex-1 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3 space-y-1.5) */}
-                    <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3 space-y-1.5">
+                    {/* Card Body (flex-1 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3 space-y-1) */}
+                    <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3 space-y-1">
                       {group.tabs.map((tab, i) => {
                         const domain = getSafeDomain(tab.url);
                         return (
-                          <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors group/link p-1 rounded-md hover:bg-muted/50">
-                            <div className="w-4 h-4 rounded bg-muted flex items-center justify-center shrink-0 border border-border/60">
-                              {domain ? (
-                                <img 
-                                  src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
-                                  alt="" 
-                                  className="w-3.5 h-3.5 opacity-90 group-hover/link:opacity-100" 
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
-                                  }} 
-                                />
-                              ) : (
-                                <Globe className="w-3 h-3 text-muted-foreground" />
-                              )}
+                          <div key={i} className="flex items-center justify-between p-1.5 rounded-md hover:bg-muted/50 group transition-colors">
+                            <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                              <div className="w-4 h-4 rounded flex items-center justify-center shrink-0">
+                                {domain ? (
+                                  <img 
+                                    src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
+                                    alt="" 
+                                    className="w-4 h-4 opacity-90 group-hover:opacity-100" 
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                    }} 
+                                  />
+                                ) : (
+                                  <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                                )}
+                              </div>
+                              <a href={tab.url} target="_blank" rel="noreferrer" className="truncate text-xs text-muted-foreground group-hover:text-foreground font-normal hover:underline transition-colors">
+                                {tab.title || tab.url}
+                              </a>
                             </div>
-                            <a href={tab.url} target="_blank" rel="noreferrer" className="truncate flex-1 font-medium hover:text-primary transition-colors">
-                              {tab.title || tab.url}
-                            </a>
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-5 w-5 opacity-0 group-hover/link:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10" 
+                              className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" 
                               onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
+                              title="Remove tab"
                             >
-                              <Trash2 className="h-3 w-3" />
+                              <X className="h-3 w-3" />
                             </Button>
                           </div>
                         );
@@ -348,39 +350,42 @@ function VirtualizedCardGrid({
                       <div className="flex items-center gap-1">
                         <Button 
                           variant="ghost" 
-                          size="sm" 
-                          className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 font-normal transition-colors" 
+                          size="icon" 
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" 
                           onClick={() => setDeleteConfirm({ type: 'group', id: group.id, title: group.name || 'Saved Group' })}
+                          title="Delete group"
                         >
-                          <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                         {activeTab === 'dashboard' ? (
                           <Button 
                             variant="ghost" 
-                            size="sm" 
-                            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted font-normal transition-colors" 
+                            size="icon" 
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" 
                             onClick={() => handleArchiveGroup(group.id)}
+                            title="Archive group"
                           >
-                            <Archive className="w-3.5 h-3.5 mr-1" /> Archive
+                            <Archive className="h-4 w-4" />
                           </Button>
                         ) : (
                           <Button 
                             variant="ghost" 
-                            size="sm" 
-                            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted font-normal transition-colors" 
+                            size="icon" 
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" 
                             onClick={() => handleUnarchiveGroup(group.id)}
+                            title="Unarchive group"
                           >
-                            <RotateCcw className="w-3.5 h-3.5 mr-1" /> Unarchive
+                            <RotateCcw className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
                       <Button 
                         variant="secondary" 
                         size="sm" 
-                        className="h-7 px-2.5 text-xs border border-border/60 font-medium transition-colors" 
+                        className="h-8 px-3 text-xs font-medium border border-border/60 transition-colors" 
                         onClick={() => handleRestoreGroup(group)}
                       >
-                        <RotateCcw className="w-3.5 h-3.5 mr-1 text-primary" /> Restore Group
+                        <RotateCcw className="h-3.5 w-3.5 mr-1.5 text-primary" /> Restore
                       </Button>
                     </CardFooter>
                   </Card>
@@ -802,11 +807,11 @@ export default function App() {
           
           <div className="flex items-center gap-3">
             {(activeTab === 'dashboard' || activeTab === 'archive') && (
-              <div className="relative w-72 group">
+              <div className="relative max-w-sm w-72 group">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                 <Input 
                   placeholder="Search saved tabs..." 
-                  className="pl-9 pr-8 bg-muted/50 border-input text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary h-9 text-xs shadow-none" 
+                  className="pl-9 pr-8 bg-muted/50 border-input text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary h-9 text-sm shadow-none" 
                   value={search} 
                   onChange={e => setSearch(e.target.value)} 
                   onKeyDown={e => e.key === 'Escape' && setSearch('')}
@@ -828,9 +833,9 @@ export default function App() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="icon"
-                  className="border-border bg-card hover:bg-muted text-foreground h-9 w-9 shadow-sm"
+                  className="h-9 w-9 text-muted-foreground hover:text-foreground border border-border/60 shadow-sm"
                   title={`Theme: ${themeMode} (${resolvedTheme})`}
                 >
                   {themeMode === 'system' ? (
@@ -882,16 +887,16 @@ export default function App() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Split Button: Save Current Window + Save All Windows */}
+            {/* Split Button: Save Window + Save All Windows */}
             <div className="flex items-center">
               <Button 
                 onClick={handleSaveCurrentWindow} 
                 disabled={isSaving} 
                 variant="default"
                 group="splitLeft"
-                className="h-9 font-medium shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 rounded-l-lg px-4 py-2 text-xs transition-colors"
+                className="h-9 px-4 text-sm font-medium shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 rounded-l-lg transition-colors"
               >
-                <Plus className="w-3.5 h-3.5 mr-1.5" /> {isSaving ? 'Saving...' : 'Save Current Window'}
+                <Plus className="w-4 h-4 mr-1.5" /> {isSaving ? 'Saving...' : 'Save Window'}
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -902,7 +907,7 @@ export default function App() {
                     disabled={isSaving}
                     className="shadow-sm h-9 w-8 bg-primary text-primary-foreground hover:bg-primary/90 rounded-r-lg border-l border-primary-foreground/20 transition-colors"
                   >
-                    <ChevronDown className="h-3.5 w-3.5" />
+                    <ChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52 bg-card border-border text-card-foreground">
