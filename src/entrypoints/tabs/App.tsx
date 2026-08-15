@@ -73,18 +73,22 @@ import {
   Check, 
   X, 
   History, 
-  Sparkles,
-  Info,
-  Layers,
-  ChevronDown,
-  BookOpen,
-  ShieldAlert,
-  Globe,
-  Sun,
-  Moon,
-  Monitor,
+  Sparkles, 
+  Info, 
+  Layers, 
+  ChevronDown, 
+  BookOpen, 
+  ShieldAlert, 
+  Globe, 
+  Sun, 
+  Moon, 
+  Monitor, 
+  Copy, 
+  Bookmark, 
+  Palette 
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { THEME_PALETTES, type ThemePalette } from '@/lib/theme';
 
 interface DeleteConfirmState {
   type: 'group' | 'tab' | 'all';
@@ -165,6 +169,7 @@ interface VirtualizedCardGridProps {
   handleArchiveGroup: (id: number) => void;
   handleUnarchiveGroup: (id: number) => void;
   handleRestoreGroup: (group: TabGroup) => void;
+  handleCopyGroupUrls: (group: TabGroup) => void;
   setDeleteConfirm: (state: DeleteConfirmState | null) => void;
 }
 
@@ -183,6 +188,7 @@ function VirtualizedCardGrid({
   handleArchiveGroup,
   handleUnarchiveGroup,
   handleRestoreGroup,
+  handleCopyGroupUrls,
   setDeleteConfirm,
 }: VirtualizedCardGridProps) {
   const parentRef = useRef<HTMLDivElement>(null);
@@ -197,49 +203,41 @@ function VirtualizedCardGrid({
     overscan: 2,
   });
 
-  // Empty state
+  const virtualItems = virtualizer.getVirtualItems();
+
   if (filteredGroups.length === 0) {
     return (
-      <div className="flex-1 overflow-auto p-8 w-full">
-        <div className="flex flex-col items-center justify-center py-20 animate-fade-in-up">
-          <Card className="p-8 border-border bg-card max-w-md text-center flex flex-col items-center shadow-sm">
-            <Sparkles className="w-10 h-10 mb-4 text-primary opacity-90" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">No {activeTab} groups found</h3>
-            <p className="text-xs text-muted-foreground mb-6 leading-relaxed">
-              {activeTab === 'dashboard' 
-                ? 'Save your open browser tabs to free up RAM memory and organize your workspace.' 
-                : 'Archived tab groups will appear here.'}
-            </p>
-            {activeTab === 'dashboard' && (
-              <div className="flex flex-col gap-3 w-full">
-                <div className="flex w-full">
-                  <Button onClick={handleSaveCurrentWindow} disabled={isSaving} group="splitLeft" className="flex-1 font-medium shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
-                    <Plus className="w-4 h-4 mr-1.5" /> {isSaving ? 'Saving...' : 'Save Current Window'}
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button disabled={isSaving} group="splitRight" className="shadow-sm px-2.5 bg-primary text-primary-foreground hover:bg-primary/90 border-l border-primary-foreground/20">
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-52 bg-card border-border text-card-foreground">
-                      <DropdownMenuItem onClick={handleSaveAllWindows} className="cursor-pointer hover:bg-muted focus:bg-muted">
-                        <Layers className="w-4 h-4 mr-2 text-primary" />
-                        Save All Windows
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            )}
-          </Card>
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[400px]">
+        <div className="w-16 h-16 rounded-2xl bg-muted/60 dark:bg-white/[0.04] border border-border/80 dark:border-white/[0.08] flex items-center justify-center mb-4 text-muted-foreground shadow-sm">
+          <Layers className="w-8 h-8 opacity-40" />
         </div>
+        <h3 className="text-base font-semibold text-foreground dark:text-zinc-100 mb-1">
+          {activeTab === 'dashboard' ? 'No Saved Tabs Yet' : 'No Archived Groups'}
+        </h3>
+        <p className="text-xs text-muted-foreground dark:text-zinc-400 max-w-sm mb-6 leading-relaxed">
+          {activeTab === 'dashboard' 
+            ? 'Click "+ Save Window" in the top bar to save all open tabs from this window into a clean collection.'
+            : 'Archived tab groups will appear here for safekeeping.'}
+        </p>
+        {activeTab === 'dashboard' && (
+          <Button 
+            onClick={handleSaveCurrentWindow} 
+            disabled={isSaving}
+            className="shadow-sm bg-[#5e5ce6] hover:bg-[#5250d4] text-white text-xs px-4 h-9 font-medium rounded-lg"
+          >
+            <Plus className="w-4 h-4 mr-1.5" /> Save Current Window
+          </Button>
+        )}
       </div>
     );
   }
 
   return (
-    <div ref={parentRef} className="flex-1 overflow-auto w-full" style={{ padding: GRID_PADDING }}>
+    <div 
+      ref={parentRef} 
+      className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-8"
+      style={{ contain: 'strict' }}
+    >
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -247,13 +245,15 @@ function VirtualizedCardGrid({
           position: 'relative',
         }}
       >
-        {virtualizer.getVirtualItems().map((virtualRow) => {
-          const rowStartIdx = virtualRow.index * cols;
-          const rowGroups = filteredGroups.slice(rowStartIdx, rowStartIdx + cols);
+        {virtualItems.map((virtualRow) => {
+          const startIndex = virtualRow.index * cols;
+          const rowGroups = filteredGroups.slice(startIndex, startIndex + cols);
 
           return (
             <div
               key={virtualRow.key}
+              data-index={virtualRow.index}
+              ref={virtualizer.measureElement}
               style={{
                 position: 'absolute',
                 top: 0,
@@ -273,7 +273,7 @@ function VirtualizedCardGrid({
                 {rowGroups.map((group) => (
                   <Card 
                     key={group.id} 
-                    className="flex flex-col justify-between h-[220px] overflow-hidden rounded-2xl border border-border/80 dark:border-white/[0.08] hover:border-border dark:hover:border-white/[0.16] bg-card dark:bg-[#1c1c1f] text-card-foreground shadow-lg shadow-black/20 transition-all duration-150"
+                    className="flex flex-col justify-between h-[220px] overflow-hidden rounded-2xl border border-border/80 dark:border-white/[0.08] hover:border-border dark:hover:border-white/[0.18] bg-card dark:bg-[#1c1c1f] text-card-foreground shadow-apple-card hover:shadow-apple-card-hover hover:-translate-y-0.5 transition-all duration-200 ease-out"
                   >
                     {/* Card Header (flex-shrink-0) */}
                     <CardHeader className="p-3.5 pb-2 border-b border-border/60 dark:border-white/[0.04] bg-muted/20 dark:bg-white/[0.02] flex items-center justify-between shrink-0">
@@ -356,6 +356,15 @@ function VirtualizedCardGrid({
                           title="Delete group"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-7 w-7 text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-100 hover:bg-muted dark:hover:bg-white/[0.08] rounded-md transition-colors" 
+                          onClick={() => handleCopyGroupUrls(group)}
+                          title="Copy all URLs in group"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
                         </Button>
                         {activeTab === 'dashboard' ? (
                           <Button 
@@ -513,6 +522,39 @@ export default function App() {
       showMessage(e.message || 'Error saving all windows', 'error');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveActiveTab = async () => {
+    setIsSaving(true);
+    try {
+      await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ action: 'saveActiveTab' }, (response) => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else if (response && response.status === 'success') {
+            resolve(true);
+          } else {
+            reject(new Error('Failed to save active tab'));
+          }
+        });
+      });
+      showMessage('Active tab saved!');
+      loadData();
+    } catch (e: any) {
+      showMessage(e.message || 'Error saving active tab', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCopyGroupUrls = async (group: TabGroup) => {
+    try {
+      const urls = group.tabs.map((t) => t.url).filter(Boolean).join('\n');
+      await navigator.clipboard.writeText(urls);
+      showMessage(`Copied ${group.tabs.length} URLs to clipboard`);
+    } catch (e) {
+      showMessage('Failed to copy URLs', 'error');
     }
   };
 
@@ -818,7 +860,7 @@ export default function App() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 min-w-0 w-full flex flex-col z-10 relative">
+      <div className="flex-1 min-w-0 w-full flex flex-col z-10 relative animate-dashboard-in">
         {/* Header */}
         <header className="h-14 border-b border-border/80 dark:border-white/[0.08] flex items-center justify-between px-8 bg-card/80 dark:bg-[#161618]/90 backdrop-blur-xl sticky top-0 z-20">
           {/* Title & Count Badge (Left) */}
@@ -869,7 +911,7 @@ export default function App() {
               </Button>
             )}
 
-            {/* 3. Theme Toggle */}
+            {/* 3. Visual Swatch Theme Toggle */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -878,56 +920,87 @@ export default function App() {
                   className="h-9 w-9 text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-100 border border-border/60 dark:border-white/[0.08] shadow-sm rounded-lg"
                   title={`Theme: ${themeMode} (${resolvedTheme})`}
                 >
-                  {themeMode === 'system' ? (
-                    <Monitor className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
-                  ) : themeMode === 'light' ? (
-                    <Sun className="w-4 h-4 text-amber-500" />
-                  ) : (
-                    <Moon className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
-                  )}
+                  <Palette className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-36 bg-card dark:bg-[#1c1c1f] border-border dark:border-white/[0.08] text-foreground">
-                <DropdownMenuItem
-                  onClick={() => setThemeMode('light')}
-                  className={`cursor-pointer text-xs font-medium py-2 flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08] ${
-                    themeMode === 'light' ? 'text-primary font-bold bg-primary/10' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <Sun className="w-4 h-4 text-amber-500" />
-                    <span>Light</span>
-                  </div>
-                  {themeMode === 'light' && <span className="text-xs text-primary">✓</span>}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setThemeMode('dark')}
-                  className={`cursor-pointer text-xs font-medium py-2 flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08] ${
-                    themeMode === 'dark' ? 'text-primary dark:text-[#5e5ce6] font-bold bg-primary/10 dark:bg-white/[0.06]' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <Moon className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
-                    <span>Dark</span>
-                  </div>
-                  {themeMode === 'dark' && <span className="text-xs text-primary dark:text-[#5e5ce6]">✓</span>}
-                </DropdownMenuItem>
+              <DropdownMenuContent align="end" className="w-64 p-1.5 bg-card dark:bg-[#1c1c1f] border-border dark:border-white/[0.08] shadow-apple-popover rounded-xl text-foreground">
                 <DropdownMenuItem
                   onClick={() => setThemeMode('system')}
-                  className={`cursor-pointer text-xs font-medium py-2 flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08] ${
-                    themeMode === 'system' ? 'text-primary dark:text-[#5e5ce6] font-bold bg-primary/10 dark:bg-white/[0.06]' : ''
+                  className={`cursor-pointer text-xs font-medium py-2 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08] ${
+                    themeMode === 'system' ? 'text-primary dark:text-[#5e5ce6] font-semibold bg-primary/10 dark:bg-white/[0.06]' : ''
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <Monitor className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
-                    <span>System</span>
+                  <div className="flex items-center gap-2.5">
+                    <Monitor className="w-4 h-4 text-muted-foreground" />
+                    <div className="flex flex-col text-left">
+                      <span>System Preference</span>
+                      <span className="text-[10px] text-muted-foreground font-normal">Auto match OS theme</span>
+                    </div>
                   </div>
                   {themeMode === 'system' && <span className="text-xs text-primary dark:text-[#5e5ce6]">✓</span>}
                 </DropdownMenuItem>
+
+                <Separator className="my-1.5 bg-border/60 dark:border-white/[0.06]" />
+
+                <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-left">
+                  Dark Themes
+                </div>
+                {THEME_PALETTES.filter(p => p.category === 'dark').map((palette) => (
+                  <DropdownMenuItem
+                    key={palette.id}
+                    onClick={() => setThemeMode(palette.id)}
+                    className={`cursor-pointer text-xs font-medium py-1.5 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08] ${
+                      themeMode === palette.id ? 'text-primary dark:text-[#5e5ce6] font-semibold bg-primary/10 dark:bg-white/[0.06]' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 text-left">
+                      <div 
+                        className="w-4 h-4 rounded-full border border-white/20 flex items-center justify-center shrink-0 shadow-xs"
+                        style={{ backgroundColor: palette.bgHex }}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: palette.accentHex }} />
+                      </div>
+                      <div className="flex flex-col min-w-0 text-left">
+                        <span className="truncate">{palette.name}</span>
+                        <span className="text-[10px] text-muted-foreground font-normal truncate">{palette.description}</span>
+                      </div>
+                    </div>
+                    {themeMode === palette.id && <span className="text-xs text-primary dark:text-[#5e5ce6] shrink-0 ml-1">✓</span>}
+                  </DropdownMenuItem>
+                ))}
+
+                <Separator className="my-1.5 bg-border/60 dark:border-white/[0.06]" />
+
+                <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-left">
+                  Light Themes
+                </div>
+                {THEME_PALETTES.filter(p => p.category === 'light').map((palette) => (
+                  <DropdownMenuItem
+                    key={palette.id}
+                    onClick={() => setThemeMode(palette.id)}
+                    className={`cursor-pointer text-xs font-medium py-1.5 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08] ${
+                      themeMode === palette.id ? 'text-primary font-semibold bg-primary/10' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 text-left">
+                      <div 
+                        className="w-4 h-4 rounded-full border border-black/10 flex items-center justify-center shrink-0 shadow-xs"
+                        style={{ backgroundColor: palette.bgHex }}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: palette.accentHex }} />
+                      </div>
+                      <div className="flex flex-col min-w-0 text-left">
+                        <span className="truncate">{palette.name}</span>
+                        <span className="text-[10px] text-muted-foreground font-normal truncate">{palette.description}</span>
+                      </div>
+                    </div>
+                    {themeMode === palette.id && <span className="text-xs text-primary shrink-0 ml-1">✓</span>}
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* 4. Split Button: Save Window + Save All Windows */}
+            {/* 4. Split Button: Save Window Actions Only */}
             <div className="flex items-center">
               <Button 
                 onClick={handleSaveCurrentWindow} 
@@ -935,6 +1008,7 @@ export default function App() {
                 variant="default"
                 group="splitLeft"
                 className="h-9 px-4 text-sm font-medium shadow-sm bg-[#5e5ce6] hover:bg-[#5250d4] text-white rounded-l-lg transition-colors"
+                title="Save all open tabs in current window (⌘S)"
               >
                 <Plus className="w-4 h-4 mr-1.5" /> {isSaving ? 'Saving...' : 'Save Window'}
               </Button>
@@ -950,10 +1024,29 @@ export default function App() {
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52 bg-card dark:bg-[#1c1c1f] border-border dark:border-white/[0.08] text-card-foreground">
-                  <DropdownMenuItem onClick={handleSaveAllWindows} className="cursor-pointer hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08]">
-                    <Layers className="w-4 h-4 mr-2 text-primary dark:text-[#5e5ce6]" />
-                    Save All Windows
+                <DropdownMenuContent align="end" className="w-60 p-1.5 bg-card dark:bg-[#1c1c1f] border-border dark:border-white/[0.08] shadow-apple-popover rounded-xl text-card-foreground">
+                  <DropdownMenuItem onClick={handleSaveCurrentWindow} className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08]">
+                    <div className="flex items-center gap-2">
+                      <LayoutDashboard className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
+                      <span className="text-xs font-medium">Save Current Window</span>
+                    </div>
+                    <kbd className="text-[10px] bg-muted/70 dark:bg-white/[0.08] px-1.5 py-0.5 rounded font-mono text-muted-foreground dark:text-zinc-400">⌘S</kbd>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={handleSaveAllWindows} className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08]">
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
+                      <span className="text-xs font-medium">Save All Windows</span>
+                    </div>
+                    <kbd className="text-[10px] bg-muted/70 dark:bg-white/[0.08] px-1.5 py-0.5 rounded font-mono text-muted-foreground dark:text-zinc-400">⌘⇧S</kbd>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={handleSaveActiveTab} className="cursor-pointer py-2 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08]">
+                    <div className="flex items-center gap-2">
+                      <Bookmark className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
+                      <span className="text-xs font-medium">Save Active Tab Only</span>
+                    </div>
+                    <kbd className="text-[10px] bg-muted/70 dark:bg-white/[0.08] px-1.5 py-0.5 rounded font-mono text-muted-foreground dark:text-zinc-400">⌘⌥S</kbd>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -978,6 +1071,7 @@ export default function App() {
             handleArchiveGroup={handleArchiveGroup}
             handleUnarchiveGroup={handleUnarchiveGroup}
             handleRestoreGroup={handleRestoreGroup}
+            handleCopyGroupUrls={handleCopyGroupUrls}
             setDeleteConfirm={setDeleteConfirm}
           />
         ) : (

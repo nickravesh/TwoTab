@@ -158,6 +158,18 @@ export default defineBackground(() => {
       })();
       return true;
     }
+
+    if (request.action === 'saveActiveTab') {
+      (async () => {
+        try {
+          await saveActiveTab();
+          sendResponse({ status: 'success' });
+        } catch (error: any) {
+          sendResponse({ status: 'error', message: error.message || error });
+        }
+      })();
+      return true;
+    }
   });
 
   // ==========================================================================
@@ -167,6 +179,38 @@ export default defineBackground(() => {
   async function saveCurrentWindowTabs() {
     const tabs = await chrome.tabs.query({ currentWindow: true });
     await processTabsForWindow(tabs);
+  }
+
+  async function saveActiveTab() {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!activeTab || !activeTab.url || activeTab.pinned) return;
+
+    const lower = activeTab.url.toLowerCase();
+    if (
+      lower.startsWith('chrome-extension://') ||
+      lower.startsWith('chrome://') ||
+      lower.startsWith('about:') ||
+      lower.startsWith('edge:') ||
+      lower.startsWith('data:')
+    ) {
+      return;
+    }
+
+    const data = await chrome.storage.local.get('tabGroups');
+    const tabGroups = data.tabGroups || [];
+
+    const newGroup = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      date: new Date().toISOString(),
+      name: activeTab.title ? `${activeTab.title.slice(0, 30)}...` : 'Saved Tab',
+      tabs: [{ title: activeTab.title || activeTab.url, url: activeTab.url }]
+    };
+    tabGroups.push(newGroup);
+    await chrome.storage.local.set({ tabGroups });
+
+    if (activeTab.id !== undefined) {
+      await chrome.tabs.remove(activeTab.id);
+    }
   }
 
   async function saveAllWindowsTabs() {

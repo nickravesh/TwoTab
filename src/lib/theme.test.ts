@@ -3,9 +3,11 @@ import {
   type ThemeMode,
   THEME_STORAGE_KEY,
   DEFAULT_THEME_MODE,
+  THEME_PALETTES,
   getStoredThemeMode,
   setStoredThemeMode,
   resolveTheme,
+  resolvePalette,
   applyThemeToDOM,
 } from './theme';
 
@@ -29,6 +31,13 @@ class MockDOMTokenList {
 const mockDocumentElement = {
   classList: new MockDOMTokenList(),
   style: { colorScheme: '' },
+  attributes: new Map<string, string>(),
+  setAttribute(key: string, val: string) {
+    this.attributes.set(key, val);
+  },
+  getAttribute(key: string) {
+    return this.attributes.get(key);
+  },
 };
 
 (globalThis as any).document = {
@@ -69,8 +78,9 @@ describe('TwoTab Theme Engine Unit Tests', () => {
       },
     };
 
-    // Clean documentElement classes and styles
+    // Clean documentElement classes, attributes, and styles
     mockDocumentElement.classList.clear();
+    mockDocumentElement.attributes.clear();
     mockDocumentElement.style.colorScheme = '';
   });
 
@@ -79,14 +89,31 @@ describe('TwoTab Theme Engine Unit Tests', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // 1. Theme Resolution
+  // 1. Theme Resolution & Palettes
   // ---------------------------------------------------------------------------
-  it('resolveTheme: resolves explicit "dark" mode to "dark"', () => {
+  it('resolveTheme: resolves dark palette modes to "dark"', () => {
     expect(resolveTheme('dark')).toBe('dark');
+    expect(resolveTheme('midnight')).toBe('dark');
+    expect(resolveTheme('obsidian')).toBe('dark');
+    expect(resolveTheme('nord')).toBe('dark');
+    expect(resolveTheme('ocean')).toBe('dark');
+    expect(resolveTheme('amber')).toBe('dark');
   });
 
-  it('resolveTheme: resolves explicit "light" mode to "light"', () => {
+  it('resolveTheme: resolves light palette modes to "light"', () => {
     expect(resolveTheme('light')).toBe('light');
+    expect(resolveTheme('paper')).toBe('light');
+  });
+
+  it('resolvePalette: maps legacy and specific theme modes to valid palettes', () => {
+    expect(resolvePalette('dark')).toBe('midnight');
+    expect(resolvePalette('midnight')).toBe('midnight');
+    expect(resolvePalette('obsidian')).toBe('obsidian');
+    expect(resolvePalette('nord')).toBe('nord');
+    expect(resolvePalette('ocean')).toBe('ocean');
+    expect(resolvePalette('amber')).toBe('amber');
+    expect(resolvePalette('light')).toBe('light');
+    expect(resolvePalette('paper')).toBe('paper');
   });
 
   it('resolveTheme: resolves "system" mode based on matchMedia prefers-color-scheme', () => {
@@ -103,6 +130,7 @@ describe('TwoTab Theme Engine Unit Tests', () => {
     }));
 
     expect(resolveTheme('system')).toBe('dark');
+    expect(resolvePalette('system')).toBe('midnight');
 
     // Mock matchMedia returning light preference
     window.matchMedia = vi.fn().mockImplementation(() => ({
@@ -117,43 +145,57 @@ describe('TwoTab Theme Engine Unit Tests', () => {
     }));
 
     expect(resolveTheme('system')).toBe('light');
+    expect(resolvePalette('system')).toBe('light');
+  });
+
+  it('THEME_PALETTES: defines 7 curated palettes with complete metadata', () => {
+    expect(THEME_PALETTES.length).toBe(7);
+    const ids = THEME_PALETTES.map((p) => p.id);
+    expect(ids).toContain('midnight');
+    expect(ids).toContain('obsidian');
+    expect(ids).toContain('nord');
+    expect(ids).toContain('ocean');
+    expect(ids).toContain('amber');
+    expect(ids).toContain('light');
+    expect(ids).toContain('paper');
   });
 
   // ---------------------------------------------------------------------------
-  // 2. DOM Class and Style Application
+  // 2. DOM Class, Attribute, and Style Application
   // ---------------------------------------------------------------------------
-  it('applyThemeToDOM: adds "dark" class and sets color-scheme for dark mode', () => {
-    const resolved = applyThemeToDOM('dark');
+  it('applyThemeToDOM: adds "dark" class, sets data-theme, and sets color-scheme for dark mode', () => {
+    const resolved = applyThemeToDOM('obsidian');
     expect(resolved).toBe('dark');
     expect(mockDocumentElement.classList.contains('dark')).toBe(true);
     expect(mockDocumentElement.style.colorScheme).toBe('dark');
+    expect(mockDocumentElement.getAttribute('data-theme')).toBe('obsidian');
   });
 
-  it('applyThemeToDOM: removes "dark" class and sets color-scheme for light mode', () => {
-    // First set dark
+  it('applyThemeToDOM: removes "dark" class and sets data-theme for light mode', () => {
     mockDocumentElement.classList.add('dark');
     mockDocumentElement.style.colorScheme = 'dark';
 
-    const resolved = applyThemeToDOM('light');
+    const resolved = applyThemeToDOM('paper');
     expect(resolved).toBe('light');
     expect(mockDocumentElement.classList.contains('dark')).toBe(false);
     expect(mockDocumentElement.style.colorScheme).toBe('light');
+    expect(mockDocumentElement.getAttribute('data-theme')).toBe('paper');
   });
 
   // ---------------------------------------------------------------------------
   // 3. Storage Persistence
   // ---------------------------------------------------------------------------
-  it('getStoredThemeMode: returns default "dark" if nothing stored', async () => {
+  it('getStoredThemeMode: returns default "midnight" if nothing stored', async () => {
     const mode = await getStoredThemeMode();
     expect(mode).toBe(DEFAULT_THEME_MODE);
   });
 
   it('setStoredThemeMode: stores theme mode and getStoredThemeMode retrieves it', async () => {
-    await setStoredThemeMode('light');
-    expect(mockStorage[THEME_STORAGE_KEY]).toBe('light');
+    await setStoredThemeMode('ocean');
+    expect(mockStorage[THEME_STORAGE_KEY]).toBe('ocean');
 
     const retrieved = await getStoredThemeMode();
-    expect(retrieved).toBe('light');
+    expect(retrieved).toBe('ocean');
 
     await setStoredThemeMode('system');
     expect(mockStorage[THEME_STORAGE_KEY]).toBe('system');

@@ -1,22 +1,106 @@
-export type ThemeMode = 'system' | 'dark' | 'light';
+export type ThemePalette =
+  | 'midnight'
+  | 'obsidian'
+  | 'nord'
+  | 'ocean'
+  | 'amber'
+  | 'light'
+  | 'paper';
+
+export type ThemeMode = 'system' | 'dark' | 'light' | ThemePalette;
 export type ResolvedTheme = 'dark' | 'light';
 
 export const THEME_STORAGE_KEY = 'twotab_theme_mode';
-export const DEFAULT_THEME_MODE: ThemeMode = 'dark';
+export const DEFAULT_THEME_MODE: ThemeMode = 'midnight';
+
+export interface ThemeOption {
+  id: ThemePalette;
+  name: string;
+  category: 'dark' | 'light';
+  bgHex: string;
+  accentHex: string;
+  description: string;
+}
+
+export const THEME_PALETTES: ThemeOption[] = [
+  {
+    id: 'midnight',
+    name: 'macOS Midnight',
+    category: 'dark',
+    bgHex: '#0e0e10',
+    accentHex: '#5e5ce6',
+    description: 'Apple HIG slate & system indigo',
+  },
+  {
+    id: 'obsidian',
+    name: 'Raycast Obsidian',
+    category: 'dark',
+    bgHex: '#050506',
+    accentHex: '#8b5cf6',
+    description: 'Deep pitch black & electric violet',
+  },
+  {
+    id: 'nord',
+    name: 'Nordic Forest',
+    category: 'dark',
+    bgHex: '#0b1311',
+    accentHex: '#10b981',
+    description: 'Deep spruce & mint emerald',
+  },
+  {
+    id: 'ocean',
+    name: 'Cyber Ocean',
+    category: 'dark',
+    bgHex: '#080d1a',
+    accentHex: '#06b6d4',
+    description: 'Abyssal navy & electric cyan glow',
+  },
+  {
+    id: 'amber',
+    name: 'Sunset Amber',
+    category: 'dark',
+    bgHex: '#12100e',
+    accentHex: '#f59e0b',
+    description: 'Charcoal slate & warm sunset amber',
+  },
+  {
+    id: 'light',
+    name: 'Studio Clean',
+    category: 'light',
+    bgHex: '#ffffff',
+    accentHex: '#4f46e5',
+    description: 'Crisp studio white & indigo',
+  },
+  {
+    id: 'paper',
+    name: 'Warm Paper',
+    category: 'light',
+    bgHex: '#fbf8f3',
+    accentHex: '#ea580c',
+    description: 'Cozy linen cream & terracotta',
+  },
+];
+
+const VALID_MODES: ThemeMode[] = [
+  'system',
+  'dark',
+  'light',
+  'midnight',
+  'obsidian',
+  'nord',
+  'ocean',
+  'amber',
+  'paper',
+];
 
 /**
- * Reads the stored theme mode from chrome.storage.local (defaults to 'dark').
+ * Reads the stored theme mode from chrome.storage.local (defaults to 'midnight').
  */
 export async function getStoredThemeMode(): Promise<ThemeMode> {
   try {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       const data = await chrome.storage.local.get(THEME_STORAGE_KEY);
-      if (
-        data &&
-        (data[THEME_STORAGE_KEY] === 'system' ||
-          data[THEME_STORAGE_KEY] === 'dark' ||
-          data[THEME_STORAGE_KEY] === 'light')
-      ) {
+      if (data && VALID_MODES.includes(data[THEME_STORAGE_KEY])) {
         return data[THEME_STORAGE_KEY] as ThemeMode;
       }
     }
@@ -40,7 +124,7 @@ export async function setStoredThemeMode(mode: ThemeMode): Promise<void> {
 }
 
 /**
- * Resolves 'system' against the user's OS preference, or returns the explicit mode.
+ * Resolves 'system' against the user's OS preference, or returns whether the palette is dark or light.
  */
 export function resolveTheme(mode: ThemeMode): ResolvedTheme {
   if (mode === 'system') {
@@ -49,18 +133,40 @@ export function resolveTheme(mode: ThemeMode): ResolvedTheme {
     }
     return 'dark';
   }
+  if (mode === 'light' || mode === 'paper') {
+    return 'light';
+  }
+  return 'dark';
+}
+
+/**
+ * Resolves the active theme palette identifier from a ThemeMode.
+ */
+export function resolvePalette(mode: ThemeMode): ThemePalette {
+  if (mode === 'system') {
+    const isDark =
+      typeof window !== 'undefined' && window.matchMedia
+        ? window.matchMedia('(prefers-color-scheme: dark)').matches
+        : true;
+    return isDark ? 'midnight' : 'light';
+  }
+  if (mode === 'dark') return 'midnight';
   return mode;
 }
 
 /**
  * Applies the given theme mode to document.documentElement:
+ * - Sets the data-theme attribute
  * - Adds or removes the 'dark' CSS class
  * - Sets color-scheme to 'dark' or 'light'
  * Returns the resolved theme ('dark' | 'light').
  */
 export function applyThemeToDOM(mode: ThemeMode): ResolvedTheme {
   const resolved = resolveTheme(mode);
+  const palette = resolvePalette(mode);
+
   if (typeof document !== 'undefined' && document.documentElement) {
+    document.documentElement.setAttribute('data-theme', palette);
     if (resolved === 'dark') {
       document.documentElement.classList.add('dark');
       document.documentElement.style.colorScheme = 'dark';
