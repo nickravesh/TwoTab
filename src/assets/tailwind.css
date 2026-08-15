@@ -38,33 +38,33 @@
   }
 
   .dark {
-    --background: 222 40% 6%; /* #0a0e17 dark canvas */
-    --foreground: 210 40% 98%;
+    --background: 240 10% 3.9%; /* #09090b / zinc-950 true neutral canvas */
+    --foreground: 0 0% 98%; /* #fafafa / zinc-50 */
 
-    --card: 222 25% 12%; /* #151b26 elevated card surface */
-    --card-foreground: 210 40% 98%;
+    --card: 240 5.9% 10%; /* #18181b / zinc-900 card surface */
+    --card-foreground: 0 0% 98%;
 
-    --popover: 222 25% 12%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 240 5.9% 10%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 252 87% 67%; /* Vibrant Indigo */
+    --primary: 263.4 70% 50.4%; /* #7c3aed / violet-600 */
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 222 30% 16%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 240 3.7% 15.9%; /* #27272a / zinc-800 */
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 222 25% 15%;
-    --muted-foreground: 215 20% 70%; /* High WCAG contrast */
+    --muted: 240 3.7% 15.9%; /* #27272a / zinc-800 */
+    --muted-foreground: 240 5% 64.9%; /* #a1a1aa / zinc-400 */
 
-    --accent: 252 87% 67%;
+    --accent: 263.4 70% 50.4%;
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 84% 65%; /* Soft Light Red (#F87171) for dark themes */
+    --destructive: 0 84% 65%; /* Soft Light Red (#F87171) */
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217 20% 22%; /* Crisp 1px boundary */
-    --input: 217 20% 22%;
-    --ring: 252 87% 67%;
+    --border: 240 3.7% 15.9%; /* #27272a / zinc-800 crisp 1px boundary */
+    --input: 240 3.7% 15.9%;
+    --ring: 263.4 70% 50.4%;
   }
 }
 
