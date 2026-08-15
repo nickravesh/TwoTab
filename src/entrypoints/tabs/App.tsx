@@ -414,6 +414,7 @@ export default function App() {
   const [editingName, setEditingName] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
+  const [restoreAllConfirm, setRestoreAllConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const showMessage = (text: string, type: 'success' | 'error' = 'success') => {
@@ -700,7 +701,7 @@ export default function App() {
 
       {/* Delete Confirmation Alert Dialog */}
       <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
-        <AlertDialogContent className="border-border bg-card max-w-md">
+        <AlertDialogContent className="border-border dark:border-white/[0.08] bg-card dark:bg-[#141417] max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-foreground flex items-center gap-2 text-base font-semibold">
               <Trash2 className="w-4 h-4 text-destructive" />
@@ -719,11 +720,40 @@ export default function App() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0 pt-4">
-            <AlertDialogCancel onClick={() => setDeleteConfirm(null)} className="h-8 text-xs font-medium border-border text-foreground hover:bg-muted">
+            <AlertDialogCancel onClick={() => setDeleteConfirm(null)} className="h-8 text-xs font-medium border-border/60 dark:border-white/[0.08] text-foreground hover:bg-muted dark:hover:bg-white/[0.08]">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 font-medium shadow-sm">
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Restore All Confirmation Alert Dialog */}
+      <AlertDialog open={restoreAllConfirm} onOpenChange={setRestoreAllConfirm}>
+        <AlertDialogContent className="border-border dark:border-white/[0.08] bg-card dark:bg-[#141417] max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground dark:text-zinc-100 flex items-center gap-2 text-base font-semibold">
+              <RotateCcw className="w-4 h-4 text-primary dark:text-indigo-400" />
+              Restore All Saved Tabs?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground dark:text-zinc-400 pt-1.5 text-sm leading-relaxed">
+              This will open <strong className="text-foreground dark:text-zinc-200 font-semibold">{groups.reduce((acc, g) => acc + g.tabs.length, 0)} {groups.reduce((acc, g) => acc + g.tabs.length, 0) === 1 ? 'tab' : 'tabs'}</strong> across <strong className="text-foreground dark:text-zinc-200 font-semibold">{groups.length} {groups.length === 1 ? 'group' : 'groups'}</strong>. Do you want to proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0 pt-4">
+            <AlertDialogCancel onClick={() => setRestoreAllConfirm(false)} className="h-8 text-xs font-medium border-border/60 dark:border-white/[0.08] text-foreground hover:bg-muted dark:hover:bg-white/[0.08]">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                setRestoreAllConfirm(false);
+                handleRestoreAllGroups();
+              }} 
+              className="h-8 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-sm"
+            >
+              Restore All
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -791,23 +821,21 @@ export default function App() {
       <div className="flex-1 min-w-0 w-full flex flex-col z-10 relative">
         {/* Header */}
         <header className="h-16 border-b border-border/80 dark:border-white/[0.06] flex items-center justify-between px-8 bg-card/80 dark:bg-[#09090b]/80 backdrop-blur-md sticky top-0 z-20">
+          {/* Title & Count Badge (Left) */}
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold tracking-tight text-foreground dark:text-zinc-100">{getHeaderTitle()}</h2>
             {activeTab === 'dashboard' && groups.length > 0 && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleRestoreAllGroups} 
-                className="h-8 text-xs border-border/60 dark:border-white/[0.08] bg-muted/40 dark:bg-white/[0.04] hover:bg-muted dark:hover:bg-white/[0.08] text-foreground dark:text-zinc-200 font-medium"
-              >
-                <RotateCcw className="w-3.5 h-3.5 mr-1.5 text-primary dark:text-indigo-400" /> Restore All ({groups.reduce((acc, g) => acc + g.tabs.length, 0)} tabs)
-              </Button>
+              <Badge variant="outline" className="text-muted-foreground dark:text-zinc-400 text-xs font-normal border-border/60 dark:border-white/[0.08] bg-muted/30 dark:bg-white/[0.02]">
+                {groups.length} {groups.length === 1 ? 'group' : 'groups'} · {groups.reduce((acc, g) => acc + g.tabs.length, 0)} {groups.reduce((acc, g) => acc + g.tabs.length, 0) === 1 ? 'tab' : 'tabs'}
+              </Badge>
             )}
           </div>
           
-          <div className="flex items-center gap-3">
+          {/* Action Cluster (Right) */}
+          <div className="flex items-center gap-2.5">
+            {/* 1. Search input */}
             {(activeTab === 'dashboard' || activeTab === 'archive') && (
-              <div className="relative max-w-sm w-72 group">
+              <div className="relative max-w-xs w-64 group">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground dark:text-zinc-500 transition-colors group-focus-within:text-primary dark:group-focus-within:text-indigo-400" />
                 <Input 
                   placeholder="Search saved tabs..." 
@@ -829,7 +857,19 @@ export default function App() {
               </div>
             )}
 
-            {/* Theme Selector */}
+            {/* 2. Restore All Action */}
+            {activeTab === 'dashboard' && groups.length > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setRestoreAllConfirm(true)} 
+                className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground dark:text-zinc-400 dark:hover:text-zinc-100 border-border/60 dark:border-white/[0.08] bg-muted/40 dark:bg-white/[0.04] hover:bg-muted dark:hover:bg-white/[0.08]"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Restore All
+              </Button>
+            )}
+
+            {/* 3. Theme Toggle */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -887,7 +927,7 @@ export default function App() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Split Button: Save Window + Save All Windows */}
+            {/* 4. Split Button: Save Window + Save All Windows */}
             <div className="flex items-center">
               <Button 
                 onClick={handleSaveCurrentWindow} 
