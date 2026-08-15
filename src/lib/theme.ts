@@ -199,44 +199,25 @@ function spawnThemeRipple(palette: ThemePalette, origin?: ThemeTransitionOrigin)
     Math.max(x, window.innerWidth - x),
     Math.max(y, window.innerHeight - y)
   );
-  const diameter = Math.ceil(maxRadius * 2.4);
+  const diameter = Math.ceil(maxRadius * 2.5);
 
-  const ripple = document.createElement('div');
-  ripple.className = 'twotab-theme-ripple';
-  ripple.style.cssText = `
-    position: fixed;
-    top: ${y}px;
-    left: ${x}px;
-    width: ${diameter}px;
-    height: ${diameter}px;
-    margin-top: -${diameter / 2}px;
-    margin-left: -${diameter / 2}px;
-    border-radius: 50%;
-    background: ${themeInfo.bgHex};
-    border: 2px solid ${themeInfo.accentHex}99;
-    box-shadow: 0 0 60px ${themeInfo.accentHex}60, inset 0 0 80px ${themeInfo.accentHex}40;
-    pointer-events: none;
-    z-index: 999999;
-    transform: scale(0.01);
-    opacity: 0.95;
-    will-change: transform, opacity;
-    transition: transform 450ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease-out 300ms;
-  `;
+  const wave = document.createElement('div');
+  wave.className = 'theme-shockwave-wave';
+  wave.style.left = `${x}px`;
+  wave.style.top = `${y}px`;
+  wave.style.width = `${diameter}px`;
+  wave.style.height = `${diameter}px`;
+  wave.style.background = `radial-gradient(circle, ${themeInfo.accentHex}30 0%, ${themeInfo.accentHex}15 45%, ${themeInfo.accentHex}05 65%, transparent 75%)`;
+  wave.style.border = `4px solid ${themeInfo.accentHex}`;
+  wave.style.boxShadow = `0 0 60px 12px ${themeInfo.accentHex}80, inset 0 0 50px ${themeInfo.accentHex}50`;
 
-  document.body.appendChild(ripple);
+  document.body.appendChild(wave);
 
-  // Trigger expansion on next animation frame
-  requestAnimationFrame(() => {
-    ripple.style.transform = 'scale(1)';
-    ripple.style.opacity = '0';
-  });
-
-  // Remove element once animation completes
   setTimeout(() => {
-    if (ripple.parentNode) {
-      ripple.parentNode.removeChild(ripple);
+    if (wave.parentNode) {
+      wave.parentNode.removeChild(wave);
     }
-  }, 600);
+  }, 700);
 }
 
 /**
