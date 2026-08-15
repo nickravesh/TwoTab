@@ -176,99 +176,25 @@ export function resolvePalette(mode: ThemeMode): ThemePalette {
   return mode;
 }
 
-let transitionTimeout: ReturnType<typeof setTimeout> | null = null;
-
-export interface ThemeTransitionOrigin {
-  x: number;
-  y: number;
-}
-
-/**
- * Spawns a radial shockwave ripple originating from (x, y) that expands across the entire viewport.
- */
-function spawnThemeRipple(palette: ThemePalette, origin?: ThemeTransitionOrigin) {
-  if (typeof document === 'undefined' || typeof window === 'undefined' || !document.body) return;
-
-  const themeInfo = THEME_PALETTES.find((p) => p.id === palette);
-  if (!themeInfo) return;
-
-  const x = origin?.x ?? (typeof window !== 'undefined' ? window.innerWidth - 60 : 0);
-  const y = origin?.y ?? 40;
-
-  const maxRadius = Math.hypot(
-    Math.max(x, window.innerWidth - x),
-    Math.max(y, window.innerHeight - y)
-  );
-  const diameter = Math.ceil(maxRadius * 2.5);
-
-  const wave = document.createElement('div');
-  wave.className = 'theme-shockwave-wave';
-  wave.style.left = `${x}px`;
-  wave.style.top = `${y}px`;
-  wave.style.width = `${diameter}px`;
-  wave.style.height = `${diameter}px`;
-  wave.style.background = `radial-gradient(circle, ${themeInfo.accentHex}30 0%, ${themeInfo.accentHex}15 45%, ${themeInfo.accentHex}05 65%, transparent 75%)`;
-  wave.style.border = `4px solid ${themeInfo.accentHex}`;
-  wave.style.boxShadow = `0 0 60px 12px ${themeInfo.accentHex}80, inset 0 0 50px ${themeInfo.accentHex}50`;
-
-  document.body.appendChild(wave);
-
-  setTimeout(() => {
-    if (wave.parentNode) {
-      wave.parentNode.removeChild(wave);
-    }
-  }, 700);
-}
-
 /**
  * Applies the given theme mode to document.documentElement:
  * - Sets the data-theme attribute
  * - Adds or removes the 'dark' CSS class
  * - Sets color-scheme to 'dark' or 'light'
- * - Triggers an eye-catching radial circular ripple wave animation from click origin
  * Returns the resolved theme ('dark' | 'light').
  */
-export function applyThemeToDOM(
-  mode: ThemeMode,
-  animated = false,
-  origin?: ThemeTransitionOrigin
-): ResolvedTheme {
+export function applyThemeToDOM(mode: ThemeMode): ResolvedTheme {
   const resolved = resolveTheme(mode);
   const palette = resolvePalette(mode);
 
   if (typeof document !== 'undefined' && document.documentElement) {
-    const prefersReducedMotion =
-      typeof window !== 'undefined' && window.matchMedia
-        ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
-        : false;
-
-    const performDomUpdate = () => {
-      document.documentElement.setAttribute('data-theme', palette);
-      if (resolved === 'dark') {
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-      } else {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.style.colorScheme = 'light';
-      }
-    };
-
-    if (animated && !prefersReducedMotion) {
-      // 1. Trigger the visual radial ripple shockwave
-      spawnThemeRipple(palette, origin);
-
-      // 2. Add smooth CSS transitions to all surfaces and borders
-      document.documentElement.classList.add('theme-transitioning');
-      performDomUpdate();
-
-      if (transitionTimeout) clearTimeout(transitionTimeout);
-      transitionTimeout = setTimeout(() => {
-        if (typeof document !== 'undefined' && document.documentElement) {
-          document.documentElement.classList.remove('theme-transitioning');
-        }
-      }, 500);
+    document.documentElement.setAttribute('data-theme', palette);
+    if (resolved === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.style.colorScheme = 'dark';
     } else {
-      performDomUpdate();
+      document.documentElement.classList.remove('dark');
+      document.documentElement.style.colorScheme = 'light';
     }
   }
   return resolved;
