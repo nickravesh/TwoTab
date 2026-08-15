@@ -273,11 +273,11 @@ function VirtualizedCardGrid({
                 {rowGroups.map((group) => (
                   <Card 
                     key={group.id} 
-                    className="flex flex-col justify-between h-[220px] overflow-hidden rounded-xl border border-border/80 dark:border-white/[0.08] hover:border-border dark:hover:border-white/[0.18] bg-card text-card-foreground shadow-sm transition-all duration-150"
+                    className="flex flex-col justify-between h-[220px] overflow-hidden rounded-2xl border border-border/80 dark:border-white/[0.08] hover:border-border dark:hover:border-white/[0.16] bg-card dark:bg-[#1c1c1f] text-card-foreground shadow-lg shadow-black/20 transition-all duration-150"
                   >
                     {/* Card Header (flex-shrink-0) */}
-                    <CardHeader className="p-3 pb-2 border-b border-border/60 dark:border-white/[0.06] bg-muted/20 dark:bg-white/[0.02] shrink-0">
-                      <div className="flex items-center justify-between gap-2 min-w-0">
+                    <CardHeader className="p-3.5 pb-2 border-b border-border/60 dark:border-white/[0.04] bg-muted/20 dark:bg-white/[0.02] flex items-center justify-between shrink-0">
+                      <div className="flex items-center justify-between gap-2 min-w-0 w-full">
                         {editingGroupId === group.id ? (
                           <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
                             <Input 
@@ -306,8 +306,8 @@ function VirtualizedCardGrid({
                       </div>
                     </CardHeader>
 
-                    {/* Card Body (flex-1 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3 space-y-1) */}
-                    <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3 space-y-1">
+                    {/* Card Body (flex-1 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3.5 space-y-1) */}
+                    <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3.5 space-y-1">
                       {group.tabs.map((tab, i) => {
                         const domain = getSafeDomain(tab.url);
                         return (
@@ -345,8 +345,8 @@ function VirtualizedCardGrid({
                       })}
                     </CardContent>
 
-                    {/* Card Footer (flex-shrink-0 border-t border-border p-2.5 flex items-center justify-between) */}
-                    <CardFooter className="shrink-0 border-t border-border/60 dark:border-white/[0.06] bg-card p-2.5 flex items-center justify-between relative z-10">
+                    {/* Card Footer (flex-shrink-0 border-t border-border p-2.5 pt-2 flex items-center justify-between rounded-b-2xl) */}
+                    <CardFooter className="shrink-0 border-t border-border/60 dark:border-white/[0.06] bg-card dark:bg-[#18181b]/50 p-2.5 pt-2 flex items-center justify-between rounded-b-2xl relative z-10">
                       <div className="flex items-center gap-1">
                         <Button 
                           variant="ghost" 
@@ -382,10 +382,10 @@ function VirtualizedCardGrid({
                       <Button 
                         variant="secondary" 
                         size="sm" 
-                        className="h-7 px-3 text-xs font-medium bg-secondary dark:bg-zinc-800/80 hover:bg-secondary/80 dark:hover:bg-zinc-700 text-foreground dark:text-zinc-100 border border-border/60 dark:border-white/[0.10] rounded-md shadow-xs transition-colors flex items-center gap-1.5" 
+                        className="h-7 px-3 text-xs font-medium bg-secondary dark:bg-white/[0.08] hover:bg-secondary/80 dark:hover:bg-white/[0.12] text-foreground dark:text-zinc-100 border border-border/60 dark:border-white/[0.08] rounded-lg shadow-xs transition-colors flex items-center gap-1.5" 
                         onClick={() => handleRestoreGroup(group)}
                       >
-                        <RotateCcw className="h-3 w-3 text-primary" /> Restore
+                        <RotateCcw className="h-3 w-3 text-primary dark:text-[#5e5ce6]" /> Restore
                       </Button>
                     </CardFooter>
                   </Card>
@@ -760,9 +760,9 @@ export default function App() {
       </AlertDialog>
 
       {/* Sidebar */}
-      <div className="w-64 border-r border-border/80 dark:border-white/[0.06] bg-card/95 dark:bg-[#0c0d10]/95 p-6 flex flex-col z-20 backdrop-blur-md">
+      <div className="w-64 border-r border-border/80 dark:border-white/[0.08] bg-card/95 dark:bg-[#161618] p-6 flex flex-col z-20 backdrop-blur-md">
         <div className="flex items-center gap-2.5 mb-8">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 flex items-center justify-center shadow-sm">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#5e5ce6] via-indigo-600 to-purple-600 flex items-center justify-center shadow-sm">
             <Layers className="w-4 h-4 text-white" />
           </div>
           <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-300 to-indigo-200 tracking-tight">
@@ -784,7 +784,7 @@ export default function App() {
                     : 'text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-white hover:bg-muted/50 dark:hover:bg-white/[0.04]'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-primary dark:text-indigo-400' : 'text-muted-foreground dark:text-zinc-500'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-primary dark:text-[#5e5ce6]' : 'text-muted-foreground dark:text-zinc-500'}`} />
                 {item.label}
               </button>
             );
@@ -809,7 +809,7 @@ export default function App() {
                     : 'text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-white hover:bg-muted/50 dark:hover:bg-white/[0.04]'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-primary dark:text-indigo-400' : 'text-muted-foreground dark:text-zinc-500'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-primary dark:text-[#5e5ce6]' : 'text-muted-foreground dark:text-zinc-500'}`} />
                 {item.label}
               </button>
             );
@@ -820,7 +820,7 @@ export default function App() {
       {/* Main Content */}
       <div className="flex-1 min-w-0 w-full flex flex-col z-10 relative">
         {/* Header */}
-        <header className="h-16 border-b border-border/80 dark:border-white/[0.06] flex items-center justify-between px-8 bg-card/80 dark:bg-[#09090b]/80 backdrop-blur-md sticky top-0 z-20">
+        <header className="h-14 border-b border-border/80 dark:border-white/[0.08] flex items-center justify-between px-8 bg-card/80 dark:bg-[#161618]/90 backdrop-blur-xl sticky top-0 z-20">
           {/* Title & Count Badge (Left) */}
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold tracking-tight text-foreground dark:text-zinc-100">{getHeaderTitle()}</h2>
@@ -836,10 +836,10 @@ export default function App() {
             {/* 1. Search input */}
             {(activeTab === 'dashboard' || activeTab === 'archive') && (
               <div className="relative max-w-xs w-64 group">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground dark:text-zinc-500 transition-colors group-focus-within:text-primary dark:group-focus-within:text-indigo-400" />
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground dark:text-zinc-500 transition-colors group-focus-within:text-primary dark:group-focus-within:text-[#5e5ce6]" />
                 <Input 
                   placeholder="Search saved tabs..." 
-                  className="pl-9 pr-8 bg-muted/50 dark:bg-white/[0.04] border-input dark:border-white/[0.08] text-foreground dark:text-zinc-200 placeholder:text-muted-foreground dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-indigo-500 h-9 text-sm shadow-none" 
+                  className="pl-9 pr-8 bg-muted/50 dark:bg-[#0e0e10] border-input dark:border-white/[0.08] text-foreground dark:text-zinc-200 placeholder:text-muted-foreground dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-primary dark:focus-visible:ring-[#5e5ce6]/80 focus:border-indigo-500/80 h-9 text-sm shadow-none rounded-lg" 
                   value={search} 
                   onChange={e => setSearch(e.target.value)} 
                   onKeyDown={e => e.key === 'Escape' && setSearch('')}
@@ -863,7 +863,7 @@ export default function App() {
                 variant="outline" 
                 size="sm" 
                 onClick={() => setRestoreAllConfirm(true)} 
-                className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground dark:text-zinc-400 dark:hover:text-zinc-100 border-border/60 dark:border-white/[0.08] bg-muted/40 dark:bg-white/[0.04] hover:bg-muted dark:hover:bg-white/[0.08]"
+                className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground dark:text-zinc-400 dark:hover:text-zinc-100 border-border/60 dark:border-white/[0.08] bg-muted/40 dark:bg-white/[0.04] hover:bg-muted dark:hover:bg-white/[0.08] rounded-lg"
               >
                 <RotateCcw className="w-3.5 h-3.5" /> Restore All
               </Button>
@@ -875,19 +875,19 @@ export default function App() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-100 border border-border/60 dark:border-white/[0.08] shadow-sm"
+                  className="h-9 w-9 text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-100 border border-border/60 dark:border-white/[0.08] shadow-sm rounded-lg"
                   title={`Theme: ${themeMode} (${resolvedTheme})`}
                 >
                   {themeMode === 'system' ? (
-                    <Monitor className="w-4 h-4 text-primary dark:text-indigo-400" />
+                    <Monitor className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
                   ) : themeMode === 'light' ? (
                     <Sun className="w-4 h-4 text-amber-500" />
                   ) : (
-                    <Moon className="w-4 h-4 text-primary dark:text-indigo-400" />
+                    <Moon className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-36 bg-card dark:bg-[#141417] border-border dark:border-white/[0.08] text-foreground">
+              <DropdownMenuContent align="end" className="w-36 bg-card dark:bg-[#1c1c1f] border-border dark:border-white/[0.08] text-foreground">
                 <DropdownMenuItem
                   onClick={() => setThemeMode('light')}
                   className={`cursor-pointer text-xs font-medium py-2 flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08] ${
@@ -903,26 +903,26 @@ export default function App() {
                 <DropdownMenuItem
                   onClick={() => setThemeMode('dark')}
                   className={`cursor-pointer text-xs font-medium py-2 flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08] ${
-                    themeMode === 'dark' ? 'text-primary dark:text-indigo-400 font-bold bg-primary/10 dark:bg-white/[0.06]' : ''
+                    themeMode === 'dark' ? 'text-primary dark:text-[#5e5ce6] font-bold bg-primary/10 dark:bg-white/[0.06]' : ''
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <Moon className="w-4 h-4 text-primary dark:text-indigo-400" />
+                    <Moon className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
                     <span>Dark</span>
                   </div>
-                  {themeMode === 'dark' && <span className="text-xs text-primary dark:text-indigo-400">✓</span>}
+                  {themeMode === 'dark' && <span className="text-xs text-primary dark:text-[#5e5ce6]">✓</span>}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setThemeMode('system')}
                   className={`cursor-pointer text-xs font-medium py-2 flex items-center justify-between hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08] ${
-                    themeMode === 'system' ? 'text-primary dark:text-indigo-400 font-bold bg-primary/10 dark:bg-white/[0.06]' : ''
+                    themeMode === 'system' ? 'text-primary dark:text-[#5e5ce6] font-bold bg-primary/10 dark:bg-white/[0.06]' : ''
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <Monitor className="w-4 h-4 text-primary dark:text-indigo-400" />
+                    <Monitor className="w-4 h-4 text-primary dark:text-[#5e5ce6]" />
                     <span>System</span>
                   </div>
-                  {themeMode === 'system' && <span className="text-xs text-primary dark:text-indigo-400">✓</span>}
+                  {themeMode === 'system' && <span className="text-xs text-primary dark:text-[#5e5ce6]">✓</span>}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -934,7 +934,7 @@ export default function App() {
                 disabled={isSaving} 
                 variant="default"
                 group="splitLeft"
-                className="h-9 px-3.5 text-sm font-medium shadow-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-l-lg transition-colors"
+                className="h-9 px-4 text-sm font-medium shadow-sm bg-[#5e5ce6] hover:bg-[#5250d4] text-white rounded-l-lg transition-colors"
               >
                 <Plus className="w-4 h-4 mr-1.5" /> {isSaving ? 'Saving...' : 'Save Window'}
               </Button>
@@ -945,14 +945,14 @@ export default function App() {
                     size="icon" 
                     group="splitRight" 
                     disabled={isSaving}
-                    className="shadow-sm h-9 w-8 bg-indigo-600 hover:bg-indigo-500 text-white rounded-r-lg border-l border-white/20 transition-colors"
+                    className="shadow-sm h-9 w-8 bg-[#5e5ce6] hover:bg-[#5250d4] text-white rounded-r-lg border-l border-white/20 transition-colors"
                   >
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52 bg-card dark:bg-[#141417] border-border dark:border-white/[0.08] text-card-foreground">
+                <DropdownMenuContent align="end" className="w-52 bg-card dark:bg-[#1c1c1f] border-border dark:border-white/[0.08] text-card-foreground">
                   <DropdownMenuItem onClick={handleSaveAllWindows} className="cursor-pointer hover:bg-muted dark:hover:bg-white/[0.08] focus:bg-muted dark:focus:bg-white/[0.08]">
-                    <Layers className="w-4 h-4 mr-2 text-primary dark:text-indigo-400" />
+                    <Layers className="w-4 h-4 mr-2 text-primary dark:text-[#5e5ce6]" />
                     Save All Windows
                   </DropdownMenuItem>
                 </DropdownMenuContent>

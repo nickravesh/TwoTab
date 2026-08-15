@@ -38,33 +38,33 @@
   }
 
   .dark {
-    --background: 240 10% 4%; /* Deep dark #09090b */
+    --background: 240 6% 6%; /* Soothing Recessed Slate #0e0e10 */
     --foreground: 0 0% 98%; /* #fafafa */
 
-    --card: 240 6% 9%; /* Elevated #141417 */
+    --card: 240 4% 12%; /* Elevated Surface #1c1c1f */
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 6% 9%;
+    --popover: 240 4% 12%; /* #1c1c1f */
     --popover-foreground: 0 0% 98%;
 
-    --primary: 239 84% 67%; /* Refined Indigo #6366f1 */
-    --primary-foreground: 210 40% 98%;
+    --primary: 245 75% 63%; /* Apple System Indigo #5e5ce6 */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 4% 14%;
+    --secondary: 240 5% 9%; /* Distinct Surface #161618 */
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 4% 14%;
+    --muted: 240 5% 9%; /* #161618 */
     --muted-foreground: 240 5% 65%; /* Legible #a1a1aa */
 
-    --accent: 239 84% 67%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 245 75% 63%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 65%; /* Soft Light Red (#F87171) */
     --destructive-foreground: 210 40% 98%;
 
-    --border: 240 4% 16%; /* Clean 1px boundary */
-    --input: 240 4% 16%;
-    --ring: 239 84% 67%;
+    --border: 240 4% 18%; /* Crisp hairline stroke */
+    --input: 240 4% 18%;
+    --ring: 245 75% 63%;
   }
 }
 
