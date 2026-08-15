@@ -184,6 +184,62 @@ export interface ThemeTransitionOrigin {
 }
 
 /**
+ * Spawns a radial shockwave ripple originating from (x, y) that expands across the entire viewport.
+ */
+function spawnThemeRipple(palette: ThemePalette, origin?: ThemeTransitionOrigin) {
+  if (typeof document === 'undefined' || typeof window === 'undefined' || !document.body) return;
+
+  const themeInfo = THEME_PALETTES.find((p) => p.id === palette);
+  if (!themeInfo) return;
+
+  const x = origin?.x ?? (typeof window !== 'undefined' ? window.innerWidth - 60 : 0);
+  const y = origin?.y ?? 40;
+
+  const maxRadius = Math.hypot(
+    Math.max(x, window.innerWidth - x),
+    Math.max(y, window.innerHeight - y)
+  );
+  const diameter = Math.ceil(maxRadius * 2.4);
+
+  const ripple = document.createElement('div');
+  ripple.className = 'twotab-theme-ripple';
+  ripple.style.cssText = `
+    position: fixed;
+    top: ${y}px;
+    left: ${x}px;
+    width: ${diameter}px;
+    height: ${diameter}px;
+    margin-top: -${diameter / 2}px;
+    margin-left: -${diameter / 2}px;
+    border-radius: 50%;
+    background: ${themeInfo.bgHex};
+    border: 2px solid ${themeInfo.accentHex}99;
+    box-shadow: 0 0 60px ${themeInfo.accentHex}60, inset 0 0 80px ${themeInfo.accentHex}40;
+    pointer-events: none;
+    z-index: 999999;
+    transform: scale(0.01);
+    opacity: 0.95;
+    will-change: transform, opacity;
+    transition: transform 450ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease-out 300ms;
+  `;
+
+  document.body.appendChild(ripple);
+
+  // Trigger expansion on next animation frame
+  requestAnimationFrame(() => {
+    ripple.style.transform = 'scale(1)';
+    ripple.style.opacity = '0';
+  });
+
+  // Remove element once animation completes
+  setTimeout(() => {
+    if (ripple.parentNode) {
+      ripple.parentNode.removeChild(ripple);
+    }
+  }, 600);
+}
+
+/**
  * Applies the given theme mode to document.documentElement:
  * - Sets the data-theme attribute
  * - Adds or removes the 'dark' CSS class
@@ -217,65 +273,19 @@ export function applyThemeToDOM(
     };
 
     if (animated && !prefersReducedMotion) {
-      const docWithTransitions = document as Document & {
-        startViewTransition?: (callback: () => void) => {
-          ready: Promise<void>;
-          finished: Promise<void>;
-        };
-      };
+      // 1. Trigger the visual radial ripple shockwave
+      spawnThemeRipple(palette, origin);
 
-      if (typeof docWithTransitions.startViewTransition === 'function') {
-        try {
-          const x = origin?.x ?? (typeof window !== 'undefined' ? window.innerWidth - 60 : 0);
-          const y = origin?.y ?? 40;
-          const endRadius =
-            typeof window !== 'undefined'
-              ? Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y))
-              : 1000;
+      // 2. Add smooth CSS transitions to all surfaces and borders
+      document.documentElement.classList.add('theme-transitioning');
+      performDomUpdate();
 
-          const transition = docWithTransitions.startViewTransition(() => {
-            performDomUpdate();
-          });
-
-          if (transition && transition.ready) {
-            transition.ready
-              .then(() => {
-                const clipPath = [
-                  `circle(0px at ${x}px ${y}px)`,
-                  `circle(${endRadius}px at ${x}px ${y}px)`,
-                ];
-
-                if (typeof document.documentElement.animate === 'function') {
-                  document.documentElement.animate(
-                    {
-                      clipPath: clipPath,
-                    },
-                    {
-                      duration: 480,
-                      easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
-                      pseudoElement: '::view-transition-new(root)',
-                    }
-                  );
-                }
-              })
-              .catch(() => {
-                // Graceful fallback if transition animation was interrupted
-              });
-          }
-        } catch {
-          performDomUpdate();
+      if (transitionTimeout) clearTimeout(transitionTimeout);
+      transitionTimeout = setTimeout(() => {
+        if (typeof document !== 'undefined' && document.documentElement) {
+          document.documentElement.classList.remove('theme-transitioning');
         }
-      } else {
-        // Fallback smooth CSS transition class
-        document.documentElement.classList.add('theme-transitioning');
-        performDomUpdate();
-        if (transitionTimeout) clearTimeout(transitionTimeout);
-        transitionTimeout = setTimeout(() => {
-          if (typeof document !== 'undefined' && document.documentElement) {
-            document.documentElement.classList.remove('theme-transitioning');
-          }
-        }, 450);
-      }
+      }, 500);
     } else {
       performDomUpdate();
     }
