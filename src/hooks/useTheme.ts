@@ -81,18 +81,28 @@ export function useTheme() {
     };
   }, []);
 
-  const setThemeMode = useCallback(async (mode: ThemeMode) => {
-    setThemeModeState(mode);
-    const resolved = applyThemeToDOM(mode, true);
-    setResolvedTheme(resolved);
-    await setStoredThemeMode(mode);
-  }, []);
+  const setThemeMode = useCallback(
+    async (mode: ThemeMode, event?: React.MouseEvent | { clientX: number; clientY: number }) => {
+      setThemeModeState(mode);
+      const origin =
+        event && typeof event.clientX === 'number' && typeof event.clientY === 'number'
+          ? { x: event.clientX, y: event.clientY }
+          : undefined;
+      const resolved = applyThemeToDOM(mode, true, origin);
+      setResolvedTheme(resolved);
+      await setStoredThemeMode(mode);
+    },
+    []
+  );
 
-  const toggleTheme = useCallback(() => {
-    const nextMode: ThemeMode =
-      themeMode === 'dark' ? 'light' : themeMode === 'light' ? 'system' : 'dark';
-    setThemeMode(nextMode);
-  }, [themeMode, setThemeMode]);
+  const toggleTheme = useCallback(
+    (event?: React.MouseEvent | { clientX: number; clientY: number }) => {
+      const nextMode: ThemeMode =
+        themeMode === 'dark' ? 'light' : themeMode === 'light' ? 'system' : 'dark';
+      setThemeMode(nextMode, event);
+    },
+    [themeMode, setThemeMode]
+  );
 
   return {
     themeMode,

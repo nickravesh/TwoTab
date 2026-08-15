@@ -178,15 +178,24 @@ export function resolvePalette(mode: ThemeMode): ThemePalette {
 
 let transitionTimeout: ReturnType<typeof setTimeout> | null = null;
 
+export interface ThemeTransitionOrigin {
+  x: number;
+  y: number;
+}
+
 /**
  * Applies the given theme mode to document.documentElement:
  * - Sets the data-theme attribute
  * - Adds or removes the 'dark' CSS class
  * - Sets color-scheme to 'dark' or 'light'
- * - Optionally triggers a smooth theme transition animation (View Transitions API / CSS transition)
+ * - Triggers an eye-catching radial circular ripple wave animation from click origin
  * Returns the resolved theme ('dark' | 'light').
  */
-export function applyThemeToDOM(mode: ThemeMode, animated = false): ResolvedTheme {
+export function applyThemeToDOM(
+  mode: ThemeMode,
+  animated = false,
+  origin?: ThemeTransitionOrigin
+): ResolvedTheme {
   const resolved = resolveTheme(mode);
   const palette = resolvePalette(mode);
 
@@ -209,13 +218,53 @@ export function applyThemeToDOM(mode: ThemeMode, animated = false): ResolvedThem
 
     if (animated && !prefersReducedMotion) {
       const docWithTransitions = document as Document & {
-        startViewTransition?: (callback: () => void) => void;
+        startViewTransition?: (callback: () => void) => {
+          ready: Promise<void>;
+          finished: Promise<void>;
+        };
       };
 
       if (typeof docWithTransitions.startViewTransition === 'function') {
-        docWithTransitions.startViewTransition(() => {
+        try {
+          const x = origin?.x ?? (typeof window !== 'undefined' ? window.innerWidth - 60 : 0);
+          const y = origin?.y ?? 40;
+          const endRadius =
+            typeof window !== 'undefined'
+              ? Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y))
+              : 1000;
+
+          const transition = docWithTransitions.startViewTransition(() => {
+            performDomUpdate();
+          });
+
+          if (transition && transition.ready) {
+            transition.ready
+              .then(() => {
+                const clipPath = [
+                  `circle(0px at ${x}px ${y}px)`,
+                  `circle(${endRadius}px at ${x}px ${y}px)`,
+                ];
+
+                if (typeof document.documentElement.animate === 'function') {
+                  document.documentElement.animate(
+                    {
+                      clipPath: clipPath,
+                    },
+                    {
+                      duration: 480,
+                      easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+                      pseudoElement: '::view-transition-new(root)',
+                    }
+                  );
+                }
+              })
+              .catch(() => {
+                // Graceful fallback if transition animation was interrupted
+              });
+          }
+        } catch {
           performDomUpdate();
-        });
+        }
       } else {
         // Fallback smooth CSS transition class
         document.documentElement.classList.add('theme-transitioning');
@@ -225,7 +274,7 @@ export function applyThemeToDOM(mode: ThemeMode, animated = false): ResolvedThem
           if (typeof document !== 'undefined' && document.documentElement) {
             document.documentElement.classList.remove('theme-transitioning');
           }
-        }, 350);
+        }, 450);
       }
     } else {
       performDomUpdate();

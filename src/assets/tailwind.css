@@ -348,46 +348,21 @@
 }
 
 /* ==========================================================================
-   Smooth Theme Switch Animations (View Transitions API + CSS Fallback)
+   Radial Circular Ripple Theme Transition (View Transitions API + Fallback)
    ========================================================================== */
 
-/* View Transition API crossfade */
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 0.3s;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation: none;
+  mix-blend-mode: normal;
 }
 
 ::view-transition-old(root) {
-  animation-name: theme-fade-out;
+  z-index: 1;
 }
 
 ::view-transition-new(root) {
-  animation-name: theme-fade-in;
-}
-
-@keyframes theme-fade-out {
-  from {
-    opacity: 1;
-    filter: blur(0px);
-  }
-  to {
-    opacity: 0;
-    filter: blur(1.5px);
-  }
-}
-
-@keyframes theme-fade-in {
-  from {
-    opacity: 0;
-    filter: blur(1.5px);
-    transform: scale(0.998);
-  }
-  to {
-    opacity: 1;
-    filter: blur(0px);
-    transform: scale(1);
-  }
+  z-index: 9999;
 }
 
 /* Fallback smooth CSS transition class */
@@ -395,12 +370,12 @@
 .theme-transitioning *,
 .theme-transitioning *::before,
 .theme-transitioning *::after {
-  transition: background-color 280ms cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 280ms cubic-bezier(0.16, 1, 0.3, 1),
-              color 200ms cubic-bezier(0.16, 1, 0.3, 1),
-              fill 200ms cubic-bezier(0.16, 1, 0.3, 1),
-              stroke 200ms cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 280ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: background-color 450ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 450ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 300ms cubic-bezier(0.16, 1, 0.3, 1),
+              fill 300ms cubic-bezier(0.16, 1, 0.3, 1),
+              stroke 300ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 450ms cubic-bezier(0.16, 1, 0.3, 1) !important;
   transition-delay: 0s !important;
 }
 

@@ -234,7 +234,7 @@ export default function App() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 p-1.5 bg-popover border-border shadow-apple-popover text-popover-foreground rounded-xl">
               <DropdownMenuItem
-                onClick={() => setThemeMode('system')}
+                onClick={(e) => setThemeMode('system', e)}
                 className={`cursor-pointer text-xs font-medium py-1.5 px-2 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted ${
                   themeMode === 'system' ? 'text-primary font-semibold bg-primary/10' : ''
                 }`}
@@ -254,7 +254,7 @@ export default function App() {
               {THEME_PALETTES.filter(p => p.category === 'dark').map((palette) => (
                 <DropdownMenuItem
                   key={palette.id}
-                  onClick={() => setThemeMode(palette.id)}
+                  onClick={(e) => setThemeMode(palette.id, e)}
                   className={`cursor-pointer text-xs font-medium py-1 px-2 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted ${
                     themeMode === palette.id ? 'text-primary font-semibold bg-primary/10' : ''
                   }`}
@@ -280,7 +280,7 @@ export default function App() {
               {THEME_PALETTES.filter(p => p.category === 'light').map((palette) => (
                 <DropdownMenuItem
                   key={palette.id}
-                  onClick={() => setThemeMode(palette.id)}
+                  onClick={(e) => setThemeMode(palette.id, e)}
                   className={`cursor-pointer text-xs font-medium py-1 px-2 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted ${
                     themeMode === palette.id ? 'text-primary font-semibold bg-primary/10' : ''
                   }`}

@@ -925,7 +925,7 @@ export default function App() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 p-1.5 bg-popover border-border shadow-apple-popover rounded-xl text-popover-foreground">
                 <DropdownMenuItem
-                  onClick={() => setThemeMode('system')}
+                  onClick={(e) => setThemeMode('system', e)}
                   className={`cursor-pointer text-xs font-medium py-2 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted ${
                     themeMode === 'system' ? 'text-primary font-semibold bg-primary/10' : ''
                   }`}
@@ -948,7 +948,7 @@ export default function App() {
                 {THEME_PALETTES.filter(p => p.category === 'dark').map((palette) => (
                   <DropdownMenuItem
                     key={palette.id}
-                    onClick={() => setThemeMode(palette.id)}
+                    onClick={(e) => setThemeMode(palette.id, e)}
                     className={`cursor-pointer text-xs font-medium py-1.5 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted ${
                       themeMode === palette.id ? 'text-primary font-semibold bg-primary/10' : ''
                     }`}
@@ -977,7 +977,7 @@ export default function App() {
                 {THEME_PALETTES.filter(p => p.category === 'light').map((palette) => (
                   <DropdownMenuItem
                     key={palette.id}
-                    onClick={() => setThemeMode(palette.id)}
+                    onClick={(e) => setThemeMode(palette.id, e)}
                     className={`cursor-pointer text-xs font-medium py-1.5 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted ${
                       themeMode === palette.id ? 'text-primary font-semibold bg-primary/10' : ''
                     }`}
@@ -1162,7 +1162,7 @@ export default function App() {
                   {/* System Preference */}
                   <button
                     type="button"
-                    onClick={() => setThemeMode('system')}
+                    onClick={(e) => setThemeMode('system', e)}
                     className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
                       themeMode === 'system'
                         ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm font-semibold text-foreground'
@@ -1189,7 +1189,7 @@ export default function App() {
                         <button
                           key={palette.id}
                           type="button"
-                          onClick={() => setThemeMode(palette.id)}
+                          onClick={(e) => setThemeMode(palette.id, e)}
                           className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
                             isSelected
                               ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm font-semibold text-foreground'
