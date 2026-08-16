@@ -1628,7 +1628,7 @@ function AppContent() {
                     {themeMode === 'system' && <span className="text-sm text-primary font-bold mr-2">✓ Active</span>}
                   </button>
 
-                  {/* 7 Curated Theme Palettes */}
+                  {/* 9 Curated Theme Palettes */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                     {THEME_PALETTES.map((palette) => {
                       const isSelected = themeMode === palette.id;

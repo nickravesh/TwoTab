@@ -7,85 +7,85 @@
 @layer base {
   :root,
   [data-theme="light"] {
-    --background: 0 0% 100%; /* Pure Light Canvas */
-    --foreground: 222.2 84% 4.9%;
+    --background: 220 16% 95%; /* Soft Architectural Frosted Slate #f1f3f7 */
+    --foreground: 222.2 47% 11%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%; /* Pure Luminous White Glass Surfaces #ffffff */
+    --card-foreground: 222.2 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222.2 47% 11%;
 
-    --primary: 243 75% 59%; /* Studio Indigo #4f46e5 */
-    --primary-foreground: 210 40% 98%;
+    --primary: 243 75% 59%; /* Royal Studio Indigo #4f46e5 */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 220 14% 92%;
+    --secondary-foreground: 222.2 47% 11%;
 
-    --muted: 210 40% 95%;
-    --muted-foreground: 215.4 16.3% 44%;
+    --muted: 220 14% 92%;
+    --muted-foreground: 220 10% 42%; /* WCAG AAA high contrast #5e6673 */
 
     --accent: 243 75% 59%;
-    --accent-foreground: 210 40% 98%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 88%;
-    --input: 214.3 31.8% 88%;
+    --border: 220 13% 86%;
+    --input: 220 13% 86%;
     --ring: 243 75% 59%;
 
     --radius: 0.75rem;
   }
 
   [data-theme="paper"] {
-    --background: 40 40% 97%; /* Warm Linen #fbf8f3 */
-    --foreground: 28 35% 15%;
+    --background: 38 32% 93%; /* Organic Warm Linen Canvas #f6f1e8 */
+    --foreground: 28 35% 14%;
 
-    --card: 40 28% 93%; /* Soft Cream Surface #f4efe6 */
-    --card-foreground: 28 35% 15%;
+    --card: 40 30% 98%; /* Porcelain Cream Decks & Cards #fdfbf7 */
+    --card-foreground: 28 35% 14%;
 
-    --popover: 40 28% 93%;
-    --popover-foreground: 28 35% 15%;
+    --popover: 40 30% 98%;
+    --popover-foreground: 28 35% 14%;
 
-    --primary: 21 86% 48%; /* Warm Terracotta #ea580c */
+    --primary: 21 88% 48%; /* Artisanal Terracotta #ea580c */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 40 25% 89%;
-    --secondary-foreground: 28 35% 15%;
+    --secondary: 38 25% 88%;
+    --secondary-foreground: 28 35% 14%;
 
-    --muted: 40 25% 89%;
-    --muted-foreground: 30 10% 42%;
+    --muted: 38 25% 88%;
+    --muted-foreground: 30 12% 40%; /* #6c5d51 */
 
-    --accent: 21 86% 48%;
+    --accent: 21 88% 48%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 40 18% 82%;
-    --input: 40 18% 82%;
-    --ring: 21 86% 48%;
+    --border: 38 18% 81%;
+    --input: 38 18% 81%;
+    --ring: 21 88% 48%;
   }
 
   [data-theme="frost"] {
-    --background: 168 28% 96%; /* Crisp Glacier Canvas #f0f7f6 */
-    --foreground: 175 40% 12%; /* Deep Slate Forest #122320 */
+    --background: 170 24% 93%; /* Sub-zero Glacial Mist Canvas #e7f2f0 */
+    --foreground: 175 40% 12%; /* Deep Slate Forest #122b27 */
 
-    --card: 0 0% 100%;
+    --card: 170 20% 99%; /* Crystalline Glacier Surface #fafffe */
     --card-foreground: 175 40% 12%;
 
-    --popover: 0 0% 100%;
+    --popover: 170 20% 99%;
     --popover-foreground: 175 40% 12%;
 
-    --primary: 174 84% 32%; /* Rich Teal Emerald #0d9488 */
+    --primary: 174 84% 32%; /* Deep Pine Teal Emerald #0d9488 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 168 25% 91%;
+    --secondary: 170 20% 87%;
     --secondary-foreground: 175 40% 12%;
 
-    --muted: 168 25% 91%;
-    --muted-foreground: 170 14% 38%;
+    --muted: 170 20% 87%;
+    --muted-foreground: 172 15% 38%; /* #52706c */
 
     --accent: 174 84% 32%;
     --accent-foreground: 0 0% 100%;
@@ -93,29 +93,29 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 168 20% 84%;
-    --input: 168 20% 84%;
+    --border: 170 18% 80%;
+    --input: 170 18% 80%;
     --ring: 174 84% 32%;
   }
 
   [data-theme="rose"] {
-    --background: 350 45% 97%; /* Porcelain Rosé Canvas #fdf2f4 */
-    --foreground: 345 35% 15%; /* Deep Plum #2d131a */
+    --background: 345 35% 94%; /* Soft Blushing Silk Canvas #f8edf0 */
+    --foreground: 345 35% 14%; /* Deep Plum #311720 */
 
-    --card: 0 0% 100%;
-    --card-foreground: 345 35% 15%;
+    --card: 345 30% 99%; /* Pure Rose Quartz Surface #fffafd */
+    --card-foreground: 345 35% 14%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 345 35% 15%;
+    --popover: 345 30% 99%;
+    --popover-foreground: 345 35% 14%;
 
-    --primary: 347 77% 50%; /* Vibrant Berry Rose #e11d48 */
+    --primary: 347 77% 50%; /* Vibrant Raspberry Rose #e11d48 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 350 35% 92%;
-    --secondary-foreground: 345 35% 15%;
+    --secondary: 345 28% 89%;
+    --secondary-foreground: 345 35% 14%;
 
-    --muted: 350 35% 92%;
-    --muted-foreground: 345 14% 40%;
+    --muted: 345 28% 89%;
+    --muted-foreground: 345 15% 40%; /* #755560 */
 
     --accent: 347 77% 50%;
     --accent-foreground: 0 0% 100%;
@@ -123,159 +123,159 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 350 30% 86%;
-    --input: 350 30% 86%;
+    --border: 345 22% 83%;
+    --input: 345 22% 83%;
     --ring: 347 77% 50%;
   }
 
   .dark,
   [data-theme="midnight"] {
-    --background: 240 6% 6%; /* Soothing Recessed Slate #0e0e10 */
+    --background: 240 6% 7%; /* Titanium Graphite Slate #101013 */
     --foreground: 0 0% 98%;
 
-    --card: 240 4% 12%; /* Elevated Surface #1c1c1f */
+    --card: 240 5% 12%; /* Elevated Frosted Deck #1d1d21 */
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 4% 12%;
+    --popover: 240 5% 12%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 245 75% 63%; /* Apple System Indigo #5e5ce6 */
+    --primary: 239 84% 67%; /* Apple System Indigo #6366f1 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 5% 9%; /* Distinct Surface #161618 */
+    --secondary: 240 5% 10%; /* #17171a */
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 5% 9%;
-    --muted-foreground: 240 5% 65%; /* Legible #a1a1aa */
+    --muted: 240 5% 10%;
+    --muted-foreground: 240 5% 68%; /* High contrast #a8a8b2 */
 
-    --accent: 245 75% 63%;
+    --accent: 239 84% 67%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 65%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 240 4% 18%;
-    --input: 240 4% 18%;
-    --ring: 245 75% 63%;
+    --border: 240 4% 20%;
+    --input: 240 4% 20%;
+    --ring: 239 84% 67%;
   }
 
   [data-theme="obsidian"] {
-    --background: 240 10% 2%; /* Raycast Pitch Black #050506 */
+    --background: 240 10% 3%; /* Raycast Pitch-Black OLED #070709 */
     --foreground: 0 0% 98%;
 
-    --card: 240 8% 7%; /* Obsidian Surface #111114 */
+    --card: 240 8% 8%; /* Obsidian Surface #131317 */
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 8% 7%;
+    --popover: 240 8% 8%;
     --popover-foreground: 0 0% 98%;
 
     --primary: 263 90% 66%; /* Electric Violet #8b5cf6 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 8% 5%;
+    --secondary: 240 8% 6%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 8% 5%;
+    --muted: 240 8% 6%;
     --muted-foreground: 240 5% 65%;
 
     --accent: 263 90% 66%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 65%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 240 6% 14%;
-    --input: 240 6% 14%;
+    --border: 240 6% 16%;
+    --input: 240 6% 16%;
     --ring: 263 90% 66%;
   }
 
   [data-theme="nord"] {
-    --background: 165 24% 6%; /* Nordic Deep Pine #0b1311 */
+    --background: 165 28% 5%; /* Nordic Sub-arctic Pine #09110e */
     --foreground: 0 0% 98%;
 
-    --card: 165 20% 10%; /* Spruce Surface #141f1c */
+    --card: 165 22% 10%; /* Aurora Spruce Surface #13221d */
     --card-foreground: 0 0% 98%;
 
-    --popover: 165 20% 10%;
+    --popover: 165 22% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 160 84% 39%; /* Mint Emerald #10b981 */
+    --primary: 160 84% 42%; /* Aurora Emerald Mint #10b981 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 165 22% 8%;
+    --secondary: 165 24% 8%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 165 22% 8%;
-    --muted-foreground: 165 10% 65%;
+    --muted: 165 24% 8%;
+    --muted-foreground: 165 12% 66%;
 
-    --accent: 160 84% 39%;
+    --accent: 160 84% 42%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 65%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 165 15% 18%;
-    --input: 165 15% 18%;
-    --ring: 160 84% 39%;
+    --border: 165 18% 18%;
+    --input: 165 18% 18%;
+    --ring: 160 84% 42%;
   }
 
   [data-theme="ocean"] {
-    --background: 222 53% 7%; /* Abyssal Navy #080d1a */
+    --background: 222 55% 6%; /* Abyssal Deep Navy #070c17 */
     --foreground: 0 0% 98%;
 
-    --card: 222 47% 12%; /* Deep Navy Surface #101a2e */
+    --card: 222 45% 12%; /* Marine Glass Surface #111d33 */
     --card-foreground: 0 0% 98%;
 
-    --popover: 222 47% 12%;
+    --popover: 222 45% 12%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 188 95% 43%; /* Electric Cyan #06b6d4 */
+    --primary: 188 95% 44%; /* Electric Oceanic Cyan #06b6d4 */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 222 50% 9%;
     --secondary-foreground: 0 0% 98%;
 
     --muted: 222 50% 9%;
-    --muted-foreground: 215 20% 65%;
+    --muted-foreground: 215 22% 68%;
 
-    --accent: 188 95% 43%;
+    --accent: 188 95% 44%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 65%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
     --border: 222 35% 20%;
     --input: 222 35% 20%;
-    --ring: 188 95% 43%;
+    --ring: 188 95% 44%;
   }
 
   [data-theme="amber"] {
-    --background: 28 20% 6%; /* Rich Charcoal Slate #12100e */
+    --background: 28 22% 6%; /* Warm Basalt Charcoal Slate #13100d */
     --foreground: 0 0% 98%;
 
-    --card: 28 15% 11%; /* Warm Stone Surface #1f1b17 */
+    --card: 28 16% 11%; /* Smoky Stone Surface #211c17 */
     --card-foreground: 0 0% 98%;
 
-    --popover: 28 15% 11%;
+    --popover: 28 16% 11%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 38 92% 50%; /* Sunset Amber #f59e0b */
+    --primary: 38 92% 50%; /* Golden Sunset Amber #f59e0b */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 28 18% 8%;
+    --secondary: 28 20% 8%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 28 18% 8%;
-    --muted-foreground: 28 10% 65%;
+    --muted: 28 20% 8%;
+    --muted-foreground: 28 12% 66%;
 
     --accent: 38 92% 50%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 65%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 28 12% 19%;
-    --input: 28 12% 19%;
+    --border: 28 14% 19%;
+    --input: 28 14% 19%;
     --ring: 38 92% 50%;
   }
 }
