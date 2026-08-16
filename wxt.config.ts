@@ -6,7 +6,6 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   manifest: {
     name: 'TwoTab',
-    version: '1.6.0',
     description: 'TwoTab is a privacy-first, lightweight Google Chrome browser extension designed to replace OneTab.',
     permissions: ['tabs', 'storage', 'sessions', 'unlimitedStorage', 'alarms', 'contextMenus'],
     icons: {
