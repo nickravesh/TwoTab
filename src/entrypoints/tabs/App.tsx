@@ -238,7 +238,7 @@ function VirtualizedCardGrid({
   if (filteredGroups.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[400px]">
-        <div className="w-16 h-16 rounded-2xl bg-muted/60 border border-border flex items-center justify-center mb-4 text-muted-foreground shadow-sm">
+        <div className="w-16 h-16 rounded-2xl bg-muted/60 border border-border flex items-center justify-center mb-4 text-muted-foreground shadow-sm animate-float">
           <Layers className="w-8 h-8 opacity-40 text-primary" />
         </div>
         <h3 className="text-base font-semibold text-foreground mb-1">
@@ -253,7 +253,7 @@ function VirtualizedCardGrid({
           <Button 
             onClick={handleSaveCurrentWindow} 
             disabled={isSaving}
-            className="shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground text-xs px-4 h-9 font-medium rounded-lg"
+            className="btn-spring shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground text-xs px-4 h-9 font-medium rounded-lg"
           >
             <Plus className="w-4 h-4 mr-1.5" /> Save Current Window
           </Button>
@@ -300,135 +300,139 @@ function VirtualizedCardGrid({
                   gap: `${CARD_GAP}px`,
                 }}
               >
-                {rowGroups.map((group) => (
-                  <Card 
-                    key={group.id} 
-                    className="flex flex-col justify-between h-[220px] overflow-hidden rounded-2xl border border-border/80 hover:border-primary/40 bg-card text-card-foreground shadow-apple-card hover:shadow-apple-card-hover hover:-translate-y-0.5 transition-all duration-200 ease-out"
-                  >
-                    {/* Card Header (flex-shrink-0) */}
-                    <CardHeader className="p-3.5 pb-2 border-b border-border/60 bg-muted/30 flex items-center justify-between shrink-0">
-                      <div className="flex items-center justify-between gap-2 min-w-0 w-full">
-                        {editingGroupId === group.id ? (
-                          <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
-                            <Input 
-                              value={editingName} 
-                              onChange={e => setEditingName(e.target.value)} 
-                              className="h-7 text-xs bg-background border-input text-foreground focus-visible:ring-1 focus-visible:ring-primary"
-                              autoFocus
-                              onKeyDown={e => e.key === 'Enter' && handleSaveRename(group.id)}
-                            />
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-primary hover:bg-primary/20 shrink-0" onClick={() => handleSaveRename(group.id)} title="Save name">
-                              <Check className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0" onClick={() => setEditingGroupId(null)} title="Cancel">
-                              <X className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 group/title min-w-0 flex-1 cursor-pointer" onClick={() => handleStartRename(group)} title="Click to rename">
-                            <span className="truncate font-semibold text-sm text-foreground group-hover/title:text-primary transition-colors">{group.name || 'Saved Group'}</span>
-                            <Edit2 className="w-3 h-3 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
-                          </div>
-                        )}
-                        <span className="shrink-0 text-xs bg-muted/70 text-muted-foreground border border-border/60 px-2 py-0.5 rounded-full font-normal whitespace-nowrap">
-                          {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} • {getRelativeTime(group.date)}
-                        </span>
-                      </div>
-                    </CardHeader>
-
-                    {/* Card Body (flex-1 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3.5 space-y-1) */}
-                    <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3.5 space-y-1">
-                      {group.tabs.map((tab, i) => {
-                        const domain = getSafeDomain(tab.url);
-                        return (
-                          <div key={i} className="flex items-center justify-between p-1.5 rounded-md hover:bg-primary/10 group transition-colors">
-                            <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                              <div className="w-4 h-4 rounded flex items-center justify-center shrink-0">
-                                {domain ? (
-                                  <img 
-                                    src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
-                                    alt="" 
-                                    className="w-4 h-4 opacity-90 group-hover:opacity-100" 
-                                    onError={(e) => {
-                                      e.currentTarget.style.display = 'none';
-                                    }} 
-                                  />
-                                ) : (
-                                  <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-                                )}
-                              </div>
-                              <a href={tab.url} target="_blank" rel="noreferrer" className="truncate text-xs text-muted-foreground group-hover:text-foreground font-normal hover:underline transition-colors">
-                                {tab.title || tab.url}
-                              </a>
+                {rowGroups.map((group, colIdx) => {
+                  const staggerIndex = Math.min(virtualRow.index * cols + colIdx, 12);
+                  return (
+                    <Card 
+                      key={group.id} 
+                      style={{ '--stagger-index': staggerIndex } as React.CSSProperties}
+                      className="animate-card-cascade card-interactive flex flex-col justify-between h-[220px] overflow-hidden rounded-2xl border border-border/80 hover:border-primary/50 bg-card text-card-foreground shadow-apple-card hover:shadow-apple-card-hover"
+                    >
+                      {/* Card Header (flex-shrink-0) */}
+                      <CardHeader className="p-3.5 pb-2 border-b border-border/60 bg-muted/30 flex items-center justify-between shrink-0">
+                        <div className="flex items-center justify-between gap-2 min-w-0 w-full">
+                          {editingGroupId === group.id ? (
+                            <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
+                              <Input 
+                                value={editingName} 
+                                onChange={e => setEditingName(e.target.value)} 
+                                className="h-7 text-xs bg-background border-input text-foreground focus-visible:ring-1 focus-visible:ring-primary"
+                                autoFocus
+                                onKeyDown={e => e.key === 'Enter' && handleSaveRename(group.id)}
+                              />
+                              <Button size="icon" variant="ghost" className="btn-spring h-7 w-7 text-primary hover:bg-primary/20 shrink-0" onClick={() => handleSaveRename(group.id)} title="Save name">
+                                <Check className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="btn-spring h-7 w-7 text-muted-foreground hover:text-foreground shrink-0" onClick={() => setEditingGroupId(null)} title="Cancel">
+                                <X className="w-3.5 h-3.5" />
+                              </Button>
                             </div>
+                          ) : (
+                            <div className="flex items-center gap-2 group/title min-w-0 flex-1 cursor-pointer" onClick={() => handleStartRename(group)} title="Click to rename">
+                              <span className="truncate font-semibold text-sm text-foreground group-hover/title:text-primary transition-colors">{group.name || 'Saved Group'}</span>
+                              <Edit2 className="w-3 h-3 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
+                            </div>
+                          )}
+                          <span className="shrink-0 text-xs bg-muted/70 text-muted-foreground border border-border/60 px-2 py-0.5 rounded-full font-normal whitespace-nowrap">
+                            {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} • {getRelativeTime(group.date)}
+                          </span>
+                        </div>
+                      </CardHeader>
+
+                      {/* Card Body (flex-1 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3.5 space-y-1) */}
+                      <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3.5 space-y-1">
+                        {group.tabs.map((tab, i) => {
+                          const domain = getSafeDomain(tab.url);
+                          return (
+                            <div key={i} className="tab-row-hover flex items-center justify-between p-1.5 rounded-lg hover:bg-primary/10 group transition-all">
+                              <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                                <div className="w-4 h-4 rounded flex items-center justify-center shrink-0">
+                                  {domain ? (
+                                    <img 
+                                      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
+                                      alt="" 
+                                      className="w-4 h-4 opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-transform" 
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                      }} 
+                                    />
+                                  ) : (
+                                    <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                                  )}
+                                </div>
+                                <a href={tab.url} target="_blank" rel="noreferrer" className="truncate text-xs text-muted-foreground group-hover:text-foreground font-normal hover:underline transition-colors">
+                                  {tab.title || tab.url}
+                                </a>
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="btn-spring h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" 
+                                onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
+                                title="Remove tab"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </CardContent>
+
+                      {/* Card Footer */}
+                      <CardFooter className="shrink-0 border-t border-border/60 bg-muted/20 p-2.5 pt-2 flex items-center justify-between rounded-b-2xl relative z-10">
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="btn-spring h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" 
+                            onClick={() => setDeleteConfirm({ type: 'group', id: group.id, title: group.name || 'Saved Group' })}
+                            title="Delete group"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="btn-spring h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" 
+                            onClick={() => handleCopyGroupUrls(group)}
+                            title="Copy all URLs in group"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                          {activeTab === 'dashboard' ? (
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" 
-                              onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
-                              title="Remove tab"
+                              className="btn-spring h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" 
+                              onClick={() => handleArchiveGroup(group.id)}
+                              title="Archive group"
                             >
-                              <X className="h-3 w-3" />
+                              <Archive className="h-3.5 w-3.5" />
                             </Button>
-                          </div>
-                        );
-                      })}
-                    </CardContent>
-
-                    {/* Card Footer (flex-shrink-0 border-t border-border p-2.5 pt-2 flex items-center justify-between rounded-b-2xl) */}
-                    <CardFooter className="shrink-0 border-t border-border/60 bg-muted/20 p-2.5 pt-2 flex items-center justify-between rounded-b-2xl relative z-10">
-                      <div className="flex items-center gap-1">
+                          ) : (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="btn-spring h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" 
+                              onClick={() => handleUnarchiveGroup(group.id)}
+                              title="Unarchive group"
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
                         <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" 
-                          onClick={() => setDeleteConfirm({ type: 'group', id: group.id, title: group.name || 'Saved Group' })}
-                          title="Delete group"
+                          variant="secondary" 
+                          size="sm" 
+                          className="btn-spring h-7 px-3 text-xs font-medium bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 rounded-lg shadow-xs transition-colors flex items-center gap-1.5" 
+                          onClick={() => handleRestoreGroup(group)}
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <RotateCcw className="h-3 w-3 text-primary" /> Restore
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" 
-                          onClick={() => handleCopyGroupUrls(group)}
-                          title="Copy all URLs in group"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </Button>
-                        {activeTab === 'dashboard' ? (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" 
-                            onClick={() => handleArchiveGroup(group.id)}
-                            title="Archive group"
-                          >
-                            <Archive className="h-3.5 w-3.5" />
-                          </Button>
-                        ) : (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" 
-                            onClick={() => handleUnarchiveGroup(group.id)}
-                            title="Unarchive group"
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                      <Button 
-                        variant="secondary" 
-                        size="sm" 
-                        className="h-7 px-3 text-xs font-medium bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 rounded-lg shadow-xs transition-colors flex items-center gap-1.5" 
-                        onClick={() => handleRestoreGroup(group)}
-                      >
-                        <RotateCcw className="h-3 w-3 text-primary" /> Restore
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
+                      </CardFooter>
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           );
@@ -970,9 +974,11 @@ function AppContent() {
 
       {/* Toast Notification */}
       {message && (
-        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-2xl backdrop-blur-xl border transition-all animate-fade-in-up ${message.type === 'success' ? 'bg-card border-primary/40 text-foreground' : 'bg-card border-destructive/40 text-destructive-foreground'}`}>
-          <p className="text-sm font-medium flex items-center gap-2">
-            {message.type === 'success' ? <Sparkles className="w-4 h-4 text-primary" /> : <Info className="w-4 h-4 text-destructive" />}
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl shadow-2xl backdrop-blur-2xl border animate-toast flex items-center gap-2.5 ${message.type === 'success' ? 'bg-card/95 border-primary/40 text-foreground shadow-primary/10' : 'bg-card/95 border-destructive/40 text-destructive shadow-destructive/10'}`}>
+          <div className={`w-5 h-5 rounded-full flex items-center justify-center ${message.type === 'success' ? 'bg-primary/15 text-primary' : 'bg-destructive/15 text-destructive'}`}>
+            {message.type === 'success' ? <Sparkles className="w-3 h-3" /> : <Info className="w-3 h-3" />}
+          </div>
+          <p className="text-xs font-semibold tracking-wide">
             {message.text}
           </p>
         </div>
@@ -999,10 +1005,10 @@ function AppContent() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0 pt-4">
-            <AlertDialogCancel onClick={() => setDeleteConfirm(null)} className="h-8 text-xs font-medium border-border text-foreground hover:bg-muted">
+            <AlertDialogCancel onClick={() => setDeleteConfirm(null)} className="btn-spring h-8 text-xs font-medium border-border text-foreground hover:bg-muted">
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 font-medium shadow-sm">
+            <AlertDialogAction onClick={handleConfirmDelete} className="btn-spring h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 font-medium shadow-sm">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1022,7 +1028,7 @@ function AppContent() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0 pt-4">
-            <AlertDialogCancel onClick={() => setRestoreAllConfirm(false)} className="h-8 text-xs font-medium border-border text-foreground hover:bg-muted">
+            <AlertDialogCancel onClick={() => setRestoreAllConfirm(false)} className="btn-spring h-8 text-xs font-medium border-border text-foreground hover:bg-muted">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction 
@@ -1030,7 +1036,7 @@ function AppContent() {
                 setRestoreAllConfirm(false);
                 handleRestoreAllGroups();
               }} 
-              className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-sm"
+              className="btn-spring h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-sm"
             >
               Restore All
             </AlertDialogAction>
@@ -1067,9 +1073,9 @@ function AppContent() {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs transition-all font-medium ${
+                  className={`btn-spring w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-medium ${
                     isActive 
-                      ? 'bg-primary/10 text-primary font-semibold border border-primary/20 shadow-xs' 
+                      ? 'bg-primary/15 text-primary font-semibold border border-primary/25 shadow-xs' 
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                   }`}
                 >
@@ -1090,9 +1096,9 @@ function AppContent() {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs transition-all font-medium ${
+                  className={`btn-spring w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-medium ${
                     isActive 
-                      ? 'bg-primary/10 text-primary font-semibold border border-primary/20 shadow-xs' 
+                      ? 'bg-primary/15 text-primary font-semibold border border-primary/25 shadow-xs' 
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                   }`}
                 >
@@ -1222,7 +1228,7 @@ function AppContent() {
                 variant="outline" 
                 size="sm" 
                 onClick={() => setRestoreAllConfirm(true)} 
-                className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border bg-muted/40 hover:bg-muted rounded-lg"
+                className="btn-spring h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border bg-muted/40 hover:bg-muted rounded-lg"
               >
                 <RotateCcw className="w-3.5 h-3.5" /> Restore All
               </Button>
@@ -1234,18 +1240,16 @@ function AppContent() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/80 border border-border shadow-xs rounded-lg transition-colors group"
+                  className="btn-spring h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/80 border border-border shadow-xs rounded-lg transition-colors group"
                   title={`Theme: ${themeMode} (${resolvedTheme})`}
                 >
-                  <Palette className="w-4 h-4 text-primary group-hover:scale-105 transition-transform" />
+                  <Palette className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 p-1.5 bg-popover border-border shadow-apple-popover rounded-xl text-popover-foreground">
                 <DropdownMenuItem
                   onClick={(e) => setThemeMode('system', e)}
-                  className={`cursor-pointer text-xs font-medium py-2 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted ${
-                    themeMode === 'system' ? 'text-primary font-semibold bg-primary/10' : ''
-                  }`}
+                  className="cursor-pointer text-xs font-medium py-2 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted"
                 >
                   <div className="flex items-center gap-2.5">
                     <Monitor className="w-4 h-4 text-muted-foreground" />
@@ -1324,7 +1328,7 @@ function AppContent() {
                 disabled={isSaving} 
                 variant="default"
                 group="splitLeft"
-                className="h-9 px-4 text-sm font-medium shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground rounded-l-lg transition-colors"
+                className="btn-spring h-9 px-4 text-sm font-medium shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground rounded-l-lg transition-colors"
                 title="Save all open tabs in current window (⌘S)"
               >
                 <Plus className="w-4 h-4 mr-1.5" /> {isSaving ? 'Saving...' : 'Save Window'}
@@ -1336,7 +1340,7 @@ function AppContent() {
                     size="icon" 
                     group="splitRight" 
                     disabled={isSaving}
-                    className="shadow-sm h-9 w-8 bg-primary hover:bg-primary/90 text-primary-foreground rounded-r-lg border-l border-primary-foreground/20 transition-colors"
+                    className="btn-spring shadow-sm h-9 w-8 bg-primary hover:bg-primary/90 text-primary-foreground rounded-r-lg border-l border-primary-foreground/20 transition-colors"
                   >
                     <ChevronDown className="h-4 w-4" />
                   </Button>
@@ -1406,7 +1410,7 @@ function AppContent() {
                     variant="outline" 
                     size="sm" 
                     onClick={handleClearClosedItems} 
-                    className="text-xs border-border hover:bg-destructive/10 hover:text-destructive transition-colors shadow-sm font-semibold"
+                    className="btn-spring text-xs border-border hover:bg-destructive/10 hover:text-destructive transition-colors shadow-sm font-semibold"
                   >
                     <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Clear History
                   </Button>
@@ -1414,24 +1418,31 @@ function AppContent() {
               )}
               {recentlyClosed.length === 0 ? (
                 <Card className="p-16 border-border max-w-md mx-auto text-center flex flex-col items-center shadow-2xl bg-card/75 backdrop-blur-xl">
-                  <History className="w-12 h-12 mb-4 text-primary opacity-80" />
+                  <div className="w-16 h-16 rounded-2xl bg-muted/60 border border-border flex items-center justify-center mb-4 text-primary shadow-sm animate-float">
+                    <History className="w-8 h-8 opacity-80" />
+                  </div>
                   <h3 className="text-xl font-bold text-foreground mb-2">No Recently Closed Tabs</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     Tabs and browser windows you close will automatically appear here so you can reopen them anytime.
                   </p>
                 </Card>
               ) : (
-                recentlyClosed.map((item) => {
+                recentlyClosed.map((item, idx) => {
                   const domain = getSafeDomain(item.url);
+                  const staggerIndex = Math.min(idx, 12);
                   return (
-                    <Card key={item.id} className="p-3 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors border-border bg-card shadow-sm group">
+                    <Card 
+                      key={item.id} 
+                      style={{ '--stagger-index': staggerIndex } as React.CSSProperties}
+                      className="animate-card-cascade card-interactive p-3 rounded-xl flex items-center justify-between border-border bg-card shadow-sm group"
+                    >
                       <div className="flex items-center gap-3 truncate min-w-0 flex-1 mr-4">
                         <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0 border border-border">
                           {domain ? (
                             <img 
                               src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
                               alt="" 
-                              className="w-3.5 h-3.5 opacity-90" 
+                              className="w-3.5 h-3.5 opacity-90 group-hover:scale-110 transition-transform" 
                               onError={(e) => { e.currentTarget.style.display = 'none'; }}
                             />
                           ) : (
@@ -1447,10 +1458,10 @@ function AppContent() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-xs text-muted-foreground font-medium hidden sm:inline mr-2">{getRelativeTime(item.timestamp)}</span>
-                        <Button size="sm" variant="secondary" onClick={() => handleReopenClosedItem(item)} className="border border-border/60 font-medium text-xs h-7">
+                        <Button size="sm" variant="secondary" onClick={() => handleReopenClosedItem(item)} className="btn-spring border border-border/60 font-medium text-xs h-7">
                           Reopen Tab
                         </Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleRemoveClosedItem(item.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                        <Button size="icon" variant="ghost" onClick={() => handleRemoveClosedItem(item.id)} className="btn-spring h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </div>
@@ -1463,9 +1474,9 @@ function AppContent() {
 
           {/* Settings View */}
           {activeTab === 'settings' && (
-            <div className="max-w-3xl mx-auto space-y-6 animate-fade-in-up">
+            <div className="max-w-3xl mx-auto space-y-6">
               {/* Appearance & Theme Settings */}
-              <Card className="border-border bg-card shadow-lg">
+              <Card style={{ '--stagger-index': 0 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-lg">
                 <CardHeader>
                   <CardTitle className="text-foreground text-xl flex items-center gap-2">
                     <Palette className="w-5 h-5 text-primary" />
@@ -1480,7 +1491,7 @@ function AppContent() {
                   <button
                     type="button"
                     onClick={(e) => setThemeMode('system', e)}
-                    className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
+                    className={`btn-spring w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
                       themeMode === 'system'
                         ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm font-semibold text-foreground'
                         : 'border-border bg-muted/30 hover:bg-muted/60 text-muted-foreground hover:text-foreground font-medium'
@@ -1507,7 +1518,7 @@ function AppContent() {
                           key={palette.id}
                           type="button"
                           onClick={(e) => setThemeMode(palette.id, e)}
-                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                          className={`btn-spring flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
                             isSelected
                               ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm font-semibold text-foreground'
                               : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
@@ -1534,7 +1545,7 @@ function AppContent() {
               </Card>
 
               {/* Tab Workflow & Restoration Settings */}
-              <Card className="border-border bg-card shadow-lg">
+              <Card style={{ '--stagger-index': 1 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-lg">
                 <CardHeader>
                   <CardTitle className="text-foreground text-xl flex items-center gap-2">
                     <Sliders className="w-5 h-5 text-primary" />
@@ -1568,7 +1579,7 @@ function AppContent() {
                       variant={userPreferences.protectPinnedTabs ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => handleUpdatePreference('protectPinnedTabs', !userPreferences.protectPinnedTabs)}
-                      className={`shrink-0 text-xs font-semibold px-4 transition-all shadow-sm ${
+                      className={`btn-spring shrink-0 text-xs font-semibold px-4 transition-all shadow-sm ${
                         userPreferences.protectPinnedTabs ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border-border text-foreground hover:bg-muted'
                       }`}
                     >
@@ -1591,7 +1602,7 @@ function AppContent() {
                       <button
                         type="button"
                         onClick={() => handleUpdatePreference('restoreDestination', 'new_window')}
-                        className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                        className={`btn-spring flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
                           userPreferences.restoreDestination === 'new_window'
                             ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm font-semibold text-foreground'
                             : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
@@ -1614,7 +1625,7 @@ function AppContent() {
                       <button
                         type="button"
                         onClick={() => handleUpdatePreference('restoreDestination', 'current_window')}
-                        className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                        className={`btn-spring flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
                           userPreferences.restoreDestination === 'current_window'
                             ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm font-semibold text-foreground'
                             : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
@@ -1651,7 +1662,7 @@ function AppContent() {
                       <button
                         type="button"
                         onClick={() => handleUpdatePreference('restoreBehavior', 'keep')}
-                        className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                        className={`btn-spring flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
                           userPreferences.restoreBehavior === 'keep'
                             ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm font-semibold text-foreground'
                             : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
@@ -1674,7 +1685,7 @@ function AppContent() {
                       <button
                         type="button"
                         onClick={() => handleUpdatePreference('restoreBehavior', 'remove')}
-                        className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                        className={`btn-spring flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
                           userPreferences.restoreBehavior === 'remove'
                             ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm font-semibold text-foreground'
                             : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
@@ -1720,7 +1731,7 @@ function AppContent() {
                             key={limit}
                             type="button"
                             onClick={() => handleUpdatePreference('recentlyClosedLimit', limit)}
-                            className={`py-2 px-3 rounded-xl border text-center transition-all ${
+                            className={`btn-spring py-2 px-3 rounded-xl border text-center transition-all ${
                               isSelected
                                 ? 'border-primary bg-primary/15 ring-2 ring-primary/30 font-bold text-foreground shadow-xs'
                                 : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium text-xs'
@@ -1736,7 +1747,7 @@ function AppContent() {
               </Card>
 
               {/* Data Export Studio & Import Hub */}
-              <Card className="border-border bg-card shadow-lg">
+              <Card style={{ '--stagger-index': 2 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-lg">
                 <CardHeader>
                   <CardTitle className="text-foreground text-xl flex items-center gap-2">
                     <Download className="w-5 h-5 text-primary" /> Multi-Format Data Hub & Backup
@@ -1772,7 +1783,7 @@ function AppContent() {
                             key={fmt.id}
                             type="button"
                             onClick={() => setExportFormat(fmt.id as any)}
-                            className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between gap-1.5 ${
+                            className={`btn-spring p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between gap-1.5 ${
                               isSelected
                                 ? 'border-primary bg-primary/15 ring-2 ring-primary/30 text-foreground font-semibold shadow-xs'
                                 : 'border-border bg-card/60 hover:bg-muted text-muted-foreground hover:text-foreground'
@@ -1796,14 +1807,14 @@ function AppContent() {
                       <Button
                         onClick={() => handleExportFormatted(exportFormat)}
                         variant="default"
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm text-xs h-9 px-4"
+                        className="btn-spring bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm text-xs h-9 px-4"
                       >
                         <Download className="w-4 h-4 mr-1.5" /> Download {exportFormat.toUpperCase()} File
                       </Button>
                       <Button
                         onClick={() => handleCopyExportToClipboard(exportFormat)}
                         variant="outline"
-                        className="border-border hover:bg-muted text-foreground font-medium text-xs h-9 px-4"
+                        className="btn-spring border-border hover:bg-muted text-foreground font-medium text-xs h-9 px-4"
                       >
                         <Copy className="w-3.5 h-3.5 mr-1.5 text-primary" /> Copy to Clipboard
                       </Button>
@@ -1823,7 +1834,7 @@ function AppContent() {
                         <button
                           type="button"
                           onClick={() => setImportMode('merge')}
-                          className={`px-2.5 py-1 rounded-md transition-all font-medium ${
+                          className={`btn-spring px-2.5 py-1 rounded-md transition-all font-medium ${
                             importMode === 'merge'
                               ? 'bg-primary text-primary-foreground font-bold shadow-xs'
                               : 'text-muted-foreground hover:text-foreground'
@@ -1834,7 +1845,7 @@ function AppContent() {
                         <button
                           type="button"
                           onClick={() => setImportMode('replace')}
-                          className={`px-2.5 py-1 rounded-md transition-all font-medium ${
+                          className={`btn-spring px-2.5 py-1 rounded-md transition-all font-medium ${
                             importMode === 'replace'
                               ? 'bg-destructive text-destructive-foreground font-bold shadow-xs'
                               : 'text-muted-foreground hover:text-foreground'
@@ -1866,7 +1877,7 @@ function AppContent() {
                           onClick={() => fileInputRef.current?.click()}
                           variant="outline"
                           size="sm"
-                          className="border-border hover:bg-muted text-foreground text-xs font-semibold shadow-xs"
+                          className="btn-spring border-border hover:bg-muted text-foreground text-xs font-semibold shadow-xs"
                         >
                           Choose File
                         </Button>
@@ -1891,7 +1902,7 @@ function AppContent() {
                           disabled={!importText.trim() || isImportingText}
                           variant="default"
                           size="sm"
-                          className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold shadow-xs self-end"
+                          className="btn-spring bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold shadow-xs self-end"
                         >
                           {isImportingText ? 'Importing...' : 'Parse & Import'}
                         </Button>
@@ -1902,7 +1913,7 @@ function AppContent() {
               </Card>
 
               {/* Danger Zone */}
-              <Card className="border-destructive/30 bg-destructive/10 shadow-lg">
+              <Card style={{ '--stagger-index': 3 } as React.CSSProperties} className="animate-card-cascade card-interactive border-destructive/30 bg-destructive/10 shadow-lg">
                 <CardHeader>
                   <CardTitle className="text-destructive text-xl flex items-center gap-2">
                     <ShieldAlert className="w-5 h-5 text-destructive" /> Danger Zone
@@ -1914,7 +1925,7 @@ function AppContent() {
                 <CardContent className="pt-2">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="font-bold shadow-lg shadow-destructive/20">
+                      <Button variant="destructive" className="btn-spring font-bold shadow-lg shadow-destructive/20">
                         <Trash2 className="w-4 h-4 mr-2" /> Clear All Saved Data
                       </Button>
                     </AlertDialogTrigger>
@@ -1929,14 +1940,14 @@ function AppContent() {
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter className="pt-4">
-                        <AlertDialogCancel className="font-semibold">Cancel</AlertDialogCancel>
+                        <AlertDialogCancel className="btn-spring font-semibold">Cancel</AlertDialogCancel>
                         <AlertDialogAction 
                           onClick={async () => {
                             await clearAllData();
                             showMessage('All data cleared');
                             loadData();
                           }} 
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-bold shadow-md shadow-destructive/20"
+                          className="btn-spring bg-destructive text-destructive-foreground hover:bg-destructive/90 font-bold shadow-md shadow-destructive/20"
                         >
                           Yes, Clear All Data
                         </AlertDialogAction>
@@ -1950,9 +1961,9 @@ function AppContent() {
 
           {/* Help & Knowledge Hub View */}
           {activeTab === 'help' && (
-            <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up pb-8">
+            <div className="max-w-4xl mx-auto space-y-8 pb-8">
               {/* Header Hero Banner */}
-              <Card className="border-border bg-card shadow-lg p-6 relative overflow-hidden">
+              <Card style={{ '--stagger-index': 0 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-lg p-6 relative overflow-hidden">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
                   <div className="flex items-center gap-3.5">
                     <div className="p-3 rounded-2xl bg-primary/15 text-primary border border-primary/25 shadow-xs">
@@ -1978,7 +1989,7 @@ function AppContent() {
                   <h4 className="text-sm font-bold uppercase tracking-wider text-foreground">Quick-Start Essentials</h4>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <Card className="p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
+                  <Card style={{ '--stagger-index': 1 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
                     <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
                       <Plus className="w-5 h-5" />
                     </div>
@@ -1990,7 +2001,7 @@ function AppContent() {
                     </div>
                   </Card>
 
-                  <Card className="p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
+                  <Card style={{ '--stagger-index': 2 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
                     <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
                       <RotateCcw className="w-5 h-5" />
                     </div>
@@ -2002,7 +2013,7 @@ function AppContent() {
                     </div>
                   </Card>
 
-                  <Card className="p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
+                  <Card style={{ '--stagger-index': 3 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
                     <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
                       <MousePointerClick className="w-5 h-5" />
                     </div>
@@ -2014,7 +2025,7 @@ function AppContent() {
                     </div>
                   </Card>
 
-                  <Card className="p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
+                  <Card style={{ '--stagger-index': 4 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
                     <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
                       <Search className="w-5 h-5" />
                     </div>
@@ -2034,7 +2045,7 @@ function AppContent() {
                   <Keyboard className="w-4 h-4 text-primary" />
                   <h4 className="text-sm font-bold uppercase tracking-wider text-foreground">Keyboard Shortcuts</h4>
                 </div>
-                <Card className="border-border bg-card shadow-xs overflow-hidden">
+                <Card style={{ '--stagger-index': 5 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-xs overflow-hidden">
                   <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-border">
                     <div className="p-4 space-y-3">
                       <div className="flex items-center justify-between text-xs">
@@ -2075,7 +2086,7 @@ function AppContent() {
                   <h4 className="text-sm font-bold uppercase tracking-wider text-foreground">Power Features & Architecture</h4>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <Card className="p-4 border-border bg-card shadow-xs space-y-1.5">
+                  <Card style={{ '--stagger-index': 6 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs space-y-1.5">
                     <div className="flex items-center gap-2 text-xs font-bold text-foreground">
                       <Lock className="w-4 h-4 text-primary" />
                       100% Local-First Offline Privacy
@@ -2085,7 +2096,7 @@ function AppContent() {
                     </p>
                   </Card>
 
-                  <Card className="p-4 border-border bg-card shadow-xs space-y-1.5">
+                  <Card style={{ '--stagger-index': 7 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs space-y-1.5">
                     <div className="flex items-center gap-2 text-xs font-bold text-foreground">
                       <RefreshCw className="w-4 h-4 text-primary" />
                       Automatic Rolling Backups
@@ -2095,7 +2106,7 @@ function AppContent() {
                     </p>
                   </Card>
 
-                  <Card className="p-4 border-border bg-card shadow-xs space-y-1.5">
+                  <Card style={{ '--stagger-index': 8 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs space-y-1.5">
                     <div className="flex items-center gap-2 text-xs font-bold text-foreground">
                       <FileText className="w-4 h-4 text-primary" />
                       Multi-Format Export & OneTab Import
@@ -2105,7 +2116,7 @@ function AppContent() {
                     </p>
                   </Card>
 
-                  <Card className="p-4 border-border bg-card shadow-xs space-y-1.5">
+                  <Card style={{ '--stagger-index': 9 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs space-y-1.5">
                     <div className="flex items-center gap-2 text-xs font-bold text-foreground">
                       <Palette className="w-4 h-4 text-primary" />
                       Curated Themes & View Transitions
@@ -2123,7 +2134,7 @@ function AppContent() {
                   <HelpCircle className="w-4 h-4 text-primary" />
                   <h4 className="text-sm font-bold uppercase tracking-wider text-foreground">Frequently Asked Questions</h4>
                 </div>
-                <Card className="border-border bg-card shadow-lg p-6">
+                <Card style={{ '--stagger-index': 10 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-lg p-6">
                   <Accordion type="single" collapsible className="w-full space-y-2">
                     <AccordionItem value="faq-1" className="border-border">
                       <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-sm text-left">

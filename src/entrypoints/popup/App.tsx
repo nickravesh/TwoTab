@@ -327,7 +327,7 @@ export default function App() {
             onClick={handleSaveCurrentTab}
             disabled={isSaving}
             variant="outline"
-            className="flex-1 h-9 text-xs font-semibold border-border/80 bg-card/50 hover:bg-muted/70 text-foreground shadow-sm transition-all active:scale-[0.98]"
+            className="btn-spring flex-1 h-9 text-xs font-semibold border-border/80 bg-card/50 hover:bg-muted/70 text-foreground shadow-sm"
             title="Save only the active tab in this window"
           >
             <Plus className="w-3.5 h-3.5 mr-1 text-primary shrink-0" />
@@ -341,7 +341,7 @@ export default function App() {
               disabled={isSaving}
               variant="default"
               group="splitLeft"
-              className="flex-1 h-9 text-xs font-bold shadow-md shadow-primary/20 hover:opacity-95 active:scale-[0.98] transition-all bg-primary text-primary-foreground"
+              className="btn-spring flex-1 h-9 text-xs font-bold shadow-md shadow-primary/20 hover:opacity-95 bg-primary text-primary-foreground"
               title="Save all tabs in current window"
             >
               <Bookmark className="w-3.5 h-3.5 mr-1 shrink-0" />
@@ -351,18 +351,35 @@ export default function App() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="default"
+                  size="icon"
                   group="splitRight"
                   disabled={isSaving}
-                  className="h-9 px-2 shadow-md shadow-primary/20 bg-primary text-primary-foreground hover:opacity-95"
-                  title="More save options"
+                  className="btn-spring h-9 w-7 bg-primary text-primary-foreground shadow-md shadow-primary/20 hover:opacity-95 border-l border-primary-foreground/20"
                 >
-                  <ChevronDown className="h-3.5 w-3.5" />
+                  <ChevronDown className="w-3.5 h-3.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                <DropdownMenuItem onClick={handleSaveAllWindows} className="cursor-pointer text-xs font-medium py-1.5">
-                  <Layers className="w-3.5 h-3.5 mr-2 text-primary" />
-                  Save All Windows
+              <DropdownMenuContent align="end" className="w-52 p-1 bg-popover border-border shadow-apple-popover rounded-xl text-popover-foreground">
+                <DropdownMenuItem
+                  onClick={handleSaveCurrentWindow}
+                  className="cursor-pointer py-1.5 px-2 text-xs font-medium rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted"
+                >
+                  <div className="flex items-center gap-2">
+                    <Bookmark className="w-3.5 h-3.5 text-primary" />
+                    <span>Save Current Window</span>
+                  </div>
+                  <kbd className="text-[9px] bg-muted/80 px-1 py-0.5 rounded font-mono text-muted-foreground">⌘S</kbd>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={handleSaveAllWindows}
+                  className="cursor-pointer py-1.5 px-2 text-xs font-medium rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted"
+                >
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-3.5 h-3.5 text-primary" />
+                    <span>Save All Windows</span>
+                  </div>
+                  <kbd className="text-[9px] bg-muted/80 px-1 py-0.5 rounded font-mono text-muted-foreground">⌘⇧S</kbd>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -370,11 +387,11 @@ export default function App() {
         </div>
       </section>
 
-      {/* 3. Recent Stashes Feed */}
-      <section className="px-3.5 py-1.5 flex-1 min-h-0 flex flex-col overflow-y-auto custom-scrollbar relative z-10 space-y-2">
-        <div className="flex items-center justify-between px-0.5 pt-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
-            <Clock className="w-3 h-3 text-primary/80" /> Recent Stashes
+      {/* 3. Recent Stashes Deck */}
+      <section className="flex-1 flex flex-col min-h-0 px-3.5 pb-3">
+        <div className="flex items-center justify-between py-1.5 px-0.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
+            <Clock className="w-3 h-3 text-primary" /> Recent Stashes
           </span>
           {groups.length > 0 && (
             <span className="text-[10px] font-semibold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md border border-border/40">
@@ -384,8 +401,10 @@ export default function App() {
         </div>
 
         {groups.length === 0 ? (
-          <div className="p-5 my-auto text-center border border-dashed border-border/70 rounded-xl bg-card/20 flex flex-col items-center justify-center animate-fade-in-up">
-            <Sparkles className="w-7 h-7 text-primary/60 mb-2" />
+          <div className="p-5 my-auto text-center border border-dashed border-border/70 rounded-xl bg-card/20 flex flex-col items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-2 text-primary animate-float">
+              <Sparkles className="w-5 h-5" />
+            </div>
             <p className="text-xs font-semibold text-foreground mb-0.5">No recent stashes</p>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               Save your active tab or window above to clear clutter.
@@ -396,8 +415,8 @@ export default function App() {
             {groups.slice(0, 3).map((group, idx) => (
               <div
                 key={group.id}
-                className="border border-border/60 rounded-xl bg-card/60 hover:bg-card hover:border-border transition-all duration-200 p-2.5 space-y-2 shadow-sm animate-fade-in-up"
-                style={{ animationDelay: `${idx * 40}ms`, animationFillMode: 'both' }}
+                style={{ '--stagger-index': idx } as React.CSSProperties}
+                className="animate-card-cascade card-interactive border border-border/60 rounded-xl bg-card/60 hover:bg-card hover:border-border/90 p-2.5 space-y-2 shadow-sm"
               >
                 {/* Stash Header */}
                 <div className="flex items-center justify-between gap-2">
@@ -419,7 +438,7 @@ export default function App() {
                   {group.tabs.slice(0, 2).map((tab, i) => {
                     const domain = getSafeDomain(tab.url);
                     return (
-                      <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group/tablink">
+                      <div key={i} className="tab-row-hover flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground group/tablink">
                         <div className="w-3.5 h-3.5 rounded bg-muted/80 flex items-center justify-center shrink-0">
                           {domain ? (
                             <img
@@ -458,21 +477,17 @@ export default function App() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setDeleteConfirm({ id: group.id, title: group.name || 'Window Stash' })}
-                    className="h-6 px-2 text-[11px] text-muted-foreground/80 hover:text-destructive hover:bg-destructive/15 rounded transition-colors flex items-center gap-1"
-                    title="Delete stash"
+                    className="btn-spring h-6 px-1.5 text-[11px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded"
                   >
-                    <Trash2 className="w-3 h-3" />
-                    <span>Delete</span>
+                    <Trash2 className="w-3 h-3 mr-1" /> Delete
                   </Button>
                   <Button
                     variant="secondary"
                     size="sm"
                     onClick={() => handleRestoreGroup(group)}
-                    className="h-6 px-2.5 text-[11px] font-semibold bg-primary/20 text-primary-foreground hover:bg-primary/30 border border-primary/30 rounded-md transition-colors flex items-center gap-1 shadow-sm"
-                    title="Restore tabs in browser"
+                    className="btn-spring h-6 px-2 text-[11px] font-semibold bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 rounded shadow-2xs flex items-center gap-1"
                   >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Restore</span>
+                    <RotateCcw className="w-3 h-3 text-primary" /> Restore
                   </Button>
                 </div>
               </div>
