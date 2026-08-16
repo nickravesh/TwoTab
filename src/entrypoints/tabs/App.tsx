@@ -791,12 +791,12 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background font-sans relative text-foreground">
+    <div className="flex h-screen overflow-hidden bg-background font-sans relative text-foreground p-3 gap-3">
       {/* Atmospheric Studio Lighting Halo */}
       <div 
         className="fixed inset-0 pointer-events-none z-0"
         style={{
-          background: 'radial-gradient(circle 800px at 50% -80px, hsl(var(--primary) / 0.12), transparent 70%), radial-gradient(circle 600px at 85% 95%, hsl(var(--accent) / 0.06), transparent 60%)',
+          background: 'radial-gradient(circle 900px at 50% -100px, hsl(var(--primary) / 0.16), transparent 75%), radial-gradient(circle 700px at 85% 95%, hsl(var(--accent) / 0.08), transparent 65%)',
         }}
       />
 
@@ -881,8 +881,8 @@ export default function App() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Sidebar */}
-      <aside className="w-64 h-full border-r border-border bg-muted/40 dark:bg-muted/20 p-6 flex flex-col justify-between z-20 shrink-0 relative overflow-hidden backdrop-blur-xl">
+      {/* Sidebar (Floating Glass Pane) */}
+      <aside className="w-64 h-full rounded-2xl glass-macos-sidebar p-5 flex flex-col justify-between z-20 shrink-0 relative overflow-hidden">
         {/* Top-Left Sidebar Ambient Glow */}
         <div 
           className="absolute -top-10 -left-10 w-60 h-60 pointer-events-none rounded-full blur-3xl opacity-50 dark:opacity-40" 
@@ -1024,10 +1024,10 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 min-w-0 w-full flex flex-col z-10 relative animate-dashboard-in">
+      {/* Main Content Deck (Floating Glass Pane) */}
+      <div className="flex-1 min-w-0 h-full rounded-2xl glass-macos-deck flex flex-col z-10 relative overflow-hidden animate-dashboard-in">
         {/* Header */}
-        <header className="h-14 border-b border-border flex items-center justify-between px-8 bg-background/80 dark:bg-background/70 backdrop-blur-xl sticky top-0 z-20">
+        <header className="h-14 border-b border-border/75 flex items-center justify-between px-6 bg-card/40 dark:bg-card/25 backdrop-blur-xl shrink-0 z-20">
           {/* Title (Left) */}
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold tracking-tight text-foreground">{getHeaderTitle()}</h2>
