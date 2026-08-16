@@ -216,9 +216,11 @@ export default function App() {
       {/* 1. Header (Compact Top Bar) */}
       <header className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-card/80 backdrop-blur-md shrink-0 relative z-10">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary via-primary/80 to-accent flex items-center justify-center shadow-sm text-primary-foreground">
-            <Layers className="w-3.5 h-3.5 text-primary-foreground" />
-          </div>
+          <img 
+            src="/icons/logo.png" 
+            alt="TwoTab" 
+            className="w-6 h-6 object-contain shrink-0 drop-shadow-sm"
+          />
           <span className="font-extrabold text-sm bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent tracking-tight">
             TwoTab
           </span>

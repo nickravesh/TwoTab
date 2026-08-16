@@ -841,9 +841,11 @@ export default function App() {
       {/* Sidebar */}
       <div className="w-64 border-r border-border bg-card/75 p-6 flex flex-col z-20 backdrop-blur-xl">
         <div className="flex items-center gap-2.5 mb-8">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary via-primary/80 to-accent flex items-center justify-center shadow-sm text-primary-foreground">
-            <Layers className="w-4 h-4 text-primary-foreground" />
-          </div>
+          <img 
+            src="/icons/logo.png" 
+            alt="TwoTab" 
+            className="w-7 h-7 object-contain shrink-0 drop-shadow-sm"
+          />
           <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent tracking-tight">
             TwoTab
           </span>

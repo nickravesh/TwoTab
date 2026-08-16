@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg height="128px" viewBox="0 0 128 128" width="128px" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <!-- Top Slate Chassis -->
+        <linearGradient id="c1_slate_face" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#3d3846"/>
+            <stop offset="100%" stop-color="#241f31"/>
+        </linearGradient>
+
+        <!-- Bottom Royal Blue Vault 3D Extrusion (Bottom 4px) -->
+        <linearGradient id="c1_blue_ext" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#1a5fb4"/>
+            <stop offset="100%" stop-color="#15498a"/>
+        </linearGradient>
+
+        <!-- Bottom Royal Blue Vault Face -->
+        <linearGradient id="c1_blue_face" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#3584e4"/>
+            <stop offset="100%" stop-color="#1c71d8"/>
+        </linearGradient>
+
+        <!-- Stash Arrow 3D Extrusion -->
+        <linearGradient id="c1_arrow_ext" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#c0bfbc"/>
+            <stop offset="100%" stop-color="#9a9996"/>
+        </linearGradient>
+
+        <!-- Stash Arrow Face (Pure Porcelain) -->
+        <linearGradient id="c1_arrow_face" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff"/>
+            <stop offset="100%" stop-color="#deddda"/>
+        </linearGradient>
+    </defs>
+
+    <!-- 1. Ambient Drop Shadows -->
+    <rect x="14" y="16" width="100" height="38" rx="8" ry="8" fill="#000000" fill-opacity="0.2"/>
+    <rect x="14" y="66" width="100" height="52" rx="9" ry="9" fill="#000000" fill-opacity="0.2"/>
+
+    <!-- 2. TOP BROWSER WINDOW (Deep Dark Slate) -->
+    <!-- 3D Lip -->
+    <rect x="14" y="14" width="100" height="36" rx="8" ry="8" fill="#18151e"/>
+    <!-- Face -->
+    <rect x="14" y="10" width="100" height="36" rx="8" ry="8" fill="url(#c1_slate_face)"/>
+    <!-- 1px Top Bevel Highlight -->
+    <line x1="22" y1="11" x2="106" y2="11" stroke="#5e5c64" stroke-width="1.2" stroke-linecap="round"/>
+
+    <!-- Window Traffic Dots -->
+    <circle cx="22" cy="18" r="2" fill="#e01b24"/>
+    <circle cx="28" cy="18" r="2" fill="#f6d32d"/>
+    <circle cx="34" cy="18" r="2" fill="#2ec27e"/>
+
+    <!-- Open Tab 1: Active Royal Blue Tab Ear -->
+    <rect x="42" y="13" width="34" height="12" rx="3.5" ry="3.5" fill="#3584e4"/>
+    <circle cx="47" cy="19" r="1.8" fill="#ffffff"/>
+    <rect x="52" y="18" width="16" height="2.5" rx="1.25" ry="1.25" fill="#ffffff"/>
+
+    <!-- Open Tab 2: Secondary Slate/Porcelain Tab Ear -->
+    <rect x="80" y="13" width="28" height="12" rx="3.5" ry="3.5" fill="#5e5c64"/>
+    <circle cx="85" cy="19" r="1.8" fill="#deddda"/>
+    <rect x="90" y="18" width="12" height="2.5" rx="1.25" ry="1.25" fill="#deddda"/>
+
+    <!-- Address / Search Capsule -->
+    <rect x="20" y="30" width="88" height="10" rx="4" ry="4" fill="#18151e"/>
+    <circle cx="26" cy="35" r="1.5" fill="#62a0ea"/>
+    <rect x="32" y="34" width="46" height="2" rx="1" ry="1" fill="#77767b"/>
+
+    <!-- 3. SCULPTED 3D STASH ARROW -->
+    <!-- Drop shadow -->
+    <path d="M 64 68 L 48 46 L 80 46 Z" fill="#000000" fill-opacity="0.3"/>
+    <!-- 3D extrusion -->
+    <path d="M 64 66 L 48 46 L 80 46 Z" fill="url(#c1_arrow_ext)"/>
+    <!-- Face -->
+    <path d="M 64 62 L 48 42 L 80 42 Z" fill="url(#c1_arrow_face)"/>
+    <!-- 1px highlight -->
+    <line x1="49" y1="43" x2="79" y2="43" stroke="#ffffff" stroke-width="1" stroke-linecap="round"/>
+    <!-- Central Stash Particle (Royal Blue) -->
+    <circle cx="64" cy="49" r="3" fill="#3584e4"/>
+    <circle cx="64" cy="56" r="2" fill="#1c71d8"/>
+
+    <!-- 4. BOTTOM COLLECTION VAULT (Adwaita Royal Blue) -->
+    <!-- 3D Extrusion Lip (4px) -->
+    <rect x="14" y="64" width="100" height="52" rx="9" ry="9" fill="url(#c1_blue_ext)"/>
+    <!-- Face -->
+    <rect x="14" y="60" width="100" height="52" rx="9" ry="9" fill="url(#c1_blue_face)"/>
+    <!-- 1px Top Chamfer Highlight -->
+    <line x1="23" y1="61" x2="105" y2="61" stroke="#99c1f1" stroke-width="1.2" stroke-linecap="round"/>
+
+    <!-- Stashed Collection Card 1 -->
+    <rect x="22" y="68" width="84" height="18" rx="5" ry="5" fill="#ffffff"/>
+    <circle cx="28" cy="77" r="3" fill="#3584e4"/>
+    <rect x="36" y="75" width="38" height="4" rx="2" ry="2" fill="#241f31"/>
+    <!-- Tab count badge (2 dots) -->
+    <rect x="84" y="73" width="16" height="8" rx="4" ry="4" fill="#3584e4" fill-opacity="0.15"/>
+    <circle cx="89" cy="77" r="1.5" fill="#3584e4"/>
+    <circle cx="94" cy="77" r="1.5" fill="#3584e4"/>
+
+    <!-- Stashed Collection Card 2 -->
+    <rect x="22" y="89" width="84" height="18" rx="5" ry="5" fill="#ffffff"/>
+    <circle cx="28" cy="98" r="3" fill="#62a0ea"/>
+    <rect x="36" y="96" width="32" height="4" rx="2" ry="2" fill="#241f31"/>
+    <!-- Tab count badge (2 dots) -->
+    <rect x="84" y="94" width="16" height="8" rx="4" ry="4" fill="#62a0ea" fill-opacity="0.2"/>
+    <circle cx="89" cy="98" r="1.5" fill="#1c71d8"/>
+    <circle cx="94" cy="98" r="1.5" fill="#1c71d8"/>
+</svg>
