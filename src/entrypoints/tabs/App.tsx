@@ -988,7 +988,7 @@ export default function App() {
                 <span>TwoTab</span>
               </div>
               <Badge variant="outline" className="text-[10px] font-medium px-1.5 py-0 h-4 border-border/80 bg-background/80 text-muted-foreground shadow-xs">
-                v1.4.0
+                {typeof chrome !== 'undefined' && chrome?.runtime?.getManifest?.()?.version ? `v${chrome.runtime.getManifest().version}` : 'v1.5.0'}
               </Badge>
             </div>
             <div className="flex items-center justify-between text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">
