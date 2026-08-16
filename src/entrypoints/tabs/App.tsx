@@ -800,9 +800,9 @@ export default function App() {
         }}
       />
 
-      {/* Tactile Matte Micro-Grain (Native DOM SVG for 100% Chromium compatibility) */}
+      {/* Tactile Matte Micro-Grain (Native DOM SVG covering entire window including sidebar & header) */}
       <svg 
-        className="fixed inset-0 w-full h-full pointer-events-none z-0 opacity-25 dark:opacity-40 mix-blend-overlay dark:mix-blend-soft-light"
+        className="fixed inset-0 w-full h-full pointer-events-none z-40 opacity-30 dark:opacity-45 mix-blend-overlay dark:mix-blend-soft-light"
         aria-hidden="true"
       >
         <filter id="twotab-matte-grain">
@@ -882,7 +882,13 @@ export default function App() {
       </AlertDialog>
 
       {/* Sidebar */}
-      <aside className="w-64 h-full border-r border-border bg-card/75 p-6 flex flex-col justify-between z-20 backdrop-blur-xl shrink-0">
+      <aside className="w-64 h-full border-r border-border bg-muted/40 dark:bg-muted/20 p-6 flex flex-col justify-between z-20 shrink-0 relative overflow-hidden backdrop-blur-xl">
+        {/* Top-Left Sidebar Ambient Glow */}
+        <div 
+          className="absolute -top-10 -left-10 w-60 h-60 pointer-events-none rounded-full blur-3xl opacity-50 dark:opacity-40" 
+          style={{ background: 'hsl(var(--primary) / 0.18)' }} 
+        />
+        
         {/* Top: Logo & Navigation */}
         <div className="flex flex-col">
           <div className="flex items-center gap-2.5 mb-8">
@@ -1021,7 +1027,7 @@ export default function App() {
       {/* Main Content */}
       <div className="flex-1 min-w-0 w-full flex flex-col z-10 relative animate-dashboard-in">
         {/* Header */}
-        <header className="h-14 border-b border-border flex items-center justify-between px-8 bg-card/80 backdrop-blur-xl sticky top-0 z-20">
+        <header className="h-14 border-b border-border flex items-center justify-between px-8 bg-background/80 dark:bg-background/70 backdrop-blur-xl sticky top-0 z-20">
           {/* Title (Left) */}
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold tracking-tight text-foreground">{getHeaderTitle()}</h2>
