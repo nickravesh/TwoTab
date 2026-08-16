@@ -19,7 +19,14 @@ import {
   removeRecentlyClosedItem,
   clearRecentlyClosedItems,
   formatDisplayUrl,
-  type ClosedTabItem
+  type ClosedTabItem,
+  type UserPreferences,
+  DEFAULT_USER_PREFERENCES,
+  getUserPreferences,
+  setUserPreferences,
+  restoreTabGroup,
+  restoreAllTabGroups,
+  PREFERENCES_STORAGE_KEY,
 } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -85,7 +92,11 @@ import {
   Monitor, 
   Copy, 
   Bookmark, 
-  Palette 
+  Palette,
+  Pin,
+  PinOff,
+  Sliders,
+  ExternalLink
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { THEME_PALETTES, type ThemePalette } from '@/lib/theme';
@@ -416,6 +427,7 @@ export default function App() {
   const { themeMode, resolvedTheme, setThemeMode } = useTheme();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'archive' | 'closed' | 'settings' | 'help'>('dashboard');
   const [groups, setGroups] = useState<TabGroup[]>([]);
+  const [userPreferences, setUserPreferencesState] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
   const [recentlyClosed, setRecentlyClosed] = useState<ClosedTabItem[]>([]);
   const [search, setSearch] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -431,7 +443,21 @@ export default function App() {
     setTimeout(() => setMessage(null), 3000);
   };
 
+  const handleUpdatePreference = async <K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) => {
+    try {
+      const updated = await setUserPreferences({ [key]: value });
+      setUserPreferencesState(updated);
+      showMessage('Setting updated');
+    } catch (e) {
+      console.error('Error saving preference:', e);
+      showMessage('Failed to save setting', 'error');
+    }
+  };
+
   const loadData = async () => {
+    // Also refresh preferences
+    getUserPreferences().then(setUserPreferencesState);
+
     if (activeTab === 'dashboard') {
       const data = await getGroups();
       setGroups(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
@@ -471,8 +497,13 @@ export default function App() {
 
   useEffect(() => {
     const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => {
-      if (areaName === 'local' && changes.recentlyClosed && activeTab === 'closed') {
-        loadData();
+      if (areaName === 'local') {
+        if (changes.recentlyClosed && activeTab === 'closed') {
+          loadData();
+        }
+        if (changes[PREFERENCES_STORAGE_KEY]) {
+          setUserPreferencesState(changes[PREFERENCES_STORAGE_KEY].newValue || DEFAULT_USER_PREFERENCES);
+        }
       }
     };
     chrome.storage.onChanged.addListener(listener);
@@ -592,28 +623,34 @@ export default function App() {
     loadData();
   };
 
-  const handleRestoreGroup = (group: TabGroup) => {
-    let count = 0;
-    group.tabs.forEach(tab => {
-      if (getSafeDomain(tab.url)) {
-        chrome.tabs.create({ url: tab.url, active: false });
-        count++;
+  const handleRestoreGroup = async (group: TabGroup) => {
+    try {
+      const result = await restoreTabGroup(group, userPreferences);
+      if (result.removed) {
+        showMessage(`Restored ${result.count} tabs & removed collection`);
+        loadData();
+      } else {
+        showMessage(`Restored ${result.count} tabs`);
       }
-    });
-    showMessage(`Restored ${count} tabs`);
+    } catch (e) {
+      console.error('Error restoring group:', e);
+      showMessage('Failed to restore group', 'error');
+    }
   };
 
-  const handleRestoreAllGroups = () => {
-    let count = 0;
-    groups.forEach(group => {
-      group.tabs.forEach(tab => {
-        if (getSafeDomain(tab.url)) {
-          chrome.tabs.create({ url: tab.url, active: false });
-          count++;
-        }
-      });
-    });
-    showMessage(`Restoring ${count} tabs across ${groups.length} groups`);
+  const handleRestoreAllGroups = async () => {
+    try {
+      const result = await restoreAllTabGroups(groups, userPreferences);
+      if (result.removed) {
+        showMessage(`Restored ${result.count} tabs & cleared all collections`);
+        loadData();
+      } else {
+        showMessage(`Restored ${result.count} tabs across ${result.groupsCount} groups`);
+      }
+    } catch (e) {
+      console.error('Error restoring all groups:', e);
+      showMessage('Failed to restore groups', 'error');
+    }
   };
 
   const handleStartRename = (group: TabGroup) => {
@@ -1212,6 +1249,171 @@ export default function App() {
                         </button>
                       );
                     })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Tab Workflow & Restoration Settings */}
+              <Card className="border-border bg-card shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-foreground text-xl flex items-center gap-2">
+                    <Sliders className="w-5 h-5 text-primary" />
+                    Tab Workflow & Restoration Rules
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">
+                    Customize how TwoTab captures active tabs and where collections are restored.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-2 space-y-6">
+                  {/* 1. Protect Pinned Tabs */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-muted/20">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-0.5 shadow-xs">
+                        {userPreferences.protectPinnedTabs ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4 text-muted-foreground" />}
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          Protect Pinned Tabs
+                          <Badge variant="outline" className={`text-[10px] font-medium border ${userPreferences.protectPinnedTabs ? 'text-primary border-primary/30 bg-primary/10' : 'text-muted-foreground border-border'}`}>
+                            {userPreferences.protectPinnedTabs ? 'Enabled (Recommended)' : 'Disabled'}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                          Never close or stash pinned tabs when saving windows or stashing active tabs. Keeps your pinned email, chat, and music tabs uninterrupted.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant={userPreferences.protectPinnedTabs ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleUpdatePreference('protectPinnedTabs', !userPreferences.protectPinnedTabs)}
+                      className={`shrink-0 text-xs font-semibold px-4 transition-all shadow-sm ${
+                        userPreferences.protectPinnedTabs ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border-border text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {userPreferences.protectPinnedTabs ? 'Protected' : 'Unprotected'}
+                    </Button>
+                  </div>
+
+                  {/* 2. Restore Destination */}
+                  <div className="space-y-2.5">
+                    <div>
+                      <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Layers className="w-4 h-4 text-primary" />
+                        Restore Destination
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Choose where tab collections open when clicking Restore Group.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleUpdatePreference('restoreDestination', 'new_window')}
+                        className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                          userPreferences.restoreDestination === 'new_window'
+                            ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm font-semibold text-foreground'
+                            : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
+                        }`}
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-0.5 shadow-xs">
+                          <ExternalLink className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-foreground">Dedicated New Window</span>
+                            {userPreferences.restoreDestination === 'new_window' && <span className="text-xs text-primary font-bold">✓</span>}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground font-normal mt-0.5 leading-snug">
+                            Opens the collection cleanly in its own new browser window (Default).
+                          </p>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleUpdatePreference('restoreDestination', 'current_window')}
+                        className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                          userPreferences.restoreDestination === 'current_window'
+                            ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm font-semibold text-foreground'
+                            : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
+                        }`}
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-0.5 shadow-xs">
+                          <LayoutDashboard className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-foreground">Current Active Window</span>
+                            {userPreferences.restoreDestination === 'current_window' && <span className="text-xs text-primary font-bold">✓</span>}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground font-normal mt-0.5 leading-snug">
+                            Appends the restored tabs directly alongside your current open tabs.
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3. Collection Lifecycle on Restore */}
+                  <div className="space-y-2.5">
+                    <div>
+                      <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <History className="w-4 h-4 text-primary" />
+                        After Restoring Collection
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Decide whether saved tab groups remain stored in TwoTab after opening.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleUpdatePreference('restoreBehavior', 'keep')}
+                        className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                          userPreferences.restoreBehavior === 'keep'
+                            ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm font-semibold text-foreground'
+                            : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
+                        }`}
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-0.5 shadow-xs">
+                          <Bookmark className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-foreground">Keep in TwoTab</span>
+                            {userPreferences.restoreBehavior === 'keep' && <span className="text-xs text-primary font-bold">✓</span>}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground font-normal mt-0.5 leading-snug">
+                            Preserves the group in your dashboard so you can restore it repeatedly (Bookmark style).
+                          </p>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleUpdatePreference('restoreBehavior', 'remove')}
+                        className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                          userPreferences.restoreBehavior === 'remove'
+                            ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm font-semibold text-foreground'
+                            : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
+                        }`}
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-0.5 shadow-xs">
+                          <Trash2 className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-foreground">Remove from TwoTab</span>
+                            {userPreferences.restoreBehavior === 'remove' && <span className="text-xs text-primary font-bold">✓</span>}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground font-normal mt-0.5 leading-snug">
+                            Automatically removes the collection once restored (Clean-slate style).
+                          </p>
+                        </div>
+                      </button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

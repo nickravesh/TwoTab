@@ -9,6 +9,11 @@ import {
   importData,
   clearAllData,
   runHealthCheck,
+  getUserPreferences,
+  setUserPreferences,
+  restoreTabGroup,
+  restoreAllTabGroups,
+  DEFAULT_USER_PREFERENCES,
   CURRENT_SCHEMA_VERSION,
   type TabGroup,
 } from './storage';
@@ -23,6 +28,12 @@ const mockChrome = {
     get lastError() {
       return mockLastError;
     },
+  },
+  tabs: {
+    create: vi.fn((props: { url: string; active?: boolean }) => Promise.resolve({ id: 100, ...props })),
+  },
+  windows: {
+    create: vi.fn((props: { url?: string | string[]; focused?: boolean }) => Promise.resolve({ id: 200, ...props })),
   },
   storage: {
     local: {
@@ -196,5 +207,96 @@ describe('TwoTab Storage Engine Reliability Unit Tests', () => {
     const health = await runHealthCheck();
     expect(health.valid).toBe(true);
     expect(health.errors).toHaveLength(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 7. User Workflow Preferences
+  // ---------------------------------------------------------------------------
+  it('User Preferences: returns defaults when unconfigured', async () => {
+    const prefs = await getUserPreferences();
+    expect(prefs).toEqual(DEFAULT_USER_PREFERENCES);
+    expect(prefs.protectPinnedTabs).toBe(true);
+    expect(prefs.restoreDestination).toBe('new_window');
+    expect(prefs.restoreBehavior).toBe('keep');
+  });
+
+  it('User Preferences: updates and persists partial preferences', async () => {
+    await setUserPreferences({ restoreDestination: 'current_window', restoreBehavior: 'remove' });
+    const prefs = await getUserPreferences();
+    expect(prefs.restoreDestination).toBe('current_window');
+    expect(prefs.restoreBehavior).toBe('remove');
+    expect(prefs.protectPinnedTabs).toBe(true); // Retains default for untouched fields
+  });
+
+  // ---------------------------------------------------------------------------
+  // 8. Tab Group Restoration Engine
+  // ---------------------------------------------------------------------------
+  it('Restoration Engine: opens in new window when configured for new_window', async () => {
+    const group: TabGroup = {
+      id: 801,
+      date: '2026-08-11',
+      name: 'Work',
+      tabs: [
+        { title: 'A', url: 'https://a.com' },
+        { title: 'B', url: 'https://b.com' },
+      ],
+    };
+
+    const result = await restoreTabGroup(group, {
+      protectPinnedTabs: true,
+      restoreDestination: 'new_window',
+      restoreBehavior: 'keep',
+    });
+
+    expect(result.count).toBe(2);
+    expect(result.removed).toBe(false);
+    expect(mockChrome.windows.create).toHaveBeenCalledWith({
+      url: ['https://a.com', 'https://b.com'],
+      focused: true,
+    });
+  });
+
+  it('Restoration Engine: opens individual tabs when configured for current_window', async () => {
+    const group: TabGroup = {
+      id: 802,
+      date: '2026-08-11',
+      name: 'Docs',
+      tabs: [{ title: 'Docs', url: 'https://docs.com' }],
+    };
+
+    const result = await restoreTabGroup(group, {
+      protectPinnedTabs: true,
+      restoreDestination: 'current_window',
+      restoreBehavior: 'keep',
+    });
+
+    expect(result.count).toBe(1);
+    expect(result.removed).toBe(false);
+    expect(mockChrome.tabs.create).toHaveBeenCalledWith({
+      url: 'https://docs.com',
+      active: false,
+    });
+  });
+
+  it('Restoration Engine: removes group from storage when restoreBehavior is "remove"', async () => {
+    const group: TabGroup = {
+      id: 803,
+      date: '2026-08-11',
+      name: 'Temporary',
+      tabs: [{ title: 'Temp', url: 'https://temp.com' }],
+    };
+    mockStorageStore = {
+      tabGroups: [group],
+    };
+
+    const result = await restoreTabGroup(group, {
+      protectPinnedTabs: true,
+      restoreDestination: 'new_window',
+      restoreBehavior: 'remove',
+    });
+
+    expect(result.count).toBe(1);
+    expect(result.removed).toBe(true);
+    expect(mockStorageStore.tabGroups).toEqual([]);
   });
 });

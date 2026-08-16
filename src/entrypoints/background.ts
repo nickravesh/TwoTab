@@ -1,4 +1,4 @@
-import { migrateIfNeeded, runHealthCheck, createRollingBackup } from '@/lib/storage';
+import { migrateIfNeeded, runHealthCheck, createRollingBackup, getUserPreferences } from '@/lib/storage';
 
 export default defineBackground(() => {
   const getStorageSession = () => chrome.storage.session || chrome.storage.local;
@@ -182,8 +182,10 @@ export default defineBackground(() => {
   }
 
   async function saveActiveTab() {
+    const prefs = await getUserPreferences();
     const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!activeTab || !activeTab.url || activeTab.pinned) return;
+    if (!activeTab || !activeTab.url) return;
+    if (activeTab.pinned && prefs.protectPinnedTabs) return;
 
     const lower = activeTab.url.toLowerCase();
     if (
@@ -230,9 +232,11 @@ export default defineBackground(() => {
   }
 
   async function processTabsForWindow(tabs: chrome.tabs.Tab[]) {
+    const prefs = await getUserPreferences();
     const tabData = tabs
       .filter(tab => {
-        if (!tab.url || tab.pinned) return false;
+        if (!tab.url) return false;
+        if (tab.pinned && prefs.protectPinnedTabs) return false;
         const lower = tab.url.toLowerCase();
         return !(
           lower.startsWith('chrome-extension://') ||
@@ -263,9 +267,9 @@ export default defineBackground(() => {
     // Open a new blank tab in the window first
     await chrome.tabs.create({ url: 'chrome://newtab', windowId });
 
-    // Close non-pinned tabs
+    // Close tabs (respecting protectPinnedTabs)
     const tabIds = tabs
-      .filter(tab => !tab.pinned)
+      .filter(tab => !(tab.pinned && prefs.protectPinnedTabs))
       .map(tab => tab.id)
       .filter(id => id !== undefined && id !== chrome.tabs.TAB_ID_NONE);
 

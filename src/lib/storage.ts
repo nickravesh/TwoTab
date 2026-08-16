@@ -29,6 +29,44 @@ export interface ClosedTabItem {
   timestamp: string;
 }
 
+export interface UserPreferences {
+  protectPinnedTabs: boolean;
+  restoreDestination: 'new_window' | 'current_window';
+  restoreBehavior: 'keep' | 'remove';
+}
+
+export const DEFAULT_USER_PREFERENCES: UserPreferences = {
+  protectPinnedTabs: true,
+  restoreDestination: 'new_window',
+  restoreBehavior: 'keep',
+};
+
+export const PREFERENCES_STORAGE_KEY = 'twotab_user_preferences';
+
+export async function getUserPreferences(): Promise<UserPreferences> {
+  try {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      const data = await chrome.storage.local.get(PREFERENCES_STORAGE_KEY);
+      if (data && data[PREFERENCES_STORAGE_KEY]) {
+        return {
+          ...DEFAULT_USER_PREFERENCES,
+          ...data[PREFERENCES_STORAGE_KEY],
+        };
+      }
+    }
+  } catch (e) {
+    console.error('[TwoTab Storage] Error reading user preferences:', e);
+  }
+  return DEFAULT_USER_PREFERENCES;
+}
+
+export async function setUserPreferences(prefs: Partial<UserPreferences>): Promise<UserPreferences> {
+  const current = await getUserPreferences();
+  const updated: UserPreferences = { ...current, ...prefs };
+  await safeStorageSet({ [PREFERENCES_STORAGE_KEY]: updated });
+  return updated;
+}
+
 // =============================================================================
 // Storage Write Queue — Mutex / Serialized Write Operations
 // =============================================================================
@@ -228,6 +266,97 @@ export async function renameGroup(id: number, newName: string): Promise<void> {
     const updated = groups.map(g => g.id === id ? { ...g, name: newName } : g);
     await safeStorageSet({ tabGroups: updated });
   });
+}
+
+// =============================================================================
+// Tab Group Restoration Engine (respects UserPreferences)
+// =============================================================================
+
+export async function restoreTabGroup(
+  group: TabGroup,
+  prefs?: UserPreferences
+): Promise<{ count: number; removed: boolean }> {
+  const userPrefs = prefs || (await getUserPreferences());
+  const validUrls = (group.tabs || [])
+    .map((t) => t.url)
+    .filter((url) => {
+      if (!url) return false;
+      const lower = url.toLowerCase();
+      return !(
+        lower.startsWith('chrome-extension://') ||
+        lower.startsWith('chrome://') ||
+        lower.startsWith('about:') ||
+        lower.startsWith('edge:') ||
+        lower.startsWith('data:')
+      );
+    });
+
+  if (validUrls.length === 0) return { count: 0, removed: false };
+
+  if (typeof chrome !== 'undefined' && chrome.tabs) {
+    if (userPrefs.restoreDestination === 'new_window' && chrome.windows) {
+      await chrome.windows.create({ url: validUrls, focused: true });
+    } else {
+      for (const url of validUrls) {
+        await chrome.tabs.create({ url, active: false });
+      }
+    }
+  }
+
+  let removed = false;
+  if (userPrefs.restoreBehavior === 'remove') {
+    await deleteGroup(group.id);
+    removed = true;
+  }
+
+  return { count: validUrls.length, removed };
+}
+
+export async function restoreAllTabGroups(
+  groups: TabGroup[],
+  prefs?: UserPreferences
+): Promise<{ count: number; groupsCount: number; removed: boolean }> {
+  const userPrefs = prefs || (await getUserPreferences());
+  let totalCount = 0;
+  const allUrls: string[] = [];
+
+  for (const group of groups) {
+    const validUrls = (group.tabs || [])
+      .map((t) => t.url)
+      .filter((url) => {
+        if (!url) return false;
+        const lower = url.toLowerCase();
+        return !(
+          lower.startsWith('chrome-extension://') ||
+          lower.startsWith('chrome://') ||
+          lower.startsWith('about:') ||
+          lower.startsWith('edge:') ||
+          lower.startsWith('data:')
+        );
+      });
+    allUrls.push(...validUrls);
+    totalCount += validUrls.length;
+  }
+
+  if (allUrls.length === 0) return { count: 0, groupsCount: 0, removed: false };
+
+  if (typeof chrome !== 'undefined' && chrome.tabs) {
+    if (userPrefs.restoreDestination === 'new_window' && chrome.windows) {
+      await chrome.windows.create({ url: allUrls, focused: true });
+    } else {
+      for (const url of allUrls) {
+        await chrome.tabs.create({ url, active: false });
+      }
+    }
+  }
+
+  let removed = false;
+  if (userPrefs.restoreBehavior === 'remove') {
+    await safeStorageSet({ tabGroups: [] });
+    removed = true;
+  }
+
+  return { count: totalCount, groupsCount: groups.length, removed };
 }
 
 // =============================================================================

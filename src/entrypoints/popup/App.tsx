@@ -7,6 +7,7 @@ import {
   type TabGroup,
   getSafeDomain,
   formatDisplayUrl,
+  restoreTabGroup,
 } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -167,12 +168,15 @@ export default function App() {
     }
   };
 
-  const handleRestoreGroup = (group: TabGroup) => {
-    group.tabs.forEach((tab) => {
-      if (getSafeDomain(tab.url)) {
-        chrome.tabs.create({ url: tab.url, active: false });
+  const handleRestoreGroup = async (group: TabGroup) => {
+    try {
+      const res = await restoreTabGroup(group);
+      if (res.removed) {
+        await loadGroups();
       }
-    });
+    } catch (e) {
+      console.error('Error restoring group:', e);
+    }
   };
 
   return (
