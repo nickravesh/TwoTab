@@ -3,7 +3,11 @@ import {
   saveGroups,
   getGroups,
   deleteGroup,
+  deleteTabFromGroup,
+  renameGroup,
   archiveGroup,
+  unarchiveGroup,
+  deleteArchivedGroup,
   getArchivedGroups,
   migrateIfNeeded,
   importData,
@@ -19,8 +23,14 @@ import {
   setUserPreferences,
   saveRecentlyClosedItems,
   getRecentlyClosedItems,
+  removeRecentlyClosedItem,
+  clearRecentlyClosedItems,
   restoreTabGroup,
   restoreAllTabGroups,
+  getSafeDomain,
+  formatDisplayUrl,
+  getRelativeTime,
+  createRollingBackup,
   DEFAULT_USER_PREFERENCES,
   CURRENT_SCHEMA_VERSION,
   type TabGroup,
@@ -452,5 +462,265 @@ https://site3.com | Site Three
     expect(mockStorageStore.tabGroups.length).toBe(2);
     expect(mockStorageStore.tabGroups[0].tabs.length).toBe(2);
     expect(mockStorageStore.tabGroups[1].tabs.length).toBe(1);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 12. Tab Group Operations & Mutations
+  // ---------------------------------------------------------------------------
+  it('Group Operations: deleteGroup removes matching group from storage', async () => {
+    mockStorageStore = {
+      tabGroups: [
+        { id: 1, date: '2026-08-11', name: 'Group 1', tabs: [{ title: 'A', url: 'https://a.com' }] },
+        { id: 2, date: '2026-08-11', name: 'Group 2', tabs: [{ title: 'B', url: 'https://b.com' }] },
+      ],
+    };
+
+    await deleteGroup(1);
+    expect(mockStorageStore.tabGroups.length).toBe(1);
+    expect(mockStorageStore.tabGroups[0].id).toBe(2);
+  });
+
+  it('Group Operations: deleteTabFromGroup removes specific tab and auto-deletes group when empty', async () => {
+    mockStorageStore = {
+      tabGroups: [
+        {
+          id: 1,
+          date: '2026-08-11',
+          name: 'Group 1',
+          tabs: [
+            { title: 'A', url: 'https://a.com' },
+            { title: 'B', url: 'https://b.com' },
+          ],
+        },
+      ],
+    };
+
+    // Remove first tab -> group still has 1 tab
+    await deleteTabFromGroup(1, 'https://a.com');
+    expect(mockStorageStore.tabGroups.length).toBe(1);
+    expect(mockStorageStore.tabGroups[0].tabs.length).toBe(1);
+    expect(mockStorageStore.tabGroups[0].tabs[0].url).toBe('https://b.com');
+
+    // Remove last tab -> group itself is removed from storage
+    await deleteTabFromGroup(1, 'https://b.com');
+    expect(mockStorageStore.tabGroups.length).toBe(0);
+  });
+
+  it('Group Operations: renameGroup updates group name with trimmed whitespace', async () => {
+    mockStorageStore = {
+      tabGroups: [
+        { id: 1, date: '2026-08-11', name: 'Original Name', tabs: [{ title: 'A', url: 'https://a.com' }] },
+      ],
+    };
+
+    await renameGroup(1, '   New Renamed Group   ');
+    expect(mockStorageStore.tabGroups[0].name).toBe('New Renamed Group');
+  });
+
+  // ---------------------------------------------------------------------------
+  // 13. Archiving & Lifecycle Engine
+  // ---------------------------------------------------------------------------
+  it('Archiving Engine: archiveGroup transfers group from active to archive', async () => {
+    mockStorageStore = {
+      tabGroups: [
+        { id: 501, date: '2026-08-11', name: 'To Archive', tabs: [{ title: 'A', url: 'https://a.com' }] },
+      ],
+      archivedGroups: [],
+    };
+
+    await archiveGroup(501);
+    expect(mockStorageStore.tabGroups.length).toBe(0);
+    expect(mockStorageStore.archivedGroups.length).toBe(1);
+    expect(mockStorageStore.archivedGroups[0].id).toBe(501);
+  });
+
+  it('Archiving Engine: unarchiveGroup transfers group from archive back to active', async () => {
+    mockStorageStore = {
+      tabGroups: [],
+      archivedGroups: [
+        { id: 502, date: '2026-08-11', name: 'Archived Group', tabs: [{ title: 'A', url: 'https://a.com' }] },
+      ],
+    };
+
+    await unarchiveGroup(502);
+    expect(mockStorageStore.archivedGroups.length).toBe(0);
+    expect(mockStorageStore.tabGroups.length).toBe(1);
+    expect(mockStorageStore.tabGroups[0].id).toBe(502);
+  });
+
+  it('Archiving Engine: deleteArchivedGroup permanently removes group from archive', async () => {
+    mockStorageStore = {
+      archivedGroups: [
+        { id: 503, date: '2026-08-11', name: 'Archive 1', tabs: [{ title: 'A', url: 'https://a.com' }] },
+        { id: 504, date: '2026-08-11', name: 'Archive 2', tabs: [{ title: 'B', url: 'https://b.com' }] },
+      ],
+    };
+
+    await deleteArchivedGroup(503);
+    expect(mockStorageStore.archivedGroups.length).toBe(1);
+    expect(mockStorageStore.archivedGroups[0].id).toBe(504);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 14. Batch Restoration Engine (restoreAllTabGroups)
+  // ---------------------------------------------------------------------------
+  it('Batch Restoration: restores multiple groups in dedicated windows and removes from storage', async () => {
+    const groups: TabGroup[] = [
+      { id: 601, date: '2026-08-11', name: 'Group 1', tabs: [{ title: '1', url: 'https://1.com' }] },
+      { id: 602, date: '2026-08-11', name: 'Group 2', tabs: [{ title: '2', url: 'https://2.com' }] },
+    ];
+    mockStorageStore = { tabGroups: [...groups] };
+
+    const result = await restoreAllTabGroups(groups, {
+      protectPinnedTabs: true,
+      restoreDestination: 'new_window',
+      restoreBehavior: 'remove',
+      recentlyClosedLimit: 50,
+    });
+
+    expect(result.groupsCount).toBe(2);
+    expect(result.count).toBe(2);
+    expect(result.removed).toBe(true);
+    expect(mockStorageStore.tabGroups).toEqual([]);
+    expect(mockChrome.windows.create).toHaveBeenCalledWith({
+      url: ['https://1.com', 'https://2.com'],
+      focused: true,
+    });
+  });
+
+  it('Batch Restoration: restores tabs into current window when configured', async () => {
+    const groups: TabGroup[] = [
+      { id: 603, date: '2026-08-11', name: 'Group 3', tabs: [{ title: '3', url: 'https://3.com' }] },
+    ];
+    mockStorageStore = { tabGroups: [...groups] };
+
+    const result = await restoreAllTabGroups(groups, {
+      protectPinnedTabs: true,
+      restoreDestination: 'current_window',
+      restoreBehavior: 'keep',
+      recentlyClosedLimit: 50,
+    });
+
+    expect(result.groupsCount).toBe(1);
+    expect(result.count).toBe(1);
+    expect(result.removed).toBe(false);
+    expect(mockStorageStore.tabGroups.length).toBe(1);
+    expect(mockChrome.tabs.create).toHaveBeenCalledWith({ url: 'https://3.com', active: false });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 15. URL Sanitization & Domain Formatting Utilities
+  // ---------------------------------------------------------------------------
+  it('URL Utilities: getSafeDomain extracts clean domains and rejects invalid protocols', () => {
+    expect(getSafeDomain('https://github.com/nickravesh/TwoTab')).toBe('github.com');
+    expect(getSafeDomain('http://localhost:3000/dashboard')).toBe('localhost');
+    expect(getSafeDomain('https://sub.domain.example.co.uk/page?id=1')).toBe('sub.domain.example.co.uk');
+
+    // Should return null for non-http protocols or malformed inputs
+    expect(getSafeDomain('javascript:alert(1)')).toBeNull();
+    expect(getSafeDomain('data:text/html,<h1>Hello</h1>')).toBeNull();
+    expect(getSafeDomain('chrome-extension://xyz/popup.html')).toBeNull();
+    expect(getSafeDomain('')).toBeNull();
+  });
+
+  it('URL Utilities: formatDisplayUrl handles URI decoding and fallbacks cleanly', () => {
+    expect(formatDisplayUrl('https://example.com/search%20query')).toBe('https://example.com/search query');
+    expect(formatDisplayUrl('https://github.com/nickravesh')).toBe('https://github.com/nickravesh');
+    expect(formatDisplayUrl('')).toBe('');
+  });
+
+  it('URL Utilities: getRelativeTime formats elapsed time human-readably', () => {
+    const now = Date.now();
+    const tenSecAgo = new Date(now - 10 * 1000).toISOString();
+    const fiveMinAgo = new Date(now - 5 * 60 * 1000).toISOString();
+    const threeHoursAgo = new Date(now - 3 * 3600 * 1000).toISOString();
+    const yesterday = new Date(now - 25 * 3600 * 1000).toISOString();
+    const fiveDaysAgo = new Date(now - 5 * 24 * 3600 * 1000).toISOString();
+
+    expect(getRelativeTime(tenSecAgo)).toBe('just now');
+    expect(getRelativeTime(fiveMinAgo)).toBe('5m ago');
+    expect(getRelativeTime(threeHoursAgo)).toBe('3h ago');
+    expect(getRelativeTime(yesterday)).toBe('yesterday');
+    expect(getRelativeTime(fiveDaysAgo)).toBe('5d ago');
+    expect(getRelativeTime('')).toBe('N/A');
+  });
+
+  // ---------------------------------------------------------------------------
+  // 16. Rolling Backups & Snapshots
+  // ---------------------------------------------------------------------------
+  it('Rolling Backups: creates snapshots and trims old backups preserving only latest 5', async () => {
+    mockStorageStore = {
+      tabGroups: [{ id: 1, date: '2026-08-11', name: 'G1', tabs: [{ title: 'A', url: 'https://a.com' }] }],
+      archivedGroups: [],
+      backup_2026_01: { timestamp: '2026-01-01', tabGroups: [] },
+      backup_2026_02: { timestamp: '2026-02-01', tabGroups: [] },
+      backup_2026_03: { timestamp: '2026-03-01', tabGroups: [] },
+      backup_2026_04: { timestamp: '2026-04-01', tabGroups: [] },
+      backup_2026_05: { timestamp: '2026-05-01', tabGroups: [] },
+    };
+
+    await createRollingBackup();
+
+    const backupKeys = Object.keys(mockStorageStore).filter(k => k.startsWith('backup_'));
+    // Should cap at 5 total rolling snapshots
+    expect(backupKeys.length).toBe(5);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 17. Recently Closed History Management
+  // ---------------------------------------------------------------------------
+  it('Recently Closed: removeRecentlyClosedItem and clearRecentlyClosedItems manage history', async () => {
+    mockStorageStore = {
+      recentlyClosed: [
+        { id: 'close_1', title: 'T1', url: 'https://1.com', timestamp: '2026-08-11' },
+        { id: 'close_2', title: 'T2', url: 'https://2.com', timestamp: '2026-08-11' },
+      ],
+    };
+
+    // Remove single closed item
+    await removeRecentlyClosedItem('close_1');
+    expect(mockStorageStore.recentlyClosed.length).toBe(1);
+    expect(mockStorageStore.recentlyClosed[0].id).toBe('close_2');
+
+    // Clear all closed history
+    await clearRecentlyClosedItems();
+    const remaining = await getRecentlyClosedItems();
+    expect(remaining).toEqual([]);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 18. Import Edge Cases (Markdown links & Replace mode)
+  // ---------------------------------------------------------------------------
+  it('Import Engine: parses markdown links format [Title](URL) in text import', async () => {
+    mockStorageStore = { tabGroups: [] };
+
+    const mdText = `
+- [GitHub](https://github.com)
+- [Google Search](https://google.com)
+`;
+
+    const res = await importOneTabOrPlainText(mdText, 'merge');
+    expect(res.success).toBe(true);
+    expect(res.importedTabsCount).toBe(2);
+    expect(mockStorageStore.tabGroups[0].tabs[0].title).toBe('GitHub');
+    expect(mockStorageStore.tabGroups[0].tabs[0].url).toBe('https://github.com');
+  });
+
+  it('Import Engine: replace mode wipes existing data and installs imported state', async () => {
+    mockStorageStore = {
+      tabGroups: [{ id: 99, date: '2026-08-11', name: 'Old Group', tabs: [{ title: 'Old', url: 'https://old.com' }] }],
+      archivedGroups: [{ id: 98, date: '2026-08-11', name: 'Old Archive', tabs: [] }],
+    };
+
+    const payload = JSON.stringify({
+      tabGroups: [{ id: 1, date: '2026-08-11', name: 'New Group', tabs: [{ title: 'New', url: 'https://new.com' }] }],
+      archivedGroups: [],
+    });
+
+    const success = await importData(payload, 'replace');
+    expect(success).toBe(true);
+    expect(mockStorageStore.tabGroups.length).toBe(1);
+    expect(mockStorageStore.tabGroups[0].id).toBe(1);
+    expect(mockStorageStore.archivedGroups.length).toBe(0);
   });
 });

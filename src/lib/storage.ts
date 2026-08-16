@@ -267,9 +267,10 @@ export async function deleteTabFromGroup(groupId: number, tabUrl: string): Promi
 }
 
 export async function renameGroup(id: number, newName: string): Promise<void> {
+  const trimmed = newName.trim();
   return storageQueue.enqueue(async () => {
     const groups = await getGroups();
-    const updated = groups.map(g => g.id === id ? { ...g, name: newName } : g);
+    const updated = groups.map(g => g.id === id ? { ...g, name: trimmed || g.name } : g);
     await safeStorageSet({ tabGroups: updated });
   });
 }
@@ -755,7 +756,12 @@ export async function importOneTabOrPlainText(
         let url = '';
         let title = '';
 
-        if (line.includes(' | ')) {
+        // Check for Markdown Link: [Title](URL) or - [Title](URL)
+        const mdMatch = line.match(/^[-*•]?\s*\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/);
+        if (mdMatch && mdMatch[1] && mdMatch[2]) {
+          title = mdMatch[1].trim();
+          url = mdMatch[2].trim();
+        } else if (line.includes(' | ')) {
           const parts = line.split(' | ');
           url = parts[0].trim();
           title = parts.slice(1).join(' | ').trim();
