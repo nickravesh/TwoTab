@@ -32,10 +32,14 @@ export function useTheme() {
       areaName: string
     ) => {
       if (areaName === 'local' && changes[THEME_STORAGE_KEY]) {
-        const newMode = (changes[THEME_STORAGE_KEY].newValue as ThemeMode) || DEFAULT_THEME_MODE;
-        setThemeModeState(newMode);
-        const resolved = applyThemeToDOM(newMode);
-        setResolvedTheme(resolved);
+        const newMode = changes[THEME_STORAGE_KEY].newValue as ThemeMode;
+        if (newMode && VALID_MODES.includes(newMode)) {
+          if (typeof document === 'undefined' || !document.documentElement.classList.contains('theme-transitioning')) {
+            setThemeModeState(newMode);
+            const resolved = applyThemeToDOM(newMode);
+            setResolvedTheme(resolved);
+          }
+        }
       }
     };
 
@@ -143,6 +147,10 @@ export function useTheme() {
             ? Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y))
             : 1000;
 
+        if (typeof document !== 'undefined' && document.documentElement) {
+          document.documentElement.classList.add('theme-transitioning');
+        }
+
         const transition = docWithTransitions.startViewTransition(() => {
           flushSync(() => {
             applyUpdates();
@@ -158,21 +166,40 @@ export function useTheme() {
               ];
 
               if (typeof document.documentElement.animate === 'function') {
-                document.documentElement.animate(
+                const anim = document.documentElement.animate(
                   {
                     clipPath: clipPath,
                   },
                   {
-                    duration: 650,
-                    easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                    duration: 1000,
+                    easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
                     pseudoElement: '::view-transition-new(root)',
                   }
                 );
+                anim.onfinish = () => {
+                  if (typeof document !== 'undefined' && document.documentElement) {
+                    document.documentElement.classList.remove('theme-transitioning');
+                  }
+                };
+              } else {
+                if (typeof document !== 'undefined' && document.documentElement) {
+                  document.documentElement.classList.remove('theme-transitioning');
+                }
               }
             })
             .catch(() => {
-              // Ignore if cancelled
+              if (typeof document !== 'undefined' && document.documentElement) {
+                document.documentElement.classList.remove('theme-transitioning');
+              }
             });
+
+          if (transition.finished) {
+            transition.finished.finally(() => {
+              if (typeof document !== 'undefined' && document.documentElement) {
+                document.documentElement.classList.remove('theme-transitioning');
+              }
+            });
+          }
         }
       } else {
         applyUpdates();

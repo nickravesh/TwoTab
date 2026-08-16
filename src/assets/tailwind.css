@@ -351,10 +351,20 @@
    W3C View Transitions API: Circular Clip-Path Theme Reveal
    ========================================================================== */
 
+::view-transition-group(root) {
+  animation: none;
+}
+
+::view-transition-image-pair(root) {
+  isolation: isolate;
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
+  height: 100%;
+  overflow: clip;
 }
 
 ::view-transition-old(root) {
@@ -363,6 +373,14 @@
 
 ::view-transition-new(root) {
   z-index: 999999;
+}
+
+/* Disable individual CSS transitions during theme switch so elements don't fade prematurely */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

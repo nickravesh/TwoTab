@@ -65,3 +65,41 @@ For interactive cards containing scrollable lists (e.g., tab collections), stric
 - **Pluralization**: Always format count labels dynamically (`{count} {count === 1 ? 'tab' : 'tabs'}`).
 - **Smooth Scroll Fade**: Apply `.scroll-fade-bottom` (`-webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%)`) to scrollable lists so content dissolves smoothly above footer borders.
 - **Destructive Actions**: Use soft red (`--destructive: 0 84% 65%` / `#F87171`) with subtle hover backgrounds (`hover:bg-destructive/20`) and explicit confirmation dialogs (`<Dialog />`) before deletion.
+
+---
+
+## 6. View Transitions & Fluid Theme Ripple Architecture
+When implementing or modifying theme switching with circular reveal animations via `document.startViewTransition`:
+
+- **Override Chromium's 250ms Group Timer**:
+  Chromium's user agent stylesheet terminates view transitions after 250ms by default. Always reset the group and image-pair containers in CSS:
+  ```css
+  ::view-transition-group(root) {
+    animation: none;
+  }
+  ::view-transition-image-pair(root) {
+    isolation: isolate;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+    height: 100%;
+    overflow: clip;
+  }
+  ```
+- **Suppress Child Element Transitions During Ripple**:
+  Add a `theme-transitioning` class to `<html>` for the duration of the animation to prevent child components with `transition-colors` from cross-fading prematurely:
+  ```css
+  html.theme-transitioning,
+  html.theme-transitioning *,
+  html.theme-transitioning *::before,
+  html.theme-transitioning *::after {
+    transition: none !important;
+  }
+  ```
+- **Pacing & Velocity**:
+  Use a balanced ease-in-out curve (`cubic-bezier(0.4, 0, 0.2, 1)`) and ~800ms - 1000ms duration so the wave travels at a steady, tangible speed rather than exploding in the first 100ms.
+- **Storage Event Guarding**:
+  Guard background storage listeners (`chrome.storage.onChanged`) against triggering concurrent DOM mutations while `html.theme-transitioning` is active.
+
