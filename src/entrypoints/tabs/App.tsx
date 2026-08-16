@@ -32,6 +32,10 @@ import {
   setUserPreferences,
   restoreTabGroup,
   restoreAllTabGroups,
+  createRollingBackup,
+  getRollingBackupSnapshots,
+  restoreFromRollingBackup,
+  type BackupSnapshot,
   PREFERENCES_STORAGE_KEY,
 } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
@@ -506,6 +510,8 @@ function AppContent() {
   const [archivedGroups, setArchivedGroups] = useState<TabGroup[]>([]);
   const [userPreferences, setUserPreferencesState] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
   const [recentlyClosed, setRecentlyClosed] = useState<ClosedTabItem[]>([]);
+  const [backupSnapshots, setBackupSnapshots] = useState<BackupSnapshot[]>([]);
+  const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [search, setSearch] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
@@ -532,8 +538,9 @@ function AppContent() {
   };
 
   const loadData = async () => {
-    // Also refresh preferences
+    // Also refresh preferences & rolling snapshots
     getUserPreferences().then(setUserPreferencesState);
+    getRollingBackupSnapshots().then(setBackupSnapshots);
 
     const [dashboardData, archiveData] = await Promise.all([
       getGroups(),
@@ -577,6 +584,40 @@ function AppContent() {
     }
   };
 
+  const handleCreateBackup = async () => {
+    setIsCreatingBackup(true);
+    try {
+      const created = await createRollingBackup(false);
+      const snapshots = await getRollingBackupSnapshots();
+      setBackupSnapshots(snapshots);
+      if (created) {
+        showMessage('Rolling snapshot created successfully!');
+      } else {
+        showMessage('Snapshot up to date (no new changes detected)');
+      }
+    } catch (e) {
+      console.error('Error creating rolling backup:', e);
+      showMessage('Failed to create snapshot', 'error');
+    } finally {
+      setIsCreatingBackup(false);
+    }
+  };
+
+  const handleRestoreSnapshot = async (snapshot: BackupSnapshot) => {
+    try {
+      const success = await restoreFromRollingBackup(snapshot.timestamp);
+      if (success) {
+        showMessage('Snapshot restored successfully!');
+        await loadData();
+      } else {
+        showMessage('Failed to restore snapshot', 'error');
+      }
+    } catch (e) {
+      console.error('Error restoring snapshot:', e);
+      showMessage('Failed to restore snapshot', 'error');
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, [activeTab]);
@@ -586,6 +627,9 @@ function AppContent() {
       if (areaName === 'local') {
         if (changes.tabGroups || changes.archivedTabGroups || changes.recentlyClosed) {
           loadData();
+        }
+        if (changes._backupSnapshots) {
+          getRollingBackupSnapshots().then(setBackupSnapshots);
         }
         if (changes[PREFERENCES_STORAGE_KEY]) {
           setUserPreferencesState(changes[PREFERENCES_STORAGE_KEY].newValue || DEFAULT_USER_PREFERENCES);
@@ -1908,6 +1952,104 @@ function AppContent() {
                         </Button>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Automated Rolling Backups & Snapshot Timeline */}
+                  <div className="p-4 rounded-xl border border-border bg-muted/20 space-y-3.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <RefreshCw className="w-4 h-4 text-primary" />
+                          <span className="text-sm font-semibold text-foreground">Automated Rolling Backups</span>
+                          <Badge variant="outline" className="text-[10px] font-semibold text-emerald-500 border-emerald-500/30 bg-emerald-500/10 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active (Every 6h)
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Background scheduler captures automatic snapshots of all tab groups into local storage (keeping the 5 most recent).
+                        </p>
+                      </div>
+                      <Button
+                        onClick={handleCreateBackup}
+                        disabled={isCreatingBackup}
+                        variant="outline"
+                        size="sm"
+                        className="btn-spring border-border hover:bg-muted text-foreground font-semibold text-xs h-8 px-3 shadow-xs shrink-0 self-start sm:self-auto"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 mr-1.5 text-primary ${isCreatingBackup ? 'animate-spin' : ''}`} />
+                        {isCreatingBackup ? 'Creating Snapshot...' : 'Backup Now'}
+                      </Button>
+                    </div>
+
+                    {/* Snapshot Timeline List */}
+                    {backupSnapshots.length === 0 ? (
+                      <div className="text-xs text-muted-foreground bg-card/40 p-3 rounded-lg border border-border/50 text-center">
+                        No snapshots recorded yet. Click "Backup Now" or wait for the automatic 6-hour scheduler.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold text-foreground flex items-center justify-between">
+                          <span>Stored Rolling Snapshots:</span>
+                          <span className="text-[10px] text-muted-foreground">{backupSnapshots.length} of 5 preserved</span>
+                        </div>
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                          {backupSnapshots.map((snap) => {
+                            const groupCount = (snap.data.tabGroups?.length || 0) + (snap.data.archivedGroups?.length || 0);
+                            const totalTabs = (snap.data.tabGroups || []).reduce((acc, g) => acc + g.tabs.length, 0) +
+                                              (snap.data.archivedGroups || []).reduce((acc, g) => acc + g.tabs.length, 0);
+                            return (
+                              <div
+                                key={snap.timestamp}
+                                className="flex items-center justify-between p-2.5 rounded-lg border border-border/60 bg-card/60 text-xs"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <Database className="w-4 h-4 text-primary shrink-0" />
+                                  <div>
+                                    <div className="font-semibold text-foreground">
+                                      {new Date(snap.timestamp).toLocaleString()}
+                                    </div>
+                                    <div className="text-[11px] text-muted-foreground">
+                                      {groupCount} {groupCount === 1 ? 'group' : 'groups'} • {totalTabs} {totalTabs === 1 ? 'tab' : 'tabs'}
+                                    </div>
+                                  </div>
+                                </div>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      className="btn-spring h-7 px-2.5 text-xs font-semibold bg-primary/15 hover:bg-primary/25 text-primary border border-primary/25 shadow-2xs"
+                                    >
+                                      <RotateCcw className="w-3 h-3 mr-1" /> Restore
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent className="border-border bg-card">
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle className="text-foreground flex items-center gap-2">
+                                        <RotateCcw className="w-5 h-5 text-primary" />
+                                        Restore Rolling Snapshot?
+                                      </AlertDialogTitle>
+                                      <AlertDialogDescription className="text-muted-foreground pt-2 text-xs leading-relaxed">
+                                        This will restore your workspace with the snapshot captured on <strong className="text-foreground">{new Date(snap.timestamp).toLocaleString()}</strong> ({groupCount} groups, {totalTabs} tabs).
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter className="pt-4">
+                                      <AlertDialogCancel className="btn-spring font-semibold text-xs">Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleRestoreSnapshot(snap)}
+                                        className="btn-spring bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-xs"
+                                      >
+                                        Yes, Restore Snapshot
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

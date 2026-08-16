@@ -32,6 +32,8 @@ export default defineBackground(() => {
 
   chrome.runtime.onInstalled.addListener(() => {
     setupContextMenus();
+    chrome.alarms.create('autoBackup', { periodInMinutes: 360 });
+    createRollingBackup().catch((e) => console.error('[TwoTab] Initial backup failed:', e));
   });
 
   // ==========================================================================

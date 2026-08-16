@@ -31,6 +31,8 @@ import {
   formatDisplayUrl,
   getRelativeTime,
   createRollingBackup,
+  getRollingBackupSnapshots,
+  restoreFromRollingBackup,
   DEFAULT_USER_PREFERENCES,
   CURRENT_SCHEMA_VERSION,
   type TabGroup,
@@ -648,22 +650,41 @@ https://site3.com | Site Three
   // ---------------------------------------------------------------------------
   // 16. Rolling Backups & Snapshots
   // ---------------------------------------------------------------------------
-  it('Rolling Backups: creates snapshots and trims old backups preserving only latest 5', async () => {
+  it('Rolling Backups: creates snapshots, deduplicates unchanged data, trims to latest 5, and restores successfully', async () => {
     mockStorageStore = {
-      tabGroups: [{ id: 1, date: '2026-08-11', name: 'G1', tabs: [{ title: 'A', url: 'https://a.com' }] }],
-      archivedGroups: [],
-      backup_2026_01: { timestamp: '2026-01-01', tabGroups: [] },
-      backup_2026_02: { timestamp: '2026-02-01', tabGroups: [] },
-      backup_2026_03: { timestamp: '2026-03-01', tabGroups: [] },
-      backup_2026_04: { timestamp: '2026-04-01', tabGroups: [] },
-      backup_2026_05: { timestamp: '2026-05-01', tabGroups: [] },
+      tabGroups: [{ id: 101, date: '2026-08-11', name: 'Snapshot Tab', tabs: [{ title: 'A', url: 'https://a.com' }] }],
+      archivedGroups: [{ id: 201, date: '2026-08-11', name: 'Archived Tab', tabs: [] }],
+      _backupSnapshots: [
+        { timestamp: 1000, data: { tabGroups: [] } },
+        { timestamp: 2000, data: { tabGroups: [] } },
+        { timestamp: 3000, data: { tabGroups: [] } },
+        { timestamp: 4000, data: { tabGroups: [] } },
+        { timestamp: 5000, data: { tabGroups: [] } },
+      ],
     };
 
-    await createRollingBackup();
+    // 1. First backup with new data should succeed
+    const createdFirst = await createRollingBackup();
+    expect(createdFirst).toBe(true);
 
-    const backupKeys = Object.keys(mockStorageStore).filter(k => k.startsWith('backup_'));
-    // Should cap at 5 total rolling snapshots
-    expect(backupKeys.length).toBe(5);
+    const snapshots = await getRollingBackupSnapshots();
+    // Must cap at 5 snapshots
+    expect(snapshots.length).toBe(5);
+    // Most recent snapshot should be first (sorted desc)
+    expect(snapshots[0].data.tabGroups?.length).toBe(1);
+    expect(snapshots[0].data.tabGroups?.[0].id).toBe(101);
+
+    // 2. Second backup with identical data should be skipped (deduplication)
+    const createdSecond = await createRollingBackup();
+    expect(createdSecond).toBe(false);
+    expect((await getRollingBackupSnapshots()).length).toBe(5);
+
+    // 3. Simulate restoring from the snapshot
+    mockStorageStore.tabGroups = [];
+    const restored = await restoreFromRollingBackup(snapshots[0].timestamp);
+    expect(restored).toBe(true);
+    expect(mockStorageStore.tabGroups.length).toBe(1);
+    expect(mockStorageStore.tabGroups[0].id).toBe(101);
   });
 
   // ---------------------------------------------------------------------------

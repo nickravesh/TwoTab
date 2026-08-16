@@ -837,21 +837,77 @@ export async function clearAllData(): Promise<void> {
 }
 
 // =============================================================================
-// Rolling Backup Helpers (used by background.ts alarms)
+// Rolling Backup Helpers (used by background.ts alarms and Settings UI)
 // =============================================================================
 
-export async function createRollingBackup(): Promise<void> {
-  const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups']);
-  const snapshot = {
-    timestamp: Date.now(),
-    data,
+export interface BackupSnapshot {
+  timestamp: number;
+  data: {
+    tabGroups?: TabGroup[];
+    archivedGroups?: TabGroup[];
   };
+}
+
+export async function getRollingBackupSnapshots(): Promise<BackupSnapshot[]> {
+  if (typeof chrome === 'undefined' || !chrome.storage?.local) return [];
+  const res = await chrome.storage.local.get('_backupSnapshots');
+  return (res._backupSnapshots || []).sort((a: BackupSnapshot, b: BackupSnapshot) => b.timestamp - a.timestamp);
+}
+
+export async function createRollingBackup(force = false): Promise<boolean> {
+  const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups']);
+  const currentTabGroups = data.tabGroups || [];
+  const currentArchivedGroups = data.archivedGroups || [];
+
+  // Skip empty backups unless explicitly forced
+  if (!force && currentTabGroups.length === 0 && currentArchivedGroups.length === 0) {
+    return false;
+  }
 
   const existing = await chrome.storage.local.get('_backupSnapshots');
-  const snapshots = (existing._backupSnapshots || []).slice(-1); // Keep last 1 + this new one = 2
+  const existingSnapshots: BackupSnapshot[] = existing._backupSnapshots || [];
+
+  // Deduplication: If no data changes have occurred since the last snapshot, skip creation
+  if (!force && existingSnapshots.length > 0) {
+    const latest = existingSnapshots[existingSnapshots.length - 1];
+    if (latest && latest.data) {
+      const latestTabGroupsStr = JSON.stringify(latest.data.tabGroups || []);
+      const currentTabGroupsStr = JSON.stringify(currentTabGroups);
+      const latestArchivedStr = JSON.stringify(latest.data.archivedGroups || []);
+      const currentArchivedStr = JSON.stringify(currentArchivedGroups);
+
+      if (latestTabGroupsStr === currentTabGroupsStr && latestArchivedStr === currentArchivedStr) {
+        console.log('[TwoTab] Rolling backup skipped: no data changes since last snapshot');
+        return false;
+      }
+    }
+  }
+
+  const snapshot: BackupSnapshot = {
+    timestamp: Date.now(),
+    data: {
+      tabGroups: currentTabGroups,
+      archivedGroups: currentArchivedGroups,
+    },
+  };
+
+  const snapshots: BackupSnapshot[] = existingSnapshots.slice(-4); // Keep last 4 + new 1 = 5
   snapshots.push(snapshot);
   await safeStorageSet({ _backupSnapshots: snapshots });
   console.log(`[TwoTab] Rolling backup created at ${new Date().toISOString()} (${snapshots.length} snapshots stored)`);
+  return true;
+}
+
+export async function restoreFromRollingBackup(timestamp: number): Promise<boolean> {
+  const snapshots = await getRollingBackupSnapshots();
+  const target = snapshots.find(s => s.timestamp === timestamp);
+  if (!target || !target.data) return false;
+
+  await safeStorageSet({
+    tabGroups: target.data.tabGroups || [],
+    archivedGroups: target.data.archivedGroups || [],
+  });
+  return true;
 }
 
 // =============================================================================
