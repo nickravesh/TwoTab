@@ -396,6 +396,27 @@
     0 32px 72px -12px rgba(0, 0, 0, 0.85);
 }
 
+/* macOS-Style Window Chrome Header with Optical Ledge Shadow */
+.glass-macos-header {
+  background-color: hsl(var(--muted) / 0.65);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border-bottom: 1px solid hsl(var(--border) / 0.85);
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.60),
+    0 1px 3px 0 rgba(0, 0, 0, 0.04),
+    0 4px 12px -2px rgba(0, 0, 0, 0.06);
+}
+
+.dark .glass-macos-header {
+  background-color: hsl(var(--background) / 0.75);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+    0 2px 8px 0 rgba(0, 0, 0, 0.35),
+    0 8px 24px -4px rgba(0, 0, 0, 0.55);
+}
+
 /* Ambient Lighting & Tactile Matte Micro-Grain */
 .bg-ambient-glow {
   position: fixed;

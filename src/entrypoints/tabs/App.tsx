@@ -1039,14 +1039,50 @@ function AppContent() {
     { id: 'help', label: 'Help', icon: HelpCircle },
   ] as const;
 
-  const getHeaderTitle = () => {
+  const getHeaderContext = () => {
     switch (activeTab) {
-      case 'dashboard': return 'Dashboard';
-      case 'archive': return 'Archive';
-      case 'closed': return 'Recently Closed';
-      case 'settings': return 'Settings';
-      case 'help': return 'Help & Guide';
-      default: return activeTab;
+      case 'dashboard':
+        return {
+          title: 'Dashboard',
+          icon: LayoutDashboard,
+          badge: null,
+          badgeVariant: 'outline' as const,
+        };
+      case 'archive':
+        return {
+          title: 'Archive',
+          icon: Archive,
+          badge: null,
+          badgeVariant: 'outline' as const,
+        };
+      case 'closed':
+        return {
+          title: 'Recently Closed',
+          icon: History,
+          badge: null,
+          badgeVariant: 'outline' as const,
+        };
+      case 'settings':
+        return {
+          title: 'Preferences & Diagnostics',
+          icon: Settings,
+          badge: null,
+          badgeVariant: 'outline' as const,
+        };
+      case 'help':
+        return {
+          title: 'Help & Shortcuts Guide',
+          icon: HelpCircle,
+          badge: null,
+          badgeVariant: 'outline' as const,
+        };
+      default:
+        return {
+          title: activeTab,
+          icon: LayoutDashboard,
+          badge: null,
+          badgeVariant: 'outline' as const,
+        };
     }
   };
 
@@ -1275,7 +1311,7 @@ function AppContent() {
                 <span>TwoTab</span>
               </div>
               <Badge variant="outline" className="text-[10px] font-medium px-1.5 py-0 h-4 border-border/80 bg-background/80 text-muted-foreground shadow-xs">
-                {typeof chrome !== 'undefined' && chrome?.runtime?.getManifest?.()?.version ? `v${chrome.runtime.getManifest().version}` : 'v1.7.0'}
+                {typeof chrome !== 'undefined' && chrome?.runtime?.getManifest?.()?.version ? `v${chrome.runtime.getManifest().version}` : 'v1.8.0'}
               </Badge>
             </div>
             <div className="flex items-center justify-between text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">
@@ -1288,27 +1324,46 @@ function AppContent() {
 
       {/* Main Content Deck (Floating Glass Pane) */}
       <div className="flex-1 min-w-0 h-full rounded-2xl glass-macos-deck flex flex-col z-10 relative overflow-hidden animate-dashboard-in">
-        {/* Header */}
-        <header className="h-14 border-b border-border/75 flex items-center justify-between px-6 bg-card/40 dark:bg-card/25 backdrop-blur-xl shrink-0 z-20">
-          {/* Title (Left) */}
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold tracking-tight text-foreground">{getHeaderTitle()}</h2>
-          </div>
+        {/* Header with macOS Chrome Tone & Optical Ledge Shadow */}
+        <header className="h-14 glass-macos-header flex items-center justify-between px-5 shrink-0 z-20 transition-colors">
+          {/* Title & Context Badge (Left) */}
+          {(() => {
+            const ctx = getHeaderContext();
+            const Icon = ctx.icon;
+            return (
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-background/80 dark:bg-background/60 border border-border/80 flex items-center justify-center text-primary shadow-2xs shrink-0">
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <h2 className="text-base font-bold tracking-tight text-foreground truncate">{ctx.title}</h2>
+                  {ctx.badge && (
+                    <Badge
+                      variant={ctx.badgeVariant}
+                      className="hidden sm:inline-flex text-[11px] font-medium px-2 py-0.5 h-5 bg-background/80 dark:bg-background/60 border-border/80 text-muted-foreground shadow-2xs"
+                    >
+                      {ctx.badge}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
           
           {/* Action Cluster (Right) */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             {/* 1. Search input */}
             {(activeTab === 'dashboard' || activeTab === 'archive' || activeTab === 'closed') && (
-              <div className="relative max-w-xs w-64 group">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+              <div className="relative max-w-xs w-60 group">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary pointer-events-none" />
                 <Input 
                   placeholder={activeTab === 'closed' ? "Search closed tabs..." : "Search saved tabs..."} 
-                  className="pl-9 pr-8 bg-muted/50 border-input text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary focus:border-primary h-9 text-sm shadow-none rounded-lg" 
+                  className="pl-9 pr-11 bg-background/80 dark:bg-background/60 border-border/80 text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary focus:border-primary h-9 text-xs shadow-2xs rounded-lg transition-all" 
                   value={search} 
                   onChange={e => setSearch(e.target.value)} 
                   onKeyDown={e => e.key === 'Escape' && setSearch('')}
                 />
-                {search && (
+                {search ? (
                   <Button 
                     size="icon" 
                     variant="ghost" 
@@ -1317,6 +1372,10 @@ function AppContent() {
                   >
                     <X className="w-3.5 h-3.5" />
                   </Button>
+                ) : (
+                  <kbd className="absolute right-2.5 top-2.5 text-[10px] text-muted-foreground/60 bg-muted/60 dark:bg-muted/40 border border-border/40 px-1 py-0.2 rounded font-mono pointer-events-none hidden md:inline-block">
+                    ⌘K
+                  </kbd>
                 )}
               </div>
             )}
@@ -1327,7 +1386,7 @@ function AppContent() {
                 variant="outline" 
                 size="sm" 
                 onClick={() => setRestoreAllConfirm(true)} 
-                className="btn-spring h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border bg-muted/40 hover:bg-muted rounded-lg"
+                className="btn-spring h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border/80 bg-background/80 dark:bg-background/60 hover:bg-background shadow-2xs rounded-lg font-medium"
               >
                 <RotateCcw className="w-3.5 h-3.5" /> Restore All
               </Button>
@@ -1339,7 +1398,7 @@ function AppContent() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="btn-spring h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/80 border border-border shadow-xs rounded-lg transition-colors group"
+                  className="btn-spring h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-background border border-border/80 bg-background/80 dark:bg-background/60 shadow-2xs rounded-lg transition-colors group"
                   title={`Theme: ${themeMode} (${resolvedTheme})`}
                 >
                   <Palette className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
@@ -1421,16 +1480,16 @@ function AppContent() {
             </DropdownMenu>
 
             {/* 4. Split Button: Save Window Actions Only */}
-            <div className="flex items-center">
+            <div className="flex items-center shadow-xs rounded-lg overflow-hidden">
               <Button 
                 onClick={handleSaveCurrentWindow} 
                 disabled={isSaving} 
                 variant="default"
                 group="splitLeft"
-                className="btn-spring h-9 px-4 text-sm font-medium shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground rounded-l-lg transition-colors"
+                className="btn-spring h-9 px-3.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-l-lg transition-colors"
                 title="Save all open tabs in current window (⌘S)"
               >
-                <Plus className="w-4 h-4 mr-1.5" /> {isSaving ? 'Saving...' : 'Save Window'}
+                <Plus className="w-3.5 h-3.5 mr-1" /> {isSaving ? 'Saving...' : 'Save Window'}
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1439,9 +1498,9 @@ function AppContent() {
                     size="icon" 
                     group="splitRight" 
                     disabled={isSaving}
-                    className="btn-spring shadow-sm h-9 w-8 bg-primary hover:bg-primary/90 text-primary-foreground rounded-r-lg border-l border-primary-foreground/20 transition-colors"
+                    className="btn-spring h-9 w-7 bg-primary hover:bg-primary/90 text-primary-foreground rounded-r-lg border-l border-primary-foreground/20 transition-colors"
                   >
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-60 p-1.5 bg-popover border-border shadow-apple-popover rounded-xl text-popover-foreground">
