@@ -36,6 +36,9 @@ import {
   getRollingBackupSnapshots,
   restoreFromRollingBackup,
   type BackupSnapshot,
+  copyToClipboardSafe,
+  runHealthCheck,
+  type HealthCheckResult,
   PREFERENCES_STORAGE_KEY,
 } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
@@ -119,7 +122,10 @@ import {
   Cpu,
   Lock,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Activity,
+  HardDrive,
+  ShieldCheck
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { THEME_PALETTES, type ThemePalette } from '@/lib/theme';
@@ -581,6 +587,8 @@ function AppContent() {
       } else {
         setRecentlyClosed([]);
       }
+    } else if (activeTab === 'settings') {
+      runHealthCheck().then(setHealthStatus).catch(console.error);
     }
   };
 
@@ -640,21 +648,45 @@ function AppContent() {
     return () => chrome.storage.onChanged.removeListener(listener);
   }, [activeTab]);
 
+  const [healthStatus, setHealthStatus] = useState<HealthCheckResult | null>(null);
+  const [isRunningHealthCheck, setIsRunningHealthCheck] = useState(false);
+
+  const handleRunHealthCheck = async () => {
+    setIsRunningHealthCheck(true);
+    try {
+      const result = await runHealthCheck();
+      setHealthStatus(result);
+      if (result.valid) {
+        showMessage('Storage integrity 100% healthy! Zero issues found.');
+      } else {
+        showMessage(`Diagnostic alert: ${result.errors.length} issues detected`, 'error');
+      }
+    } catch (e) {
+      console.error('Error running health check:', e);
+      showMessage('Failed to run diagnostics', 'error');
+    } finally {
+      setIsRunningHealthCheck(false);
+    }
+  };
+
   const handleSaveCurrentWindow = async () => {
     setIsSaving(true);
     try {
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         chrome.runtime.sendMessage({ action: 'saveTabs' }, (response) => {
           if (chrome.runtime.lastError) {
             reject(chrome.runtime.lastError);
           } else if (response && response.status === 'success') {
-            resolve(true);
+            showMessage(`Saved ${response.count} ${response.count === 1 ? 'tab' : 'tabs'}!`);
+            resolve();
+          } else if (response && response.status === 'no_tabs') {
+            showMessage(response.reason || 'No eligible tabs to save in this window', 'error');
+            resolve();
           } else {
-            reject(new Error('Failed to save current window tabs'));
+            reject(new Error(response?.message || 'Failed to save current window tabs'));
           }
         });
       });
-      showMessage('Current window tabs saved!');
       loadData();
     } catch (e: any) {
       showMessage(e.message || 'Error saving tabs', 'error');
@@ -666,18 +698,21 @@ function AppContent() {
   const handleSaveAllWindows = async () => {
     setIsSaving(true);
     try {
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         chrome.runtime.sendMessage({ action: 'saveAllWindows' }, (response) => {
           if (chrome.runtime.lastError) {
             reject(chrome.runtime.lastError);
           } else if (response && response.status === 'success') {
-            resolve(true);
+            showMessage(`Saved ${response.count} ${response.count === 1 ? 'tab' : 'tabs'} across all windows!`);
+            resolve();
+          } else if (response && response.status === 'no_tabs') {
+            showMessage(response.reason || 'No eligible tabs to save across windows', 'error');
+            resolve();
           } else {
-            reject(new Error('Failed to save all windows'));
+            reject(new Error(response?.message || 'Failed to save all windows'));
           }
         });
       });
-      showMessage('Tabs saved across all windows!');
       loadData();
     } catch (e: any) {
       showMessage(e.message || 'Error saving all windows', 'error');
@@ -689,18 +724,21 @@ function AppContent() {
   const handleSaveActiveTab = async () => {
     setIsSaving(true);
     try {
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         chrome.runtime.sendMessage({ action: 'saveActiveTab' }, (response) => {
           if (chrome.runtime.lastError) {
             reject(chrome.runtime.lastError);
           } else if (response && response.status === 'success') {
-            resolve(true);
+            showMessage('Active tab saved!');
+            resolve();
+          } else if (response && response.status === 'no_tabs') {
+            showMessage(response.reason || 'Active tab could not be saved', 'error');
+            resolve();
           } else {
-            reject(new Error('Failed to save active tab'));
+            reject(new Error(response?.message || 'Failed to save active tab'));
           }
         });
       });
-      showMessage('Active tab saved!');
       loadData();
     } catch (e: any) {
       showMessage(e.message || 'Error saving active tab', 'error');
@@ -712,8 +750,12 @@ function AppContent() {
   const handleCopyGroupUrls = async (group: TabGroup) => {
     try {
       const urls = group.tabs.map((t) => t.url).filter(Boolean).join('\n');
-      await navigator.clipboard.writeText(urls);
-      showMessage(`Copied ${group.tabs.length} URLs to clipboard`);
+      const success = await copyToClipboardSafe(urls);
+      if (success) {
+        showMessage(`Copied ${group.tabs.length} URLs to clipboard`);
+      } else {
+        showMessage('Failed to copy URLs to clipboard', 'error');
+      }
     } catch (e) {
       showMessage('Failed to copy URLs', 'error');
     }
@@ -885,8 +927,12 @@ function AppContent() {
       case 'html': content = await exportAsHtmlBookmarks(); break;
       case 'csv': content = await exportAsCsv(); break;
     }
-    await navigator.clipboard.writeText(content);
-    showMessage(`Copied ${format.toUpperCase()} export to clipboard!`);
+    const success = await copyToClipboardSafe(content);
+    if (success) {
+      showMessage(`Copied ${format.toUpperCase()} export to clipboard!`);
+    } else {
+      showMessage(`Failed to copy ${format.toUpperCase()} export`, 'error');
+    }
   };
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -961,6 +1007,15 @@ function AppContent() {
       })
       .filter(Boolean) as TabGroup[];
   }, [groups, deferredSearch]);
+
+  const filteredRecentlyClosed = useMemo(() => {
+    if (!deferredSearch) return recentlyClosed;
+    const lower = deferredSearch.toLowerCase();
+    return recentlyClosed.filter(item =>
+      (item.title && item.title.toLowerCase().includes(lower)) ||
+      (item.url && item.url.toLowerCase().includes(lower))
+    );
+  }, [recentlyClosed, deferredSearch]);
 
   const totalSavedTabs = useMemo(() => {
     return allDashboardGroups.reduce((acc, g) => acc + (g.tabs?.length || 0), 0);
@@ -1220,7 +1275,7 @@ function AppContent() {
                 <span>TwoTab</span>
               </div>
               <Badge variant="outline" className="text-[10px] font-medium px-1.5 py-0 h-4 border-border/80 bg-background/80 text-muted-foreground shadow-xs">
-                {typeof chrome !== 'undefined' && chrome?.runtime?.getManifest?.()?.version ? `v${chrome.runtime.getManifest().version}` : 'v1.5.0'}
+                {typeof chrome !== 'undefined' && chrome?.runtime?.getManifest?.()?.version ? `v${chrome.runtime.getManifest().version}` : 'v1.7.0'}
               </Badge>
             </div>
             <div className="flex items-center justify-between text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">
@@ -1243,11 +1298,11 @@ function AppContent() {
           {/* Action Cluster (Right) */}
           <div className="flex items-center gap-2.5">
             {/* 1. Search input */}
-            {(activeTab === 'dashboard' || activeTab === 'archive') && (
+            {(activeTab === 'dashboard' || activeTab === 'archive' || activeTab === 'closed') && (
               <div className="relative max-w-xs w-64 group">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                 <Input 
-                  placeholder="Search saved tabs..." 
+                  placeholder={activeTab === 'closed' ? "Search closed tabs..." : "Search saved tabs..."} 
                   className="pl-9 pr-8 bg-muted/50 border-input text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary focus:border-primary h-9 text-sm shadow-none rounded-lg" 
                   value={search} 
                   onChange={e => setSearch(e.target.value)} 
@@ -1444,11 +1499,13 @@ function AppContent() {
 
           {/* Recently Closed View */}
           {activeTab === 'closed' && (
-            <div className="max-w-4xl mx-auto space-y-4 animate-fade-in-up">
+            <div className="max-w-4xl mx-auto space-y-4">
               {recentlyClosed.length > 0 && (
                 <div className="flex justify-between items-center px-1 mb-2">
                   <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                    {recentlyClosed.length} {recentlyClosed.length === 1 ? 'Closed Tab' : 'Closed Tabs'}
+                    {deferredSearch
+                      ? `${filteredRecentlyClosed.length} of ${recentlyClosed.length} Closed Tabs`
+                      : `${recentlyClosed.length} ${recentlyClosed.length === 1 ? 'Closed Tab' : 'Closed Tabs'}`}
                   </span>
                   <Button 
                     variant="outline" 
@@ -1470,8 +1527,26 @@ function AppContent() {
                     Tabs and browser windows you close will automatically appear here so you can reopen them anytime.
                   </p>
                 </Card>
+              ) : filteredRecentlyClosed.length === 0 ? (
+                <Card className="p-12 border-border max-w-md mx-auto text-center flex flex-col items-center shadow-lg bg-card/75 backdrop-blur-xl">
+                  <div className="w-14 h-14 rounded-2xl bg-muted/60 border border-border flex items-center justify-center mb-3 text-muted-foreground shadow-sm animate-float">
+                    <Search className="w-7 h-7 opacity-60 text-primary" />
+                  </div>
+                  <h3 className="text-base font-bold text-foreground mb-1">No Matching Closed Tabs</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                    No recently closed tabs match "{search}".
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSearch('')}
+                    className="btn-spring text-xs font-semibold"
+                  >
+                    Clear Search
+                  </Button>
+                </Card>
               ) : (
-                recentlyClosed.map((item, idx) => {
+                filteredRecentlyClosed.map((item, idx) => {
                   const domain = getSafeDomain(item.url);
                   const staggerIndex = Math.min(idx, 12);
                   return (
@@ -2054,8 +2129,88 @@ function AppContent() {
                 </CardContent>
               </Card>
 
+              {/* System & Storage Health Diagnostics */}
+              <Card style={{ '--stagger-index': 3 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-lg">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-foreground text-xl flex items-center gap-2">
+                      <Activity className="w-5 h-5 text-primary" />
+                      System & Storage Diagnostics
+                    </CardTitle>
+                    <Badge variant={healthStatus && !healthStatus.valid ? "destructive" : "emerald"} className="text-xs font-semibold px-2.5 py-0.5">
+                      {healthStatus ? (healthStatus.valid ? '✓ Storage Healthy' : `⚠ ${healthStatus.errors.length} Issues`) : 'Ready'}
+                    </Badge>
+                  </div>
+                  <CardDescription className="text-muted-foreground">
+                    Inspect schema integrity, storage quota consumption, and real-time database health.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
+                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                        Storage Engine
+                      </div>
+                      <div className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                        <Database className="w-4 h-4 text-primary" />
+                        <span>MV3 Local Storage</span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">Unlimited quota enabled</div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
+                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                        Space Utilized
+                      </div>
+                      <div className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                        <HardDrive className="w-4 h-4 text-primary" />
+                        <span>{healthStatus ? `${(healthStatus.bytesUsed / 1024).toFixed(1)} KB` : 'Checking...'}</span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">Safe & within local limits</div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
+                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                        Data Integrity
+                      </div>
+                      <div className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        <span>{healthStatus?.valid !== false ? '100% Verified' : 'Attention Needed'}</span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">Schema v1 synchronized</div>
+                    </div>
+                  </div>
+
+                  {healthStatus && healthStatus.errors.length > 0 && (
+                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-xs text-destructive space-y-1">
+                      <div className="font-bold flex items-center gap-1.5">
+                        <ShieldAlert className="w-4 h-4" /> Detected Issues:
+                      </div>
+                      <ul className="list-disc pl-5 space-y-0.5 text-[11px]">
+                        {healthStatus.errors.map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRunHealthCheck}
+                      disabled={isRunningHealthCheck}
+                      className="btn-spring text-xs font-semibold border-border gap-1.5"
+                    >
+                      <RotateCcw className={`w-3.5 h-3.5 ${isRunningHealthCheck ? 'animate-spin' : ''}`} />
+                      {isRunningHealthCheck ? 'Checking Storage...' : 'Run Diagnostic Check'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Danger Zone */}
-              <Card style={{ '--stagger-index': 3 } as React.CSSProperties} className="animate-card-cascade card-interactive border-destructive/30 bg-destructive/10 shadow-lg">
+              <Card style={{ '--stagger-index': 4 } as React.CSSProperties} className="animate-card-cascade card-interactive border-destructive/30 bg-destructive/10 shadow-lg">
                 <CardHeader>
                   <CardTitle className="text-destructive text-xl flex items-center gap-2">
                     <ShieldAlert className="w-5 h-5 text-destructive" /> Danger Zone

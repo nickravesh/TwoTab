@@ -1,6 +1,6 @@
 {
   "name": "twotab",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "TwoTab is a privacy-first, lightweight Google Chrome browser extension designed to replace OneTab. It allows users to quickly save all open tabs in a window, store them locally, search and organize them, and export/import them anytime.",
   "main": "background.js",
   "directories": {

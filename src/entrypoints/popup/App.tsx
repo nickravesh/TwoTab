@@ -51,11 +51,66 @@ interface DeleteConfirmState {
   title: string;
 }
 
-export default function App() {
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[TwoTab Popup] Uncaught rendering error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="w-[360px] p-6 text-center bg-card text-foreground flex flex-col items-center justify-center min-h-[300px] space-y-3">
+          <div className="w-12 h-12 rounded-full bg-destructive/15 text-destructive flex items-center justify-center">
+            <Trash2 className="w-6 h-6" />
+          </div>
+          <h3 className="font-bold text-sm">Something went wrong</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {this.state.error?.message || 'An unexpected error occurred in TwoTab popup.'}
+          </p>
+          <div className="flex items-center gap-2 pt-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => this.setState({ hasError: false, error: null })}
+              className="text-xs"
+            >
+              Retry
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => chrome.tabs.create({ url: chrome.runtime.getURL('tabs.html') })}
+              className="text-xs bg-primary text-primary-foreground"
+            >
+              Open Dashboard
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function PopupContent() {
   const { themeMode, resolvedTheme, setThemeMode } = useTheme();
   const [groups, setGroups] = useState<TabGroup[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const showMessage = (text: string, type: 'success' | 'error' = 'success') => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 3000);
+  };
 
   const loadGroups = async () => {
     try {
@@ -78,11 +133,14 @@ export default function App() {
     setIsSaving(true);
     try {
       const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!activeTab || !activeTab.url) return;
+      if (!activeTab || !activeTab.url) {
+        showMessage('No active tab found', 'error');
+        return;
+      }
 
       const domain = getSafeDomain(activeTab.url);
       if (!domain) {
-        // Restricted system page (chrome://, chrome-extension://, etc.)
+        showMessage('System pages cannot be saved', 'error');
         return;
       }
 
@@ -90,7 +148,7 @@ export default function App() {
       const newGroup: TabGroup = {
         id: Date.now() + Math.floor(Math.random() * 1000),
         date: new Date().toISOString(),
-        name: activeTab.title ? activeTab.title.slice(0, 32) : 'Single Tab',
+        name: activeTab.title ? (activeTab.title.length > 32 ? `${activeTab.title.slice(0, 32)}...` : activeTab.title) : 'Single Tab',
         tabs: [{ title: activeTab.title || activeTab.url, url: activeTab.url }],
       };
 
@@ -105,9 +163,11 @@ export default function App() {
         await chrome.tabs.remove(activeTab.id);
       }
 
+      showMessage('Active tab saved!');
       await loadGroups();
     } catch (e) {
       console.error('Error saving current tab:', e);
+      showMessage('Failed to save active tab', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -116,20 +176,25 @@ export default function App() {
   const handleSaveCurrentWindow = async () => {
     setIsSaving(true);
     try {
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         chrome.runtime.sendMessage({ action: 'saveTabs' }, (response) => {
           if (chrome.runtime.lastError) {
             reject(chrome.runtime.lastError);
           } else if (response && response.status === 'success') {
-            resolve(true);
+            showMessage(`Saved ${response.count} ${response.count === 1 ? 'tab' : 'tabs'}!`);
+            resolve();
+          } else if (response && response.status === 'no_tabs') {
+            showMessage(response.reason || 'No eligible tabs to save', 'error');
+            resolve();
           } else {
-            reject(new Error('Failed to save window tabs'));
+            reject(new Error(response?.message || 'Failed to save window tabs'));
           }
         });
       });
       await loadGroups();
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error saving window:', e);
+      showMessage(e?.message || 'Error saving window', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -138,20 +203,25 @@ export default function App() {
   const handleSaveAllWindows = async () => {
     setIsSaving(true);
     try {
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         chrome.runtime.sendMessage({ action: 'saveAllWindows' }, (response) => {
           if (chrome.runtime.lastError) {
             reject(chrome.runtime.lastError);
           } else if (response && response.status === 'success') {
-            resolve(true);
+            showMessage(`Saved ${response.count} ${response.count === 1 ? 'tab' : 'tabs'} across windows!`);
+            resolve();
+          } else if (response && response.status === 'no_tabs') {
+            showMessage(response.reason || 'No eligible tabs to save', 'error');
+            resolve();
           } else {
-            reject(new Error('Failed to save all windows'));
+            reject(new Error(response?.message || 'Failed to save all windows'));
           }
         });
       });
       await loadGroups();
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error saving all windows:', e);
+      showMessage(e?.message || 'Error saving all windows', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -507,6 +577,24 @@ export default function App() {
           <ArrowRight className="w-3.5 h-3.5 text-primary transition-transform group-hover:translate-x-0.5" />
         </Button>
       </footer>
+
+      {/* Toast Notification Alert */}
+      {message && (
+        <div className={`fixed bottom-14 left-1/2 -translate-x-1/2 z-50 px-3 py-1.5 rounded-xl shadow-xl backdrop-blur-xl border text-[11px] font-semibold flex items-center gap-1.5 animate-toast ${
+          message.type === 'success' ? 'bg-card/95 border-primary/40 text-foreground' : 'bg-card/95 border-destructive/40 text-destructive'
+        }`}>
+          <span>{message.type === 'success' ? '✓' : '⚠'}</span>
+          <span>{message.text}</span>
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <PopupContent />
+    </ErrorBoundary>
   );
 }

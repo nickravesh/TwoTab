@@ -111,7 +111,7 @@ const storageQueue = new StorageQueue();
 // Safe Storage Write Wrapper — Error Detection
 // =============================================================================
 
-async function safeStorageSet(data: Record<string, any>): Promise<void> {
+export async function safeStorageSet(data: Record<string, any>): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     chrome.storage.local.set(data, () => {
       if (chrome.runtime.lastError) {
@@ -941,4 +941,44 @@ export function getRelativeTime(input: string | number): string {
   if (diffDays < 7) return `${diffDays}d ago`;
 
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+// =============================================================================
+// Robust Clipboard Copy with DOM Fallback
+// =============================================================================
+
+export async function copyToClipboardSafe(text: string): Promise<boolean> {
+  if (!text) return false;
+
+  // 1. Try modern Async Clipboard API
+  if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      console.warn('[TwoTab] navigator.clipboard failed, falling back to execCommand:', e);
+    }
+  }
+
+  // 2. Fallback to hidden textarea with document.execCommand
+  if (typeof document !== 'undefined') {
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '-9999px';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const success = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return success;
+    } catch (e) {
+      console.error('[TwoTab] document.execCommand copy fallback failed:', e);
+    }
+  }
+
+  return false;
 }

@@ -1,4 +1,4 @@
-import { migrateIfNeeded, runHealthCheck, createRollingBackup, getUserPreferences } from '@/lib/storage';
+import { migrateIfNeeded, runHealthCheck, createRollingBackup, getUserPreferences, safeStorageSet } from '@/lib/storage';
 
 export default defineBackground(() => {
   const getStorageSession = () => chrome.storage.session || chrome.storage.local;
@@ -193,7 +193,7 @@ export default defineBackground(() => {
   });
 
   // ==========================================================================
-  // Tab Closure → Recently Closed Tracking
+  // Tab Closure → Recently Closed Tracking (Race-safe with safeStorageSet)
   // ==========================================================================
 
   chrome.tabs.onRemoved.addListener(async (tabId) => {
@@ -230,22 +230,22 @@ export default defineBackground(() => {
       const prefs = await getUserPreferences();
       const limit = prefs.recentlyClosedLimit || 50;
       const updated = [newItem, ...recentlyClosed].slice(0, limit);
-      await chrome.storage.local.set({ recentlyClosed: updated });
+      await safeStorageSet({ recentlyClosed: updated });
     } catch (e) {
       console.error('[TwoTab] Error saving recently closed tab:', e);
     }
   });
 
   // ==========================================================================
-  // Message Handler: Save Tabs Actions
+  // Message Handler: Save Tabs Actions with Detailed Return Status
   // ==========================================================================
 
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'saveTabs') {
       (async () => {
         try {
-          await saveCurrentWindowTabs();
-          sendResponse({ status: 'success' });
+          const result = await saveCurrentWindowTabs();
+          sendResponse(result);
         } catch (error: any) {
           sendResponse({ status: 'error', message: error.message || error });
         }
@@ -256,8 +256,8 @@ export default defineBackground(() => {
     if (request.action === 'saveAllWindows') {
       (async () => {
         try {
-          await saveAllWindowsTabs();
-          sendResponse({ status: 'success' });
+          const result = await saveAllWindowsTabs();
+          sendResponse(result);
         } catch (error: any) {
           sendResponse({ status: 'error', message: error.message || error });
         }
@@ -268,8 +268,8 @@ export default defineBackground(() => {
     if (request.action === 'saveActiveTab') {
       (async () => {
         try {
-          await saveActiveTab();
-          sendResponse({ status: 'success' });
+          const result = await saveActiveTab();
+          sendResponse(result);
         } catch (error: any) {
           sendResponse({ status: 'error', message: error.message || error });
         }
@@ -279,19 +279,23 @@ export default defineBackground(() => {
   });
 
   // ==========================================================================
-  // Tab Saving Logic
+  // Tab Saving Logic (Race-Safe with Mutex Queued Writes & Explicit Statuses)
   // ==========================================================================
 
   async function saveCurrentWindowTabs() {
     const tabs = await chrome.tabs.query({ currentWindow: true });
-    await processTabsForWindow(tabs);
+    return await processTabsForWindow(tabs);
   }
 
   async function saveActiveTab() {
     const prefs = await getUserPreferences();
     const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!activeTab || !activeTab.url) return;
-    if (activeTab.pinned && prefs.protectPinnedTabs) return;
+    if (!activeTab || !activeTab.url) {
+      return { status: 'no_tabs', reason: 'No active tab found' };
+    }
+    if (activeTab.pinned && prefs.protectPinnedTabs) {
+      return { status: 'no_tabs', reason: 'Active tab is pinned and protected by your settings' };
+    }
 
     const lower = activeTab.url.toLowerCase();
     if (
@@ -301,7 +305,7 @@ export default defineBackground(() => {
       lower.startsWith('edge:') ||
       lower.startsWith('data:')
     ) {
-      return;
+      return { status: 'no_tabs', reason: 'System and browser settings pages cannot be saved' };
     }
 
     const data = await chrome.storage.local.get('tabGroups');
@@ -310,15 +314,21 @@ export default defineBackground(() => {
     const newGroup = {
       id: Date.now() + Math.floor(Math.random() * 1000),
       date: new Date().toISOString(),
-      name: activeTab.title ? `${activeTab.title.slice(0, 30)}...` : 'Saved Tab',
+      name: activeTab.title ? (activeTab.title.length > 35 ? `${activeTab.title.slice(0, 35)}...` : activeTab.title) : 'Saved Tab',
       tabs: [{ title: activeTab.title || activeTab.url, url: activeTab.url }]
     };
     tabGroups.push(newGroup);
-    await chrome.storage.local.set({ tabGroups });
+    await safeStorageSet({ tabGroups });
 
     if (activeTab.id !== undefined) {
+      const windowTabs = await chrome.tabs.query({ currentWindow: true });
+      if (windowTabs.length <= 1) {
+        await chrome.tabs.create({ url: 'chrome://newtab' });
+      }
       await chrome.tabs.remove(activeTab.id);
     }
+
+    return { status: 'success', count: 1 };
   }
 
   async function saveAllWindowsTabs() {
@@ -332,9 +342,19 @@ export default defineBackground(() => {
       }
     });
 
+    let totalSaved = 0;
     for (const windowId of Object.keys(tabsByWindow)) {
-      await processTabsForWindow(tabsByWindow[Number(windowId)]);
+      const res = await processTabsForWindow(tabsByWindow[Number(windowId)]);
+      if (res && res.status === 'success') {
+        totalSaved += res.count || 0;
+      }
     }
+
+    if (totalSaved === 0) {
+      return { status: 'no_tabs', reason: 'No eligible tabs to save across all windows (pinned or system tabs are protected)' };
+    }
+
+    return { status: 'success', count: totalSaved };
   }
 
   async function processTabsForWindow(tabs: chrome.tabs.Tab[]) {
@@ -354,7 +374,9 @@ export default defineBackground(() => {
       })
       .map(tab => ({ title: tab.title || tab.url || '', url: tab.url || '' }));
 
-    if (tabData.length === 0) return;
+    if (tabData.length === 0) {
+      return { status: 'no_tabs', reason: 'No eligible tabs in this window (all tabs are pinned or system pages)' };
+    }
 
     const windowId = tabs[0].windowId;
     const data = await chrome.storage.local.get('tabGroups');
@@ -368,7 +390,7 @@ export default defineBackground(() => {
     };
     tabGroups.push(newGroup);
 
-    await chrome.storage.local.set({ tabGroups });
+    await safeStorageSet({ tabGroups });
 
     // Open a new blank tab in the window first
     await chrome.tabs.create({ url: 'chrome://newtab', windowId });
@@ -380,6 +402,8 @@ export default defineBackground(() => {
       .filter(id => id !== undefined && id !== chrome.tabs.TAB_ID_NONE);
 
     await chrome.tabs.remove(tabIds as number[]);
+
+    return { status: 'success', count: tabData.length };
   }
 
   async function saveSpecificTabs(tabsToSave: chrome.tabs.Tab[], closeTabs: boolean = true) {
@@ -399,7 +423,9 @@ export default defineBackground(() => {
       })
       .map(tab => ({ title: tab.title || tab.url || '', url: tab.url || '' }));
 
-    if (validTabs.length === 0) return;
+    if (validTabs.length === 0) {
+      return { status: 'no_tabs', reason: 'Tabs are protected or system pages' };
+    }
 
     const data = await chrome.storage.local.get('tabGroups');
     const tabGroups = data.tabGroups || [];
@@ -416,7 +442,7 @@ export default defineBackground(() => {
     };
 
     tabGroups.push(newGroup);
-    await chrome.storage.local.set({ tabGroups });
+    await safeStorageSet({ tabGroups });
 
     if (closeTabs) {
       const tabIds = tabsToSave
@@ -434,5 +460,7 @@ export default defineBackground(() => {
         await chrome.tabs.remove(tabIds);
       }
     }
+
+    return { status: 'success', count: validTabs.length };
   }
 });

@@ -33,6 +33,8 @@ import {
   createRollingBackup,
   getRollingBackupSnapshots,
   restoreFromRollingBackup,
+  safeStorageSet,
+  copyToClipboardSafe,
   DEFAULT_USER_PREFERENCES,
   CURRENT_SCHEMA_VERSION,
   type TabGroup,
@@ -743,5 +745,33 @@ https://site3.com | Site Three
     expect(mockStorageStore.tabGroups.length).toBe(1);
     expect(mockStorageStore.tabGroups[0].id).toBe(1);
     expect(mockStorageStore.archivedGroups.length).toBe(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 19. safeStorageSet Serialization
+  // ---------------------------------------------------------------------------
+  it('safeStorageSet: writes data safely into storage engine', async () => {
+    await safeStorageSet({ customKey: 'hello_twotab' });
+    expect(mockStorageStore.customKey).toBe('hello_twotab');
+  });
+
+  // ---------------------------------------------------------------------------
+  // 20. Clipboard Safe Engine
+  // ---------------------------------------------------------------------------
+  it('copyToClipboardSafe: handles empty text and copies with navigator.clipboard or fallback', async () => {
+    const emptyResult = await copyToClipboardSafe('');
+    expect(emptyResult).toBe(false);
+
+    // Mock navigator.clipboard
+    const mockWriteText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: mockWriteText,
+      },
+    });
+
+    const success = await copyToClipboardSafe('https://example.com');
+    expect(success).toBe(true);
+    expect(mockWriteText).toHaveBeenCalledWith('https://example.com');
   });
 });
