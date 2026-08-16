@@ -71,11 +71,12 @@ When instructed to perform a release, follow this sequential execution plan:
    Analyze recent git commits or user requests to classify the change as `PATCH`, `MINOR`, or `MAJOR`. Derive $V_{\text{next}}$.
 
 4. **Update File Metadata:**
-   Update the `"version"` field in `package.json` (and `manifest.json` if non-dynamically linked) to $V_{\text{next}}$.
+   Update the `"version"` field in `package.json` to $V_{\text{next}}$. (Note: `wxt.config.ts` automatically inherits `package.json`'s version for `manifest.json` on build).
 
-5. **Commit Version Bump:**
+5. **Commit & Tag Version Bump:**
    ```bash
-   git add package.json package-lock.json
+   git add package.json
    git commit -m "chore(release): bump version to vX.Y.Z"
-   git push origin master
+   git tag vX.Y.Z
+   git push origin master --tags
    ```
