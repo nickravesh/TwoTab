@@ -8,3 +8,7 @@ node_modules/
 # OS files
 .DS_Store
 *.log
+
+# Design & Icon ideas
+concept_icons/
+icon_ideas/
