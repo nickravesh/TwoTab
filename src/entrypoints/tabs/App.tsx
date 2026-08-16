@@ -792,6 +792,25 @@ export default function App() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background font-sans relative text-foreground">
+      {/* Atmospheric Studio Lighting Halo */}
+      <div 
+        className="fixed inset-0 pointer-events-none z-0"
+        style={{
+          background: 'radial-gradient(circle 800px at 50% -80px, hsl(var(--primary) / 0.12), transparent 70%), radial-gradient(circle 600px at 85% 95%, hsl(var(--accent) / 0.06), transparent 60%)',
+        }}
+      />
+
+      {/* Tactile Matte Micro-Grain (Native DOM SVG for 100% Chromium compatibility) */}
+      <svg 
+        className="fixed inset-0 w-full h-full pointer-events-none z-0 opacity-25 dark:opacity-40 mix-blend-overlay dark:mix-blend-soft-light"
+        aria-hidden="true"
+      >
+        <filter id="twotab-matte-grain">
+          <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="3" stitchTiles="stitch" />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#twotab-matte-grain)" />
+      </svg>
+
       {/* Toast Notification */}
       {message && (
         <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-2xl backdrop-blur-xl border transition-all animate-fade-in-up ${message.type === 'success' ? 'bg-card border-primary/40 text-foreground' : 'bg-card border-destructive/40 text-destructive-foreground'}`}>
