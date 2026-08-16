@@ -565,28 +565,7 @@ function AppContent() {
       setGroups(sortedArchive);
     } else if (activeTab === 'closed') {
       const items = await getRecentlyClosedItems();
-      if (items.length > 0) {
-        setRecentlyClosed(items);
-      } else if (chrome?.sessions?.getRecentlyClosed) {
-        chrome.sessions.getRecentlyClosed({ maxResults: 25 }, (sessions) => {
-          const mapped: ClosedTabItem[] = (sessions || [])
-            .map((s, idx) => {
-              const title = s.tab?.title || (s.window?.tabs ? `Window (${s.window.tabs.length} tabs)` : 'Closed Item');
-              const url = s.tab?.url || (s.window?.tabs?.[0]?.url || '');
-              const timestampMs = s.lastModified ? s.lastModified * 1000 : Date.now();
-              return {
-                id: `session_${idx}_${Date.now()}`,
-                title,
-                url,
-                timestamp: new Date(timestampMs).toISOString(),
-              };
-            })
-            .filter(item => item.url && getSafeDomain(item.url));
-          setRecentlyClosed(mapped);
-        });
-      } else {
-        setRecentlyClosed([]);
-      }
+      setRecentlyClosed(items);
     } else if (activeTab === 'settings') {
       runHealthCheck().then(setHealthStatus).catch(console.error);
     }
@@ -857,17 +836,6 @@ function AppContent() {
       removeRecentlyClosedItem(item.id);
       loadData();
     }
-  };
-
-  const handleRestoreSession = (session: chrome.sessions.Session) => {
-    if (session.tab && session.tab.url && getSafeDomain(session.tab.url)) {
-      chrome.tabs.create({ url: session.tab.url });
-    } else if (session.window && session.window.tabs) {
-      session.window.tabs.forEach(tab => {
-        if (tab.url && getSafeDomain(tab.url)) chrome.tabs.create({ url: tab.url, active: false });
-      });
-    }
-    showMessage('Session restored');
   };
 
   const [exportFormat, setExportFormat] = useState<'json' | 'markdown' | 'onetab' | 'html' | 'csv'>('json');

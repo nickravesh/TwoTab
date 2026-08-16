@@ -219,7 +219,7 @@ export async function removeRecentlyClosedItem(id: string): Promise<void> {
 
 export async function clearRecentlyClosedItems(): Promise<void> {
   return storageQueue.enqueue(async () => {
-    await chrome.storage.local.remove('recentlyClosed');
+    await safeStorageSet({ recentlyClosed: [] });
   });
 }
 
