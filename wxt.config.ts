@@ -8,7 +8,7 @@ export default defineConfig({
     name: 'TwoTab',
     version: '1.6.0',
     description: 'TwoTab is a privacy-first, lightweight Google Chrome browser extension designed to replace OneTab.',
-    permissions: ['tabs', 'storage', 'sessions', 'unlimitedStorage', 'alarms'],
+    permissions: ['tabs', 'storage', 'sessions', 'unlimitedStorage', 'alarms', 'contextMenus'],
     icons: {
       '16': 'icons/icon-16.png',
       '32': 'icons/icon-32.png',

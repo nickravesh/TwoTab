@@ -99,7 +99,7 @@ export const THEME_PALETTES: ThemeOption[] = [
   },
 ];
 
-const VALID_MODES: ThemeMode[] = [
+export const VALID_MODES: ThemeMode[] = [
   'system',
   'dark',
   'light',

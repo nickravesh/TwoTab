@@ -7,10 +7,18 @@ import {
   getArchivedGroups,
   migrateIfNeeded,
   importData,
+  importOneTabOrPlainText,
+  exportAsJson,
+  exportAsMarkdown,
+  exportAsPlainText,
+  exportAsHtmlBookmarks,
+  exportAsCsv,
   clearAllData,
   runHealthCheck,
   getUserPreferences,
   setUserPreferences,
+  saveRecentlyClosedItems,
+  getRecentlyClosedItems,
   restoreTabGroup,
   restoreAllTabGroups,
   DEFAULT_USER_PREFERENCES,
@@ -246,6 +254,7 @@ describe('TwoTab Storage Engine Reliability Unit Tests', () => {
       protectPinnedTabs: true,
       restoreDestination: 'new_window',
       restoreBehavior: 'keep',
+      recentlyClosedLimit: 50,
     });
 
     expect(result.count).toBe(2);
@@ -268,6 +277,7 @@ describe('TwoTab Storage Engine Reliability Unit Tests', () => {
       protectPinnedTabs: true,
       restoreDestination: 'current_window',
       restoreBehavior: 'keep',
+      recentlyClosedLimit: 50,
     });
 
     expect(result.count).toBe(1);
@@ -293,10 +303,154 @@ describe('TwoTab Storage Engine Reliability Unit Tests', () => {
       protectPinnedTabs: true,
       restoreDestination: 'new_window',
       restoreBehavior: 'remove',
+      recentlyClosedLimit: 50,
     });
 
     expect(result.count).toBe(1);
     expect(result.removed).toBe(true);
     expect(mockStorageStore.tabGroups).toEqual([]);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 9. Configurable Recently Closed Retention Limits
+  // ---------------------------------------------------------------------------
+  it('Retention Limit: trims recently closed items dynamically based on user preferences', async () => {
+    // Set custom limit to 3
+    await setUserPreferences({ recentlyClosedLimit: 3 });
+
+    const items = [
+      { id: 'c1', title: 'T1', url: 'https://1.com', timestamp: '2026-08-11' },
+      { id: 'c2', title: 'T2', url: 'https://2.com', timestamp: '2026-08-11' },
+      { id: 'c3', title: 'T3', url: 'https://3.com', timestamp: '2026-08-11' },
+      { id: 'c4', title: 'T4', url: 'https://4.com', timestamp: '2026-08-11' },
+      { id: 'c5', title: 'T5', url: 'https://5.com', timestamp: '2026-08-11' },
+    ];
+
+    await saveRecentlyClosedItems(items);
+    const stored = await getRecentlyClosedItems();
+
+    expect(stored.length).toBe(3);
+    expect(stored.map(i => i.id)).toEqual(['c1', 'c2', 'c3']);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 10. Multi-Format Exporters
+  // ---------------------------------------------------------------------------
+  it('Multi-Format Export: generates valid Markdown outline with links', async () => {
+    mockStorageStore = {
+      tabGroups: [
+        {
+          id: 1,
+          date: '2026-08-11T12:00:00Z',
+          name: 'Research',
+          tabs: [
+            { title: 'Google', url: 'https://google.com' },
+            { title: 'GitHub', url: 'https://github.com' },
+          ],
+        },
+      ],
+      archivedGroups: [],
+    };
+
+    const md = await exportAsMarkdown();
+    expect(md).toContain('# TwoTab Saved Collections');
+    expect(md).toContain('### Research');
+    expect(md).toContain('- [Google](https://google.com)');
+    expect(md).toContain('- [GitHub](https://github.com)');
+  });
+
+  it('Multi-Format Export: generates OneTab-compatible plain text list', async () => {
+    mockStorageStore = {
+      tabGroups: [
+        {
+          id: 1,
+          date: '2026-08-11T12:00:00Z',
+          name: 'Group 1',
+          tabs: [
+            { title: 'A', url: 'https://a.com' },
+            { title: 'B', url: 'https://b.com' },
+          ],
+        },
+        {
+          id: 2,
+          date: '2026-08-11T12:00:00Z',
+          name: 'Group 2',
+          tabs: [
+            { title: 'C', url: 'https://c.com' },
+          ],
+        },
+      ],
+    };
+
+    const txt = await exportAsPlainText();
+    expect(txt).toContain('https://a.com | A');
+    expect(txt).toContain('https://b.com | B');
+    expect(txt).toContain('https://c.com | C');
+  });
+
+  it('Multi-Format Export: generates valid Netscape HTML Bookmarks and CSV', async () => {
+    mockStorageStore = {
+      tabGroups: [
+        {
+          id: 1,
+          date: '2026-08-11T12:00:00Z',
+          name: 'Dev & Design',
+          tabs: [{ title: 'Figma', url: 'https://figma.com' }],
+        },
+      ],
+    };
+
+    const html = await exportAsHtmlBookmarks();
+    expect(html).toContain('<!DOCTYPE NETSCAPE-Bookmark-file-1>');
+    expect(html).toContain('Dev &amp; Design</H3>');
+    expect(html).toContain('<A HREF="https://figma.com"');
+
+    const csv = await exportAsCsv();
+    expect(csv).toContain('"Section","Group Name","Tab Title","URL","Saved Date"');
+    expect(csv).toContain('"Active","Dev & Design","Figma","https://figma.com"');
+  });
+
+  // ---------------------------------------------------------------------------
+  // 11. Multi-Source Importers (Merge vs Replace)
+  // ---------------------------------------------------------------------------
+  it('Import Engine: merges JSON backup without duplicate ID collisions', async () => {
+    mockStorageStore = {
+      tabGroups: [
+        { id: 100, date: '2026-08-11', name: 'Existing Group', tabs: [{ title: 'E', url: 'https://e.com' }] },
+      ],
+      archivedGroups: [],
+    };
+
+    const importPayload = JSON.stringify({
+      tabGroups: [
+        { id: 100, date: '2026-08-11', name: 'Imported Group (Colliding ID)', tabs: [{ title: 'I', url: 'https://i.com' }] },
+      ],
+    });
+
+    const success = await importData(importPayload, 'merge');
+    expect(success).toBe(true);
+    expect(mockStorageStore.tabGroups.length).toBe(2);
+    // IDs should be unique
+    const ids = mockStorageStore.tabGroups.map((g: TabGroup) => g.id);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it('Import Engine: parses OneTab plain text and multi-group blocks', async () => {
+    mockStorageStore = { tabGroups: [] };
+
+    const oneTabText = `
+https://site1.com | Site One
+https://site2.com | Site Two
+
+https://site3.com | Site Three
+`;
+
+    const res = await importOneTabOrPlainText(oneTabText, 'replace');
+    expect(res.success).toBe(true);
+    expect(res.importedGroupsCount).toBe(2);
+    expect(res.importedTabsCount).toBe(3);
+    expect(mockStorageStore.tabGroups.length).toBe(2);
+    expect(mockStorageStore.tabGroups[0].tabs.length).toBe(2);
+    expect(mockStorageStore.tabGroups[1].tabs.length).toBe(1);
   });
 });

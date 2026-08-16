@@ -33,12 +33,14 @@ export interface UserPreferences {
   protectPinnedTabs: boolean;
   restoreDestination: 'new_window' | 'current_window';
   restoreBehavior: 'keep' | 'remove';
+  recentlyClosedLimit: number;
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   protectPinnedTabs: true,
   restoreDestination: 'new_window',
   restoreBehavior: 'keep',
+  recentlyClosedLimit: 50,
 };
 
 export const PREFERENCES_STORAGE_KEY = 'twotab_user_preferences';
@@ -198,16 +200,20 @@ export async function getRecentlyClosedItems(): Promise<ClosedTabItem[]> {
 }
 
 export async function saveRecentlyClosedItems(items: ClosedTabItem[]): Promise<void> {
+  const prefs = await getUserPreferences();
+  const limit = prefs.recentlyClosedLimit || 50;
   return storageQueue.enqueue(async () => {
-    await safeStorageSet({ recentlyClosed: items.slice(0, 50) });
+    await safeStorageSet({ recentlyClosed: items.slice(0, limit) });
   });
 }
 
 export async function removeRecentlyClosedItem(id: string): Promise<void> {
+  const prefs = await getUserPreferences();
+  const limit = prefs.recentlyClosedLimit || 50;
   return storageQueue.enqueue(async () => {
     const items = await getRecentlyClosedItems();
     const updated = items.filter(item => item.id !== id);
-    await safeStorageSet({ recentlyClosed: updated.slice(0, 50) });
+    await safeStorageSet({ recentlyClosed: updated.slice(0, limit) });
   });
 }
 
@@ -459,15 +465,179 @@ export function formatDisplayUrl(url: string): string {
 }
 
 // =============================================================================
-// Export / Import — with Size Limits & Duplicate Detection
+// Export / Import — Multi-Format Exporters & Smart Importers
 // =============================================================================
 
-export async function exportData(): Promise<string> {
-  const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups']);
-  return JSON.stringify(data);
+export interface ExportMetadata {
+  version: number;
+  exportedAt: string;
+  totalGroups: number;
+  totalTabs: number;
 }
 
-export async function importData(jsonString: string): Promise<boolean> {
+export async function exportAsJson(): Promise<string> {
+  const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups']);
+  const tabGroups: TabGroup[] = data.tabGroups || [];
+  const archivedGroups: TabGroup[] = data.archivedGroups || [];
+
+  const totalTabs = [...tabGroups, ...archivedGroups].reduce((sum, g) => sum + (g.tabs?.length || 0), 0);
+
+  const payload = {
+    _metadata: {
+      version: CURRENT_SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      totalGroups: tabGroups.length + archivedGroups.length,
+      totalTabs,
+    },
+    tabGroups,
+    archivedGroups,
+  };
+
+  return JSON.stringify(payload, null, 2);
+}
+
+export async function exportData(): Promise<string> {
+  return exportAsJson();
+}
+
+export async function exportAsMarkdown(): Promise<string> {
+  const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups']);
+  const tabGroups: TabGroup[] = data.tabGroups || [];
+  const archivedGroups: TabGroup[] = data.archivedGroups || [];
+
+  let md = `# TwoTab Saved Collections\n\n*Exported on ${new Date().toLocaleString()}*\n\n`;
+
+  if (tabGroups.length > 0) {
+    md += `## 📂 Active Tab Groups (${tabGroups.length})\n\n`;
+    for (const g of tabGroups) {
+      const title = g.name || 'Saved Group';
+      const date = g.date ? new Date(g.date).toLocaleString() : 'Unknown date';
+      md += `### ${title} — *${date}* (${g.tabs.length} tabs)\n\n`;
+      for (const t of g.tabs) {
+        const tabTitle = (t.title || t.url || 'Untitled').replace(/[\[\]]/g, '');
+        md += `- [${tabTitle}](${t.url})\n`;
+      }
+      md += '\n';
+    }
+  }
+
+  if (archivedGroups.length > 0) {
+    md += `## 📦 Archived Groups (${archivedGroups.length})\n\n`;
+    for (const g of archivedGroups) {
+      const title = g.name || 'Archived Group';
+      const date = g.date ? new Date(g.date).toLocaleString() : 'Unknown date';
+      md += `### ${title} — *${date}* (${g.tabs.length} tabs)\n\n`;
+      for (const t of g.tabs) {
+        const tabTitle = (t.title || t.url || 'Untitled').replace(/[\[\]]/g, '');
+        md += `- [${tabTitle}](${t.url})\n`;
+      }
+      md += '\n';
+    }
+  }
+
+  return md;
+}
+
+export async function exportAsPlainText(): Promise<string> {
+  const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups']);
+  const tabGroups: TabGroup[] = data.tabGroups || [];
+  const archivedGroups: TabGroup[] = data.archivedGroups || [];
+  const allGroups = [...tabGroups, ...archivedGroups];
+
+  const lines: string[] = [];
+  for (let i = 0; i < allGroups.length; i++) {
+    const g = allGroups[i];
+    for (const t of g.tabs) {
+      lines.push(`${t.url} | ${t.title || t.url}`);
+    }
+    if (i < allGroups.length - 1) {
+      lines.push(''); // Blank line separates groups
+    }
+  }
+  return lines.join('\n');
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+export async function exportAsHtmlBookmarks(): Promise<string> {
+  const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups']);
+  const tabGroups: TabGroup[] = data.tabGroups || [];
+  const archivedGroups: TabGroup[] = data.archivedGroups || [];
+
+  let html = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<!-- This is an automatically generated file.
+     It will be read and overwritten.
+     DO NOT EDIT! -->
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>TwoTab Bookmarks</H1>
+<DL><p>
+    <DT><H3 ADD_DATE="${Math.floor(Date.now() / 1000)}" LAST_MODIFIED="${Math.floor(Date.now() / 1000)}">TwoTab Collections</H3>
+    <DL><p>
+`;
+
+  for (const g of tabGroups) {
+    const groupName = g.name || 'Saved Group';
+    const groupDate = Math.floor(new Date(g.date).getTime() / 1000) || Math.floor(Date.now() / 1000);
+    html += `        <DT><H3 ADD_DATE="${groupDate}">${escapeHtml(groupName)}</H3>\n        <DL><p>\n`;
+    for (const t of g.tabs) {
+      html += `            <DT><A HREF="${escapeHtml(t.url)}" ADD_DATE="${groupDate}">${escapeHtml(t.title || t.url)}</A>\n`;
+    }
+    html += `        </DL><p>\n`;
+  }
+
+  if (archivedGroups.length > 0) {
+    html += `        <DT><H3 ADD_DATE="${Math.floor(Date.now() / 1000)}">Archive</H3>\n        <DL><p>\n`;
+    for (const g of archivedGroups) {
+      const groupName = g.name || 'Archived Group';
+      const groupDate = Math.floor(new Date(g.date).getTime() / 1000) || Math.floor(Date.now() / 1000);
+      html += `            <DT><H3 ADD_DATE="${groupDate}">${escapeHtml(groupName)}</H3>\n            <DL><p>\n`;
+      for (const t of g.tabs) {
+        html += `                <DT><A HREF="${escapeHtml(t.url)}" ADD_DATE="${groupDate}">${escapeHtml(t.title || t.url)}</A>\n`;
+      }
+      html += `            </DL><p>\n`;
+    }
+    html += `        </DL><p>\n`;
+  }
+
+  html += `    </DL><p>\n</DL><p>\n`;
+  return html;
+}
+
+export async function exportAsCsv(): Promise<string> {
+  const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups']);
+  const tabGroups: TabGroup[] = data.tabGroups || [];
+  const archivedGroups: TabGroup[] = data.archivedGroups || [];
+
+  const rows: string[] = ['"Section","Group Name","Tab Title","URL","Saved Date"'];
+
+  const addGroup = (section: string, g: TabGroup) => {
+    const gName = (g.name || 'Saved Group').replace(/"/g, '""');
+    const gDate = (g.date || '').replace(/"/g, '""');
+    for (const t of g.tabs) {
+      const title = (t.title || t.url || '').replace(/"/g, '""');
+      const url = (t.url || '').replace(/"/g, '""');
+      rows.push(`"${section}","${gName}","${title}","${url}","${gDate}"`);
+    }
+  };
+
+  for (const g of tabGroups) addGroup('Active', g);
+  for (const g of archivedGroups) addGroup('Archived', g);
+
+  return rows.join('\n');
+}
+
+export async function importData(
+  jsonString: string, 
+  mode: 'merge' | 'replace' = 'replace'
+): Promise<boolean> {
   // Size guard: reject files > 50 MB to prevent memory allocation crashes
   if (jsonString.length > 50 * 1024 * 1024) {
     console.warn('[TwoTab] Import rejected: file exceeds 50 MB size limit');
@@ -486,38 +656,161 @@ export async function importData(jsonString: string): Promise<boolean> {
       g.tabs.every((t: any) => typeof t === 'object' && t !== null && typeof t.url === 'string')
     );
 
-    const hasValidTabGroups = Array.isArray(parsed.tabGroups) && parsed.tabGroups.every(isValidGroup);
-    const hasValidArchived = !parsed.archivedGroups || (Array.isArray(parsed.archivedGroups) && parsed.archivedGroups.every(isValidGroup));
+    const importedTabGroups: TabGroup[] = Array.isArray(parsed.tabGroups) ? parsed.tabGroups : [];
+    const importedArchivedGroups: TabGroup[] = Array.isArray(parsed.archivedGroups) ? parsed.archivedGroups : [];
 
-    if (!hasValidTabGroups || !hasValidArchived) return false;
-
-    // Duplicate ID detection
-    const ids = new Set<number>();
-    for (const g of parsed.tabGroups) {
-      if (ids.has(g.id)) {
-        console.warn(`[TwoTab] Import rejected: duplicate group id ${g.id}`);
-        return false;
-      }
-      ids.add(g.id);
+    if (!importedTabGroups.every(isValidGroup) || !importedArchivedGroups.every(isValidGroup)) {
+      return false;
     }
-    if (parsed.archivedGroups) {
-      for (const g of parsed.archivedGroups) {
+
+    if (mode === 'replace') {
+      // Duplicate ID detection within import payload
+      const ids = new Set<number>();
+      for (const g of importedTabGroups) {
+        if (ids.has(g.id)) {
+          console.warn(`[TwoTab] Import rejected: duplicate group id ${g.id}`);
+          return false;
+        }
+        ids.add(g.id);
+      }
+      for (const g of importedArchivedGroups) {
         if (ids.has(g.id)) {
           console.warn(`[TwoTab] Import rejected: duplicate group id ${g.id} in archivedGroups`);
           return false;
         }
         ids.add(g.id);
       }
+
+      await safeStorageSet({
+        tabGroups: importedTabGroups,
+        archivedGroups: importedArchivedGroups,
+      });
+      return true;
     }
 
+    // Merge mode: re-key colliding IDs and append to existing groups
+    const currentTabGroups = await getGroups();
+    const currentArchivedGroups = await getArchivedGroups();
+    const existingIds = new Set<number>([
+      ...currentTabGroups.map(g => g.id),
+      ...currentArchivedGroups.map(g => g.id),
+    ]);
+
+    let maxId = Math.max(0, ...Array.from(existingIds), Date.now());
+
+    const rekeyedTabGroups = importedTabGroups.map(g => {
+      if (existingIds.has(g.id)) {
+        maxId++;
+        return { ...g, id: maxId };
+      }
+      existingIds.add(g.id);
+      return g;
+    });
+
+    const rekeyedArchivedGroups = importedArchivedGroups.map(g => {
+      if (existingIds.has(g.id)) {
+        maxId++;
+        return { ...g, id: maxId };
+      }
+      existingIds.add(g.id);
+      return g;
+    });
+
     await safeStorageSet({
-      tabGroups: parsed.tabGroups,
-      archivedGroups: parsed.archivedGroups || [],
+      tabGroups: [...currentTabGroups, ...rekeyedTabGroups],
+      archivedGroups: [...currentArchivedGroups, ...rekeyedArchivedGroups],
     });
     return true;
   } catch (e) {
     console.error('[TwoTab] Import failed:', e);
     return false;
+  }
+}
+
+export async function importOneTabOrPlainText(
+  text: string,
+  mode: 'merge' | 'replace' = 'merge'
+): Promise<{ success: boolean; importedGroupsCount: number; importedTabsCount: number }> {
+  if (!text || !text.trim()) {
+    return { success: false, importedGroupsCount: 0, importedTabsCount: 0 };
+  }
+
+  // Size guard: 10 MB limit for text imports
+  if (text.length > 10 * 1024 * 1024) {
+    console.warn('[TwoTab] Text import rejected: input exceeds 10 MB limit');
+    return { success: false, importedGroupsCount: 0, importedTabsCount: 0 };
+  }
+
+  try {
+    const rawBlocks = text.split(/\n\s*\n/);
+    const parsedGroups: TabGroup[] = [];
+    let baseTime = Date.now();
+
+    for (let i = 0; i < rawBlocks.length; i++) {
+      const block = rawBlocks[i];
+      const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+      const tabs: Tab[] = [];
+
+      for (const line of lines) {
+        let url = '';
+        let title = '';
+
+        if (line.includes(' | ')) {
+          const parts = line.split(' | ');
+          url = parts[0].trim();
+          title = parts.slice(1).join(' | ').trim();
+        } else if (line.includes('|')) {
+          const parts = line.split('|');
+          url = parts[0].trim();
+          title = parts.slice(1).join('|').trim();
+        } else {
+          url = line.trim();
+          title = line.trim();
+        }
+
+        // Basic URL validation
+        if (url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('chrome://') || url.startsWith('edge://') || url.includes('.'))) {
+          if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('chrome://') && !url.startsWith('edge://')) {
+            url = `https://${url}`;
+          }
+          tabs.push({
+            url,
+            title: title || url,
+          });
+        }
+      }
+
+      if (tabs.length > 0) {
+        parsedGroups.push({
+          id: baseTime + i + Math.floor(Math.random() * 1000),
+          date: new Date(baseTime - (rawBlocks.length - i) * 60000).toISOString(),
+          name: parsedGroups.length === 0 ? 'Imported Tabs' : `Imported Group ${parsedGroups.length + 1}`,
+          tabs,
+        });
+      }
+    }
+
+    if (parsedGroups.length === 0) {
+      return { success: false, importedGroupsCount: 0, importedTabsCount: 0 };
+    }
+
+    const totalTabsCount = parsedGroups.reduce((sum, g) => sum + g.tabs.length, 0);
+
+    if (mode === 'replace') {
+      await safeStorageSet({ tabGroups: parsedGroups });
+    } else {
+      const currentGroups = await getGroups();
+      await safeStorageSet({ tabGroups: [...currentGroups, ...parsedGroups] });
+    }
+
+    return {
+      success: true,
+      importedGroupsCount: parsedGroups.length,
+      importedTabsCount: totalTabsCount,
+    };
+  } catch (e) {
+    console.error('[TwoTab] OneTab / Plain Text import failed:', e);
+    return { success: false, importedGroupsCount: 0, importedTabsCount: 0 };
   }
 }
 

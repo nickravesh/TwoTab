@@ -11,8 +11,14 @@ import {
   unarchiveGroup, 
   deleteArchivedGroup, 
   renameGroup, 
-  exportData, 
-  importData, 
+  exportData,
+  exportAsJson,
+  exportAsMarkdown,
+  exportAsPlainText,
+  exportAsHtmlBookmarks,
+  exportAsCsv,
+  importData,
+  importOneTabOrPlainText,
   clearAllData,
   getSafeDomain,
   getRecentlyClosedItems,
@@ -98,7 +104,18 @@ import {
   Sliders,
   ExternalLink,
   Zap,
-  Folder
+  Folder,
+  Database,
+  FileText,
+  Code,
+  FileSpreadsheet,
+  Keyboard,
+  MousePointerClick,
+  RefreshCw,
+  Cpu,
+  Lock,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { THEME_PALETTES, type ThemePalette } from '@/lib/theme';
@@ -422,10 +439,62 @@ function VirtualizedCardGrid({
 }
 
 // =============================================================================
+// Error Boundary Component
+// =============================================================================
+
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[TwoTab] UI Exception caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+          <Card className="max-w-md w-full border-border bg-card shadow-2xl p-6 text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-destructive/15 border border-destructive/30 text-destructive flex items-center justify-center mx-auto">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold text-foreground">Something went wrong</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {this.state.error?.message || 'An unexpected error occurred while rendering.'}
+              </p>
+            </div>
+            <Button
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                window.location.reload();
+              }}
+              className="bg-primary text-primary-foreground font-semibold text-xs px-4"
+            >
+              Reload TwoTab
+            </Button>
+          </Card>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// =============================================================================
 // Main App Component
 // =============================================================================
 
-export default function App() {
+function AppContent() {
   const { themeMode, resolvedTheme, setThemeMode } = useTheme();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'archive' | 'closed' | 'settings' | 'help'>('dashboard');
   const [groups, setGroups] = useState<TabGroup[]>([]);
@@ -711,33 +780,121 @@ export default function App() {
     showMessage('Session restored');
   };
 
-  const handleExport = async () => {
-    const json = await exportData();
-    const blob = new Blob([json], { type: 'application/json' });
+  const [exportFormat, setExportFormat] = useState<'json' | 'markdown' | 'onetab' | 'html' | 'csv'>('json');
+  const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
+  const [importText, setImportText] = useState<string>('');
+  const [isImportingText, setIsImportingText] = useState<boolean>(false);
+
+  const handleExportFormatted = async (format: 'json' | 'markdown' | 'onetab' | 'html' | 'csv') => {
+    let content = '';
+    let mimeType = 'text/plain';
+    let ext = 'txt';
+
+    switch (format) {
+      case 'json':
+        content = await exportAsJson();
+        mimeType = 'application/json';
+        ext = 'json';
+        break;
+      case 'markdown':
+        content = await exportAsMarkdown();
+        mimeType = 'text/markdown';
+        ext = 'md';
+        break;
+      case 'onetab':
+        content = await exportAsPlainText();
+        mimeType = 'text/plain';
+        ext = 'txt';
+        break;
+      case 'html':
+        content = await exportAsHtmlBookmarks();
+        mimeType = 'text/html';
+        ext = 'html';
+        break;
+      case 'csv':
+        content = await exportAsCsv();
+        mimeType = 'text/csv';
+        ext = 'csv';
+        break;
+    }
+
+    const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `twotab-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `twotab-export-${new Date().toISOString().slice(0, 10)}.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
-    showMessage('Backup downloaded!');
+    showMessage(`Exported as ${format.toUpperCase()} successfully!`);
+  };
+
+  const handleCopyExportToClipboard = async (format: 'json' | 'markdown' | 'onetab' | 'html' | 'csv') => {
+    let content = '';
+    switch (format) {
+      case 'json': content = await exportAsJson(); break;
+      case 'markdown': content = await exportAsMarkdown(); break;
+      case 'onetab': content = await exportAsPlainText(); break;
+      case 'html': content = await exportAsHtmlBookmarks(); break;
+      case 'csv': content = await exportAsCsv(); break;
+    }
+    await navigator.clipboard.writeText(content);
+    showMessage(`Copied ${format.toUpperCase()} export to clipboard!`);
   };
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const isJson = file.name.toLowerCase().endsWith('.json');
     const reader = new FileReader();
     reader.onload = async (event) => {
       const content = event.target?.result as string;
-      const success = await importData(content);
-      if (success) {
-        showMessage('Data imported successfully!');
-        loadData();
+      if (isJson) {
+        const success = await importData(content, importMode);
+        if (success) {
+          showMessage(`JSON backup imported (${importMode === 'merge' ? 'Merged' : 'Replaced'})!`);
+          loadData();
+        } else {
+          showMessage('Invalid JSON backup file format', 'error');
+        }
       } else {
-        showMessage('Invalid backup file format', 'error');
+        const res = await importOneTabOrPlainText(content, importMode);
+        if (res.success) {
+          showMessage(`Imported ${res.importedTabsCount} tabs across ${res.importedGroupsCount} groups (${importMode === 'merge' ? 'Merged' : 'Replaced'})!`);
+          loadData();
+        } else {
+          showMessage('Could not find valid URLs in imported file', 'error');
+        }
       }
+      if (fileInputRef.current) fileInputRef.current.value = '';
     };
     reader.readAsText(file);
+  };
+
+  const handleImportPastedText = async () => {
+    if (!importText.trim()) return;
+    setIsImportingText(true);
+    try {
+      if (importText.trim().startsWith('{') || importText.trim().startsWith('[')) {
+        const success = await importData(importText, importMode);
+        if (success) {
+          showMessage(`JSON imported (${importMode === 'merge' ? 'Merged' : 'Replaced'})!`);
+          setImportText('');
+          loadData();
+          setIsImportingText(false);
+          return;
+        }
+      }
+      const res = await importOneTabOrPlainText(importText, importMode);
+      if (res.success) {
+        showMessage(`Imported ${res.importedTabsCount} tabs across ${res.importedGroupsCount} groups (${importMode === 'merge' ? 'Merged' : 'Replaced'})!`);
+        setImportText('');
+        loadData();
+      } else {
+        showMessage('No valid URLs found to import', 'error');
+      }
+    } finally {
+      setIsImportingText(false);
+    }
   };
 
   const deferredSearch = useDeferredValue(search);
@@ -1077,10 +1234,10 @@ export default function App() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 text-muted-foreground hover:text-foreground border border-border shadow-sm rounded-lg"
+                  className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/80 border border-border shadow-xs rounded-lg transition-colors group"
                   title={`Theme: ${themeMode} (${resolvedTheme})`}
                 >
-                  <Palette className="w-4 h-4 text-primary" />
+                  <Palette className="w-4 h-4 text-primary group-hover:scale-105 transition-transform" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 p-1.5 bg-popover border-border shadow-apple-popover rounded-xl text-popover-foreground">
@@ -1538,31 +1695,213 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
 
-              <Card className="border-border bg-card shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-foreground text-xl flex items-center gap-2">
-                    <Download className="w-5 h-5 text-primary" /> Data Backup & Synchronization
-                  </CardTitle>
-                  <CardDescription className="text-muted-foreground">
-                    Export a local JSON copy of your saved tab groups or restore your workspace from a backup file.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2">
-                  <div className="flex gap-4">
-                    <Button onClick={handleExport} variant="outline" className="border-border hover:bg-muted text-foreground font-semibold shadow-sm">
-                      <Download className="w-4 h-4 mr-2 text-primary" /> Export Backup (JSON)
-                    </Button>
-                    <input type="file" ref={fileInputRef} onChange={handleImportFile} accept=".json" className="hidden" />
-                    <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="border-border hover:bg-muted text-foreground font-semibold shadow-sm">
-                      <Upload className="w-4 h-4 mr-2 text-primary" /> Import Backup (JSON)
-                    </Button>
+                  {/* 4. Recently Closed Retention Limit */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          <History className="w-4 h-4 text-primary" />
+                          Recently Closed Retention Limit
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Maximum number of closed tabs preserved in your history timeline.
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-xs font-semibold text-primary border-primary/30 bg-primary/10">
+                        {userPreferences.recentlyClosedLimit || 50} Tabs
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                      {[10, 25, 50, 100, 250, 500].map((limit) => {
+                        const isSelected = (userPreferences.recentlyClosedLimit || 50) === limit;
+                        return (
+                          <button
+                            key={limit}
+                            type="button"
+                            onClick={() => handleUpdatePreference('recentlyClosedLimit', limit)}
+                            className={`py-2 px-3 rounded-xl border text-center transition-all ${
+                              isSelected
+                                ? 'border-primary bg-primary/15 ring-2 ring-primary/30 font-bold text-foreground shadow-xs'
+                                : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium text-xs'
+                            }`}
+                          >
+                            <span className="text-xs">{limit}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
+              {/* Data Export Studio & Import Hub */}
+              <Card className="border-border bg-card shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-foreground text-xl flex items-center gap-2">
+                    <Download className="w-5 h-5 text-primary" /> Multi-Format Data Hub & Backup
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">
+                    Export your collections in versatile formats (Markdown, OneTab Text, Bookmarks, CSV, JSON) or seamlessly import tab files.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-2 space-y-6">
+                  {/* Export Studio */}
+                  <div className="p-4 rounded-xl border border-border bg-muted/20 space-y-3.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Download className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-semibold text-foreground">Export Workspace</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">Choose export format:</span>
+                    </div>
+
+                    {/* Format Selector Pills */}
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                      {[
+                        { id: 'json', label: 'JSON Backup', icon: Database, desc: 'Full structured data' },
+                        { id: 'markdown', label: 'Markdown (.md)', icon: FileText, desc: 'Obsidian / Notion' },
+                        { id: 'onetab', label: 'OneTab (.txt)', icon: Code, desc: 'OneTab text list' },
+                        { id: 'html', label: 'HTML Bookmarks', icon: Globe, desc: 'Browser bookmarks' },
+                        { id: 'csv', label: 'CSV Spreadsheet', icon: FileSpreadsheet, desc: 'Excel / Sheets' },
+                      ].map((fmt) => {
+                        const isSelected = exportFormat === fmt.id;
+                        const Icon = fmt.icon;
+                        return (
+                          <button
+                            key={fmt.id}
+                            type="button"
+                            onClick={() => setExportFormat(fmt.id as any)}
+                            className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between gap-1.5 ${
+                              isSelected
+                                ? 'border-primary bg-primary/15 ring-2 ring-primary/30 text-foreground font-semibold shadow-xs'
+                                : 'border-border bg-card/60 hover:bg-muted text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <Icon className={`w-4 h-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                              {isSelected && <span className="text-[10px] text-primary font-bold">✓</span>}
+                            </div>
+                            <div>
+                              <div className="text-xs font-semibold">{fmt.label}</div>
+                              <div className="text-[10px] text-muted-foreground line-clamp-1">{fmt.desc}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Export Action Buttons */}
+                    <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                      <Button
+                        onClick={() => handleExportFormatted(exportFormat)}
+                        variant="default"
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm text-xs h-9 px-4"
+                      >
+                        <Download className="w-4 h-4 mr-1.5" /> Download {exportFormat.toUpperCase()} File
+                      </Button>
+                      <Button
+                        onClick={() => handleCopyExportToClipboard(exportFormat)}
+                        variant="outline"
+                        className="border-border hover:bg-muted text-foreground font-medium text-xs h-9 px-4"
+                      >
+                        <Copy className="w-3.5 h-3.5 mr-1.5 text-primary" /> Copy to Clipboard
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Import Hub */}
+                  <div className="p-4 rounded-xl border border-border bg-muted/20 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Upload className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-semibold text-foreground">Import & Migration Hub</span>
+                      </div>
+                      
+                      {/* Merge vs Replace Mode Toggle */}
+                      <div className="flex items-center gap-1 bg-card p-1 rounded-lg border border-border text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setImportMode('merge')}
+                          className={`px-2.5 py-1 rounded-md transition-all font-medium ${
+                            importMode === 'merge'
+                              ? 'bg-primary text-primary-foreground font-bold shadow-xs'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          Merge (Safe)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setImportMode('replace')}
+                          className={`px-2.5 py-1 rounded-md transition-all font-medium ${
+                            importMode === 'replace'
+                              ? 'bg-destructive text-destructive-foreground font-bold shadow-xs'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          Replace All
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* File Upload Box */}
+                      <div className="p-4 rounded-xl border border-dashed border-border bg-card/50 flex flex-col items-center justify-center text-center gap-2.5">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                          <Upload className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold text-foreground">Upload Backup / OneTab File</div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">Supports .json, .txt, .md, .html</p>
+                        </div>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleImportFile}
+                          accept=".json,.txt,.md,.html,.csv"
+                          className="hidden"
+                        />
+                        <Button
+                          onClick={() => fileInputRef.current?.click()}
+                          variant="outline"
+                          size="sm"
+                          className="border-border hover:bg-muted text-foreground text-xs font-semibold shadow-xs"
+                        >
+                          Choose File
+                        </Button>
+                      </div>
+
+                      {/* Quick Paste / OneTab Migration Box */}
+                      <div className="p-3.5 rounded-xl border border-border bg-card/50 flex flex-col justify-between gap-2.5">
+                        <div className="space-y-1">
+                          <div className="text-xs font-semibold text-foreground flex items-center justify-between">
+                            <span>Paste OneTab / URL List</span>
+                            <span className="text-[10px] text-muted-foreground font-normal">url | title or plain URLs</span>
+                          </div>
+                          <textarea
+                            value={importText}
+                            onChange={(e) => setImportText(e.target.value)}
+                            placeholder="Paste OneTab text export here...&#10;https://example.com | Example Title&#10;https://github.com | GitHub"
+                            className="w-full h-20 text-[11px] font-mono p-2 rounded-lg bg-muted/40 border border-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none custom-scrollbar"
+                          />
+                        </div>
+                        <Button
+                          onClick={handleImportPastedText}
+                          disabled={!importText.trim() || isImportingText}
+                          variant="default"
+                          size="sm"
+                          className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold shadow-xs self-end"
+                        >
+                          {isImportingText ? 'Importing...' : 'Parse & Import'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Danger Zone */}
               <Card className="border-destructive/30 bg-destructive/10 shadow-lg">
                 <CardHeader>
                   <CardTitle className="text-destructive text-xl flex items-center gap-2">
@@ -1609,63 +1948,270 @@ export default function App() {
             </div>
           )}
 
-          {/* Help View */}
+          {/* Help & Knowledge Hub View */}
           {activeTab === 'help' && (
-            <div className="max-w-3xl mx-auto space-y-6 animate-fade-in-up">
-              <Card className="border-border bg-card shadow-xl p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2.5 rounded-xl bg-primary/20 text-primary border border-primary/30">
-                    <BookOpen className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-foreground">TwoTab User Guide & FAQ</h3>
-                    <p className="text-sm text-muted-foreground">Everything you need to know about managing, restoring, and exporting tab collections.</p>
+            <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up pb-8">
+              {/* Header Hero Banner */}
+              <Card className="border-border bg-card shadow-lg p-6 relative overflow-hidden">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
+                  <div className="flex items-center gap-3.5">
+                    <div className="p-3 rounded-2xl bg-primary/15 text-primary border border-primary/25 shadow-xs">
+                      <BookOpen className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-2xl font-bold text-foreground">TwoTab Knowledge Center</h3>
+                        <Badge variant="outline" className="text-xs text-primary border-primary/30 bg-primary/10 font-semibold">
+                          v{typeof chrome !== 'undefined' && chrome?.runtime?.getManifest?.()?.version ? chrome.runtime.getManifest().version : '1.6.0'}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">The complete manual for tabs management, keyboard shortcuts, context menus, and local privacy.</p>
+                    </div>
                   </div>
                 </div>
-
-                <Accordion type="single" collapsible className="w-full space-y-2">
-                  <AccordionItem value="item-1" className="border-border">
-                    <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-base">
-                      How do I save active browser tabs?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground leading-relaxed text-sm">
-                      Click the <strong className="text-foreground">"Save Current Window"</strong> button in the top header (or popup) to capture all tabs in your active window into a organized group. Click the dropdown chevron arrow next to it to select <strong className="text-foreground">"Save All Windows"</strong> to save your entire multi-window workspace at once.
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="item-2" className="border-border">
-                    <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-base">
-                      How do I restore saved tab groups?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground leading-relaxed text-sm">
-                      Click <strong className="text-foreground">"Restore Group"</strong> on any saved card to reopen all tabs in that collection into your browser. You can also click individual tab links inside a card to open specific pages independently.
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="item-3" className="border-border">
-                    <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-base">
-                      Can I search or rename tab collections?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground leading-relaxed text-sm">
-                      Yes! Use the search bar in the header to filter saved tabs instantly by title or URL. To rename a group, click directly on the group name on any card, type your desired title, and press Enter or click the checkmark button.
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="item-4" className="border-border">
-                    <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-base">
-                      How do data backups and privacy work?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground leading-relaxed text-sm">
-                      TwoTab operates 100% locally inside your Chrome browser—your data is never sent to external servers or third parties. Visit <strong className="text-foreground">Settings</strong> anytime to export a JSON backup file or import existing backups onto new devices.
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
               </Card>
+
+              {/* 1. Quick-Start Essentials (4 Cards Grid) */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                  <Zap className="w-4 h-4 text-primary" />
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-foreground">Quick-Start Essentials</h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <Card className="p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                      <Plus className="w-5 h-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-foreground">1-Click Window Capture</h5>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Click <strong>"Save Window"</strong> (or press <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">⌘S</kbd>) in the header or popup to stash all active tabs into a clean collection. Use the split dropdown for <strong>"Save All Windows"</strong>.
+                      </p>
+                    </div>
+                  </Card>
+
+                  <Card className="p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                      <RotateCcw className="w-5 h-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-foreground">Instant Tab Restoration</h5>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Click <strong>"Restore Group"</strong> on any card to reopen all tabs in a dedicated window, or click individual tab links to launch specific pages independently.
+                      </p>
+                    </div>
+                  </Card>
+
+                  <Card className="p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                      <MousePointerClick className="w-5 h-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-foreground">Right-Click Context Menu</h5>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Right-click anywhere on a webpage, highlighted tabs, or any link, and select <strong>"TwoTab"</strong> to quickly save tabs without even opening the dashboard.
+                      </p>
+                    </div>
+                  </Card>
+
+                  <Card className="p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                      <Search className="w-5 h-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-foreground">Smart Search & Rename</h5>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Filter collections instantly by title or domain. Click any group's title directly on its card to customize its name (e.g. <em>"Research Sprint"</em> or <em>"Design Inspiration"</em>).
+                      </p>
+                    </div>
+                  </Card>
+                </div>
+              </div>
+
+              {/* 2. Keyboard Shortcuts Cheatsheet */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                  <Keyboard className="w-4 h-4 text-primary" />
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-foreground">Keyboard Shortcuts</h4>
+                </div>
+                <Card className="border-border bg-card shadow-xs overflow-hidden">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-border">
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Save Current Window</span>
+                        <kbd className="px-2 py-1 rounded-md bg-muted text-foreground font-mono font-semibold text-xs border border-border shadow-2xs">⌘S / Ctrl+S</kbd>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Save All Windows</span>
+                        <kbd className="px-2 py-1 rounded-md bg-muted text-foreground font-mono font-semibold text-xs border border-border shadow-2xs">⌘⇧S / Ctrl+Shift+S</kbd>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Save Active Tab Only</span>
+                        <kbd className="px-2 py-1 rounded-md bg-muted text-foreground font-mono font-semibold text-xs border border-border shadow-2xs">⌘⌥S / Ctrl+Alt+S</kbd>
+                      </div>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Clear Search / Dismiss Dialog</span>
+                        <kbd className="px-2 py-1 rounded-md bg-muted text-foreground font-mono font-semibold text-xs border border-border shadow-2xs">Esc</kbd>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Save Group Rename</span>
+                        <kbd className="px-2 py-1 rounded-md bg-muted text-foreground font-mono font-semibold text-xs border border-border shadow-2xs">Enter</kbd>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Cancel Group Rename</span>
+                        <kbd className="px-2 py-1 rounded-md bg-muted text-foreground font-mono font-semibold text-xs border border-border shadow-2xs">Esc</kbd>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
+              {/* 3. Power Features & Privacy Pillars */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                  <Cpu className="w-4 h-4 text-primary" />
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-foreground">Power Features & Architecture</h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <Card className="p-4 border-border bg-card shadow-xs space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                      <Lock className="w-4 h-4 text-primary" />
+                      100% Local-First Offline Privacy
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      TwoTab operates entirely within your browser using Chrome's local storage engine. Your tabs and history are never sent to external servers, cloud databases, or analytics trackers.
+                    </p>
+                  </Card>
+
+                  <Card className="p-4 border-border bg-card shadow-xs space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                      <RefreshCw className="w-4 h-4 text-primary" />
+                      Automatic Rolling Backups
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      A background alarm automatically captures rolling snapshots of your tab collections every 6 hours, ensuring zero data loss even in unexpected browser crashes.
+                    </p>
+                  </Card>
+
+                  <Card className="p-4 border-border bg-card shadow-xs space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                      <FileText className="w-4 h-4 text-primary" />
+                      Multi-Format Export & OneTab Import
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Export your collections as Markdown outlines for Obsidian/Notion, HTML bookmarks for browser sync, or plain text lists. OneTab users can paste or upload exports seamlessly.
+                    </p>
+                  </Card>
+
+                  <Card className="p-4 border-border bg-card shadow-xs space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                      <Palette className="w-4 h-4 text-primary" />
+                      Curated Themes & View Transitions
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Switch between 7 meticulously tuned palettes (Studio Indigo, Paper Linen, Glacier Frost, Porcelain Rosé, Sunset Amber, Midnight Obsidian, Cyber Emerald) with fluid circular ripple transitions.
+                    </p>
+                  </Card>
+                </div>
+              </div>
+
+              {/* 4. Comprehensive FAQ Accordion */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                  <HelpCircle className="w-4 h-4 text-primary" />
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-foreground">Frequently Asked Questions</h4>
+                </div>
+                <Card className="border-border bg-card shadow-lg p-6">
+                  <Accordion type="single" collapsible className="w-full space-y-2">
+                    <AccordionItem value="faq-1" className="border-border">
+                      <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-sm text-left">
+                        How is TwoTab different from OneTab?
+                      </AccordionTrigger>
+                      <AccordionContent className="text-muted-foreground leading-relaxed text-xs">
+                        TwoTab is built on Manifest V3 with a modern design system, virtualized grid rendering, multi-window support, tab group archiving, configurable recently closed history, multi-format exports (Markdown, HTML Bookmarks, CSV, OneTab Text), and 100% offline local data security.
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="faq-2" className="border-border">
+                      <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-sm text-left">
+                        How do I migrate my tabs from OneTab into TwoTab?
+                      </AccordionTrigger>
+                      <AccordionContent className="text-muted-foreground leading-relaxed text-xs">
+                        In OneTab, click "Export / Import URLs" and copy the text. In TwoTab, go to <strong>Settings $\rightarrow$ Multi-Format Data Hub</strong>, paste the text into the OneTab migration box, choose <strong>Merge</strong>, and click <strong>Parse & Import</strong>. All groups will be created instantly.
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="faq-3" className="border-border">
+                      <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-sm text-left">
+                        How do I save multiple selected tabs with right-click?
+                      </AccordionTrigger>
+                      <AccordionContent className="text-muted-foreground leading-relaxed text-xs">
+                        Hold <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">Shift</kbd> or <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">Cmd/Ctrl</kbd> to select multiple tabs in your browser's tab strip, right-click on any webpage, and select <strong>TwoTab $\rightarrow$ Save Selected Tabs</strong>.
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="faq-4" className="border-border">
+                      <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-sm text-left">
+                        Are pinned tabs protected when saving a window?
+                      </AccordionTrigger>
+                      <AccordionContent className="text-muted-foreground leading-relaxed text-xs">
+                        Yes! By default, <strong>Protect Pinned Tabs</strong> is enabled in Settings, ensuring pinned tabs (email, music, communication) remain open and are never closed or disrupted when saving windows.
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="faq-5" className="border-border">
+                      <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-sm text-left">
+                        How can I export my tabs to Obsidian, Notion, or browser bookmarks?
+                      </AccordionTrigger>
+                      <AccordionContent className="text-muted-foreground leading-relaxed text-xs">
+                        Go to <strong>Settings $\rightarrow$ Multi-Format Data Hub</strong>. Select <strong>Markdown (.md)</strong> for an outline with clickable links for Obsidian/Notion, or <strong>HTML Bookmarks</strong> to import directly into Chrome, Firefox, Safari, or Edge bookmarks.
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="faq-6" className="border-border">
+                      <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-sm text-left">
+                        How does the "Recently Closed" tab tracker work?
+                      </AccordionTrigger>
+                      <AccordionContent className="text-muted-foreground leading-relaxed text-xs">
+                        TwoTab automatically caches tabs as they close in an FIFO queue. You can view, search, restore, or clear closed tabs in the <strong>Recently Closed</strong> tab. You can customize the retention limit (10 to 500 tabs) anytime in Settings.
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="faq-7" className="border-border">
+                      <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-sm text-left">
+                        How does TwoTab save RAM and system memory?
+                      </AccordionTrigger>
+                      <AccordionContent className="text-muted-foreground leading-relaxed text-xs">
+                        Modern browser tabs consume roughly 95 MB to 300 MB of RAM each. By saving inactive tab groups into TwoTab, your browser releases GPU memory, background CPU timers, and active processes, dramatically improving battery life and system responsiveness.
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="faq-8" className="border-border">
+                      <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-sm text-left">
+                        What happens if I accidentally click "Clear All Data"?
+                      </AccordionTrigger>
+                      <AccordionContent className="text-muted-foreground leading-relaxed text-xs">
+                        TwoTab automatically takes an internal emergency snapshot right before clearing. In addition, rolling backups are captured every 6 hours, allowing emergency recovery if needed.
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </Card>
+              </div>
             </div>
           )}
         </ScrollArea>
         )}
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   );
 }

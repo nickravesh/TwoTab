@@ -21,11 +21,113 @@ export default defineBackground(() => {
     // 3. Initialize tab cache in session storage
     await initializeTabCache();
 
-    // 4. Set up rolling backup alarm (every 6 hours)
+    // 4. Set up context menus
+    setupContextMenus();
+
+    // 5. Set up rolling backup alarm (every 6 hours)
     chrome.alarms.create('autoBackup', { periodInMinutes: 360 });
   };
 
   onStartup();
+
+  chrome.runtime.onInstalled.addListener(() => {
+    setupContextMenus();
+  });
+
+  // ==========================================================================
+  // Context Menu Integration (chrome.contextMenus)
+  // ==========================================================================
+
+  function setupContextMenus() {
+    if (typeof chrome === 'undefined' || !chrome.contextMenus) return;
+    try {
+      chrome.contextMenus.removeAll(() => {
+        // Parent Root Menu — Active across tab bar, web page, selection, link, and toolbar icon
+        chrome.contextMenus.create({
+          id: 'twotab_root',
+          title: 'TwoTab',
+          contexts: ['tab', 'page', 'link', 'selection', 'action'],
+        });
+
+        // 1. Save Active / Clicked Tab
+        chrome.contextMenus.create({
+          id: 'twotab_save_active',
+          parentId: 'twotab_root',
+          title: 'Save Tab',
+          contexts: ['tab', 'page', 'selection', 'action'],
+        });
+
+        // 2. Save Highlighted / Selected Tabs
+        chrome.contextMenus.create({
+          id: 'twotab_save_selected',
+          parentId: 'twotab_root',
+          title: 'Save Selected Tabs',
+          contexts: ['tab', 'page', 'selection', 'action'],
+        });
+
+        // 3. Save Link
+        chrome.contextMenus.create({
+          id: 'twotab_save_link',
+          parentId: 'twotab_root',
+          title: 'Save Link to TwoTab',
+          contexts: ['link'],
+        });
+
+        // 4. Save Window
+        chrome.contextMenus.create({
+          id: 'twotab_save_window',
+          parentId: 'twotab_root',
+          title: 'Save Current Window',
+          contexts: ['tab', 'page', 'selection', 'action'],
+        });
+
+        // 5. Open Dashboard
+        chrome.contextMenus.create({
+          id: 'twotab_open_dashboard',
+          parentId: 'twotab_root',
+          title: 'Open Dashboard',
+          contexts: ['tab', 'page', 'selection', 'link', 'action'],
+        });
+      });
+    } catch (e) {
+      console.error('[TwoTab] Error initializing context menus:', e);
+    }
+  }
+
+  chrome.contextMenus?.onClicked.addListener(async (info, tab) => {
+    try {
+      if (info.menuItemId === 'twotab_save_active') {
+        if (tab) await saveSpecificTabs([tab], true);
+      } else if (info.menuItemId === 'twotab_save_selected') {
+        const highlighted = await chrome.tabs.query({ currentWindow: true, highlighted: true });
+        if (highlighted && highlighted.length > 0) {
+          await saveSpecificTabs(highlighted, true);
+        } else if (tab) {
+          await saveSpecificTabs([tab], true);
+        }
+      } else if (info.menuItemId === 'twotab_save_link') {
+        if (info.linkUrl) {
+          const title = info.selectionText || info.linkUrl;
+          await saveSpecificTabs([{ url: info.linkUrl, title } as any], false);
+        }
+      } else if (info.menuItemId === 'twotab_save_window') {
+        await saveCurrentWindowTabs();
+      } else if (info.menuItemId === 'twotab_open_dashboard') {
+        const url = chrome.runtime.getURL('/tabs.html');
+        const existing = await chrome.tabs.query({ url });
+        if (existing && existing.length > 0 && existing[0].id !== undefined) {
+          await chrome.tabs.update(existing[0].id, { active: true });
+          if (existing[0].windowId !== undefined) {
+            await chrome.windows.update(existing[0].windowId, { focused: true });
+          }
+        } else {
+          await chrome.tabs.create({ url });
+        }
+      }
+    } catch (e) {
+      console.error('[TwoTab ContextMenu] Error handling click:', e);
+    }
+  });
 
   // ==========================================================================
   // Rolling Backup Alarm Handler
@@ -123,7 +225,9 @@ export default defineBackground(() => {
         timestamp: new Date().toISOString(),
       };
 
-      const updated = [newItem, ...recentlyClosed].slice(0, 50);
+      const prefs = await getUserPreferences();
+      const limit = prefs.recentlyClosedLimit || 50;
+      const updated = [newItem, ...recentlyClosed].slice(0, limit);
       await chrome.storage.local.set({ recentlyClosed: updated });
     } catch (e) {
       console.error('[TwoTab] Error saving recently closed tab:', e);
@@ -274,5 +378,59 @@ export default defineBackground(() => {
       .filter(id => id !== undefined && id !== chrome.tabs.TAB_ID_NONE);
 
     await chrome.tabs.remove(tabIds as number[]);
+  }
+
+  async function saveSpecificTabs(tabsToSave: chrome.tabs.Tab[], closeTabs: boolean = true) {
+    const prefs = await getUserPreferences();
+    const validTabs = tabsToSave
+      .filter(tab => {
+        if (!tab.url) return false;
+        if (tab.pinned && prefs.protectPinnedTabs) return false;
+        const lower = tab.url.toLowerCase();
+        return !(
+          lower.startsWith('chrome-extension://') ||
+          lower.startsWith('chrome://') ||
+          lower.startsWith('about:') ||
+          lower.startsWith('edge:') ||
+          lower.startsWith('data:')
+        );
+      })
+      .map(tab => ({ title: tab.title || tab.url || '', url: tab.url || '' }));
+
+    if (validTabs.length === 0) return;
+
+    const data = await chrome.storage.local.get('tabGroups');
+    const tabGroups = data.tabGroups || [];
+
+    const groupName = validTabs.length === 1
+      ? (validTabs[0].title ? (validTabs[0].title.length > 35 ? `${validTabs[0].title.slice(0, 35)}...` : validTabs[0].title) : 'Saved Tab')
+      : `Selected Tabs (${validTabs.length})`;
+
+    const newGroup = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      date: new Date().toISOString(),
+      name: groupName,
+      tabs: validTabs,
+    };
+
+    tabGroups.push(newGroup);
+    await chrome.storage.local.set({ tabGroups });
+
+    if (closeTabs) {
+      const tabIds = tabsToSave
+        .filter(t => t.id !== undefined && !(t.pinned && prefs.protectPinnedTabs))
+        .map(t => t.id as number);
+
+      if (tabIds.length > 0) {
+        if (tabsToSave[0]?.windowId !== undefined) {
+          const windowTabs = await chrome.tabs.query({ windowId: tabsToSave[0].windowId });
+          const remaining = windowTabs.filter(t => t.id !== undefined && !tabIds.includes(t.id));
+          if (remaining.length === 0) {
+            await chrome.tabs.create({ url: 'chrome://newtab', windowId: tabsToSave[0].windowId });
+          }
+        }
+        await chrome.tabs.remove(tabIds);
+      }
+    }
   }
 });

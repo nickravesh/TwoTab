@@ -7,6 +7,7 @@ import {
   DEFAULT_THEME_MODE,
   getStoredThemeMode,
   setStoredThemeMode,
+  VALID_MODES,
   resolveTheme,
   applyThemeToDOM,
 } from '@/lib/theme';
