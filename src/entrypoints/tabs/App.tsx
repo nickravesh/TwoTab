@@ -96,7 +96,9 @@ import {
   Pin,
   PinOff,
   Sliders,
-  ExternalLink
+  ExternalLink,
+  Zap,
+  Folder
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { THEME_PALETTES, type ThemePalette } from '@/lib/theme';
@@ -427,6 +429,8 @@ export default function App() {
   const { themeMode, resolvedTheme, setThemeMode } = useTheme();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'archive' | 'closed' | 'settings' | 'help'>('dashboard');
   const [groups, setGroups] = useState<TabGroup[]>([]);
+  const [allDashboardGroups, setAllDashboardGroups] = useState<TabGroup[]>([]);
+  const [archivedGroups, setArchivedGroups] = useState<TabGroup[]>([]);
   const [userPreferences, setUserPreferencesState] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
   const [recentlyClosed, setRecentlyClosed] = useState<ClosedTabItem[]>([]);
   const [search, setSearch] = useState('');
@@ -458,12 +462,21 @@ export default function App() {
     // Also refresh preferences
     getUserPreferences().then(setUserPreferencesState);
 
+    const [dashboardData, archiveData] = await Promise.all([
+      getGroups(),
+      getArchivedGroups(),
+    ]);
+
+    const sortedDashboard = (dashboardData || []).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const sortedArchive = (archiveData || []).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    setAllDashboardGroups(sortedDashboard);
+    setArchivedGroups(sortedArchive);
+
     if (activeTab === 'dashboard') {
-      const data = await getGroups();
-      setGroups(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      setGroups(sortedDashboard);
     } else if (activeTab === 'archive') {
-      const data = await getArchivedGroups();
-      setGroups(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      setGroups(sortedArchive);
     } else if (activeTab === 'closed') {
       const items = await getRecentlyClosedItems();
       if (items.length > 0) {
@@ -498,7 +511,7 @@ export default function App() {
   useEffect(() => {
     const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => {
       if (areaName === 'local') {
-        if (changes.recentlyClosed && activeTab === 'closed') {
+        if (changes.tabGroups || changes.archivedTabGroups || changes.recentlyClosed) {
           loadData();
         }
         if (changes[PREFERENCES_STORAGE_KEY]) {
@@ -744,6 +757,17 @@ export default function App() {
       .filter(Boolean) as TabGroup[];
   }, [groups, deferredSearch]);
 
+  const totalSavedTabs = useMemo(() => {
+    return allDashboardGroups.reduce((acc, g) => acc + (g.tabs?.length || 0), 0);
+  }, [allDashboardGroups]);
+
+  const estRamSaved = useMemo(() => {
+    if (totalSavedTabs === 0) return '0 MB';
+    const mb = totalSavedTabs * 95;
+    if (mb < 1000) return `${mb} MB`;
+    return `${(mb / 1024).toFixed(1)} GB`;
+  }, [totalSavedTabs]);
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'archive', label: 'Archive', icon: Archive },
@@ -898,8 +922,57 @@ export default function App() {
           </nav>
         </div>
 
-        {/* Bottom Pinned: GitHub Repository Card */}
-        <div className="pt-6">
+        {/* Bottom Pinned: Workspace Stats & GitHub Repository Card */}
+        <div className="pt-6 space-y-2.5">
+          {/* Workspace Stats Card */}
+          <div className="p-2.5 rounded-xl border border-border bg-muted/60 dark:bg-muted/40 shadow-xs">
+            <div className="flex items-center justify-between mb-2 px-0.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                Workspace Stats
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5">
+              {/* Stat 1: Saved Tabs */}
+              <div className="bg-background/80 dark:bg-background/60 border border-border/60 rounded-lg p-2 flex flex-col">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-foreground">{totalSavedTabs}</span>
+                  <Bookmark className="w-3 h-3 text-primary/80" />
+                </div>
+                <span className="text-[9px] text-muted-foreground font-medium mt-0.5">Saved Tabs</span>
+              </div>
+
+              {/* Stat 2: RAM Saved */}
+              <div className="bg-background/80 dark:bg-background/60 border border-border/60 rounded-lg p-2 flex flex-col">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-foreground">{estRamSaved}</span>
+                  <Zap className="w-3 h-3 text-amber-500/90 dark:text-amber-400" />
+                </div>
+                <span className="text-[9px] text-muted-foreground font-medium mt-0.5">Est. RAM Saved</span>
+              </div>
+
+              {/* Stat 3: Active Groups */}
+              <div className="bg-background/80 dark:bg-background/60 border border-border/60 rounded-lg p-2 flex flex-col">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-foreground">{allDashboardGroups.length}</span>
+                  <Folder className="w-3 h-3 text-primary/80" />
+                </div>
+                <span className="text-[9px] text-muted-foreground font-medium mt-0.5">Active Groups</span>
+              </div>
+
+              {/* Stat 4: Archived Groups */}
+              <div className="bg-background/80 dark:bg-background/60 border border-border/60 rounded-lg p-2 flex flex-col">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-foreground">{archivedGroups.length}</span>
+                  <Archive className="w-3 h-3 text-primary/80" />
+                </div>
+                <span className="text-[9px] text-muted-foreground font-medium mt-0.5">Archived</span>
+              </div>
+            </div>
+          </div>
+
+          {/* GitHub Repository Card */}
           <a
             href="https://github.com/nickravesh/TwoTab"
             target="_blank"
@@ -930,14 +1003,9 @@ export default function App() {
       <div className="flex-1 min-w-0 w-full flex flex-col z-10 relative animate-dashboard-in">
         {/* Header */}
         <header className="h-14 border-b border-border flex items-center justify-between px-8 bg-card/80 backdrop-blur-xl sticky top-0 z-20">
-          {/* Title & Count Badge (Left) */}
+          {/* Title (Left) */}
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold tracking-tight text-foreground">{getHeaderTitle()}</h2>
-            {activeTab === 'dashboard' && groups.length > 0 && (
-              <Badge variant="outline" className="text-muted-foreground text-xs font-normal border-border bg-muted/30">
-                {groups.length} {groups.length === 1 ? 'group' : 'groups'} · {groups.reduce((acc, g) => acc + g.tabs.length, 0)} {groups.reduce((acc, g) => acc + g.tabs.length, 0) === 1 ? 'tab' : 'tabs'}
-              </Badge>
-            )}
           </div>
           
           {/* Action Cluster (Right) */}
