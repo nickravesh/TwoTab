@@ -689,6 +689,7 @@ function AppContent() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
   const [restoreAllConfirm, setRestoreAllConfirm] = useState(false);
+  const [showAdvancedAppearance, setShowAdvancedAppearance] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync OLED true black & UI scaling with HTML root
@@ -1864,254 +1865,288 @@ function AppContent() {
                     })}
                   </div>
 
-                  {/* 2. Card Layout & View Density */}
-                  <div className="pt-3 border-t border-border/60">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                      <div>
-                        <div className="text-sm font-semibold text-foreground flex items-center gap-2">
-                          <LayoutGrid className="w-4 h-4 text-primary" />
-                          Card View Density & Layout
+                  {/* Progressive Disclosure: Advanced Display & Interface Customization */}
+                  <div className="pt-2 border-t border-border/60">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvancedAppearance(prev => !prev)}
+                      className="btn-spring w-full flex items-center justify-between p-3 rounded-xl border border-border/70 bg-muted/20 hover:bg-muted/40 text-foreground transition-all"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
+                          <Sliders className="w-4 h-4" />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Choose between spacious decks, dense multi-card grid, or classic stacked list.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {[
-                        { id: 'comfortable' as const, name: 'Comfortable', desc: 'Spacious 220px decks (Default)', icon: LayoutGrid },
-                        { id: 'compact' as const, name: 'Compact Grid', desc: 'Condensed 165px cards (2x more)', icon: Maximize2 },
-                        { id: 'list' as const, name: 'List View', desc: 'Full-width stacked rows', icon: List },
-                      ].map((item) => {
-                        const isSelected = (userPreferences.cardDensity || 'comfortable') === item.id;
-                        const ItemIcon = item.icon;
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => handleUpdatePreference('cardDensity', item.id)}
-                            className={`btn-spring flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
-                              isSelected
-                                ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-xs font-semibold text-foreground'
-                                : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
-                            }`}
-                          >
-                            <div className="w-7 h-7 rounded-lg bg-primary/15 border border-primary/20 flex items-center justify-center text-primary shrink-0 shadow-xs">
-                              <ItemIcon className="w-3.5 h-3.5" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="text-xs font-semibold text-foreground flex items-center justify-between">
-                                {item.name}
-                                {isSelected && <span className="text-xs text-primary font-bold">✓</span>}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground truncate">{item.desc}</div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* 3. Ambient Studio Lighting Glow */}
-                  <div className="pt-3 border-t border-border/60">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                      <div>
-                        <div className="text-sm font-semibold text-foreground flex items-center gap-2">
-                          <SunMedium className="w-4 h-4 text-primary" />
-                          Ambient Studio Lighting
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Control the atmospheric radial aura glowing behind your glass deck.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {[
-                        { id: 'subtle' as const, name: 'Subtle Aura', desc: 'Soft & balanced (Default)' },
-                        { id: 'vibrant' as const, name: 'Vibrant Glow', desc: 'High luminosity accent halos' },
-                        { id: 'none' as const, name: 'Off (Matte)', desc: 'Pure flat canvas' },
-                      ].map((item) => {
-                        const isSelected = (userPreferences.ambientGlow || 'subtle') === item.id;
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => handleUpdatePreference('ambientGlow', item.id)}
-                            className={`btn-spring flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
-                              isSelected
-                                ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-xs font-semibold text-foreground'
-                                : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
-                            }`}
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="text-xs font-semibold text-foreground flex items-center justify-between">
-                                {item.name}
-                                {isSelected && <span className="text-xs text-primary font-bold">✓</span>}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground truncate">{item.desc}</div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* 4. Favicon Display Styling */}
-                  <div className="pt-3 border-t border-border/60">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                      <div>
-                        <div className="text-sm font-semibold text-foreground flex items-center gap-2">
-                          <Globe className="w-4 h-4 text-primary" />
-                          Website Favicon Style
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Choose how website icons render inside your saved tab collections.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {[
-                        { id: 'color' as const, name: 'Full Color', desc: 'Original brand logos (Default)' },
-                        { id: 'monochrome' as const, name: 'Monochrome', desc: 'Theme tinted harmony' },
-                        { id: 'hidden' as const, name: 'Hidden', desc: 'Clean bullet points' },
-                      ].map((item) => {
-                        const isSelected = (userPreferences.faviconStyle || 'color') === item.id;
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => handleUpdatePreference('faviconStyle', item.id)}
-                            className={`btn-spring flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
-                              isSelected
-                                ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-xs font-semibold text-foreground'
-                                : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
-                            }`}
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="text-xs font-semibold text-foreground flex items-center justify-between">
-                                {item.name}
-                                {isSelected && <span className="text-xs text-primary font-bold">✓</span>}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground truncate">{item.desc}</div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* 5. UI Typography Scale */}
-                  <div className="pt-3 border-t border-border/60">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                      <div>
-                        <div className="text-sm font-semibold text-foreground flex items-center gap-2">
-                          <Type className="w-4 h-4 text-primary" />
-                          UI Typography Scale
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Adjust text size and interface spacing for smaller laptops or 4K/5K displays.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {[
-                        { id: 'compact' as const, name: 'Compact (90%)', desc: '13px high density' },
-                        { id: 'standard' as const, name: 'Standard (100%)', desc: '14px balanced (Default)' },
-                        { id: 'large' as const, name: 'Large (110%)', desc: '15.5px high legibility' },
-                      ].map((item) => {
-                        const isSelected = (userPreferences.uiScale || 'standard') === item.id;
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => handleUpdatePreference('uiScale', item.id)}
-                            className={`btn-spring flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
-                              isSelected
-                                ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-xs font-semibold text-foreground'
-                                : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
-                            }`}
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="text-xs font-semibold text-foreground flex items-center justify-between">
-                                {item.name}
-                                {isSelected && <span className="text-xs text-primary font-bold">✓</span>}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground truncate">{item.desc}</div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* 6. OLED True Black Mode Toggle */}
-                  <div className="pt-3 border-t border-border/60">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-muted/20">
-                      <div className="flex items-start gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-0.5 shadow-xs">
-                          <Moon className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-semibold text-foreground flex items-center gap-2">
-                            OLED Pure Black Mode
-                            <Badge variant="outline" className={`text-[10px] font-medium border ${userPreferences.oledBlack ? 'text-primary border-primary/30 bg-primary/10' : 'text-muted-foreground border-border'}`}>
-                              {userPreferences.oledBlack ? 'Active' : 'Disabled'}
+                        <div className="text-left">
+                          <div className="text-xs font-semibold text-foreground flex items-center gap-2">
+                            Advanced Display & Interface Settings
+                            <Badge variant="outline" className="text-[10px] font-normal border-border bg-background/80 text-muted-foreground">
+                              {showAdvancedAppearance ? 'Expanded' : 'Custom'}
                             </Badge>
                           </div>
-                          <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
-                            Overrides dark theme backgrounds to pure <span className="font-mono text-foreground font-medium">#000000</span> for OLED/mini-LED infinite contrast and battery savings.
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={userPreferences.oledBlack ? 'default' : 'outline'}
-                        onClick={() => handleUpdatePreference('oledBlack', !userPreferences.oledBlack)}
-                        className={`btn-spring text-xs h-8 px-3.5 font-medium shrink-0 ${
-                          userPreferences.oledBlack 
-                            ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm' 
-                            : 'border-border text-foreground hover:bg-muted'
-                        }`}
-                      >
-                        {userPreferences.oledBlack ? 'Enabled' : 'Disabled'}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* 7. Tactile Matte Film Grain Toggle */}
-                  <div className="pt-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-muted/20">
-                      <div className="flex items-start gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-0.5 shadow-xs">
-                          <Sparkles className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-semibold text-foreground flex items-center gap-2">
-                            Tactile Matte Film Grain
-                            <Badge variant="outline" className={`text-[10px] font-medium border ${userPreferences.enableFilmGrain !== false ? 'text-primary border-primary/30 bg-primary/10' : 'text-muted-foreground border-border'}`}>
-                              {userPreferences.enableFilmGrain !== false ? 'Active' : 'Disabled'}
-                            </Badge>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">
+                            Card density, ambient glow, favicons, typography scaling, OLED mode & film grain
                           </div>
-                          <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
-                            Applies an ultra-fine, hardware-accelerated matte paper texture across all surfaces and theme palettes (0% CPU).
-                          </p>
                         </div>
                       </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={userPreferences.enableFilmGrain !== false ? 'default' : 'outline'}
-                        onClick={() => handleUpdatePreference('enableFilmGrain', userPreferences.enableFilmGrain === false ? true : false)}
-                        className={`btn-spring text-xs h-8 px-3.5 font-medium shrink-0 ${
-                          userPreferences.enableFilmGrain !== false 
-                            ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm' 
-                            : 'border-border text-foreground hover:bg-muted'
-                        }`}
-                      >
-                        {userPreferences.enableFilmGrain !== false ? 'Enabled' : 'Disabled'}
-                      </Button>
-                    </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground font-medium pr-1">
+                        <span>{showAdvancedAppearance ? 'Hide' : 'Configure'}</span>
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showAdvancedAppearance ? 'rotate-180 text-primary' : ''}`} />
+                      </div>
+                    </button>
+
+                    {showAdvancedAppearance && (
+                      <div className="mt-3 space-y-4 pt-1 border-t border-border/40">
+                        {/* 2. Card Layout & View Density */}
+                        <div className="pt-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                            <div>
+                              <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                                <LayoutGrid className="w-4 h-4 text-primary" />
+                                Card View Density & Layout
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Choose between spacious decks, dense multi-card grid, or classic stacked list.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            {[
+                              { id: 'comfortable' as const, name: 'Comfortable', desc: 'Spacious 220px decks (Default)', icon: LayoutGrid },
+                              { id: 'compact' as const, name: 'Compact Grid', desc: 'Condensed 165px cards (2x more)', icon: Maximize2 },
+                              { id: 'list' as const, name: 'List View', desc: 'Full-width stacked rows', icon: List },
+                            ].map((item) => {
+                              const isSelected = (userPreferences.cardDensity || 'comfortable') === item.id;
+                              const ItemIcon = item.icon;
+                              return (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => handleUpdatePreference('cardDensity', item.id)}
+                                  className={`btn-spring flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
+                                    isSelected
+                                      ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-xs font-semibold text-foreground'
+                                      : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
+                                  }`}
+                                >
+                                  <div className="w-7 h-7 rounded-lg bg-primary/15 border border-primary/20 flex items-center justify-center text-primary shrink-0 shadow-xs">
+                                    <ItemIcon className="w-3.5 h-3.5" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-xs font-semibold text-foreground flex items-center justify-between">
+                                      {item.name}
+                                      {isSelected && <span className="text-xs text-primary font-bold">✓</span>}
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground truncate">{item.desc}</div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 3. Ambient Studio Lighting Glow */}
+                        <div className="pt-3 border-t border-border/60">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                            <div>
+                              <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                                <SunMedium className="w-4 h-4 text-primary" />
+                                Ambient Studio Lighting
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Control the atmospheric radial aura glowing behind your glass deck.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            {[
+                              { id: 'subtle' as const, name: 'Subtle Aura', desc: 'Soft & balanced (Default)' },
+                              { id: 'vibrant' as const, name: 'Vibrant Glow', desc: 'High luminosity accent halos' },
+                              { id: 'none' as const, name: 'Off (Matte)', desc: 'Pure flat canvas' },
+                            ].map((item) => {
+                              const isSelected = (userPreferences.ambientGlow || 'subtle') === item.id;
+                              return (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => handleUpdatePreference('ambientGlow', item.id)}
+                                  className={`btn-spring flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
+                                    isSelected
+                                      ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-xs font-semibold text-foreground'
+                                      : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
+                                  }`}
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-xs font-semibold text-foreground flex items-center justify-between">
+                                      {item.name}
+                                      {isSelected && <span className="text-xs text-primary font-bold">✓</span>}
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground truncate">{item.desc}</div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 4. Favicon Display Styling */}
+                        <div className="pt-3 border-t border-border/60">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                            <div>
+                              <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                                <Globe className="w-4 h-4 text-primary" />
+                                Website Favicon Style
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Choose how website icons render inside your saved tab collections.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            {[
+                              { id: 'color' as const, name: 'Full Color', desc: 'Original brand logos (Default)' },
+                              { id: 'monochrome' as const, name: 'Monochrome', desc: 'Theme tinted harmony' },
+                              { id: 'hidden' as const, name: 'Hidden', desc: 'Clean bullet points' },
+                            ].map((item) => {
+                              const isSelected = (userPreferences.faviconStyle || 'color') === item.id;
+                              return (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => handleUpdatePreference('faviconStyle', item.id)}
+                                  className={`btn-spring flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
+                                    isSelected
+                                      ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-xs font-semibold text-foreground'
+                                      : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
+                                  }`}
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-xs font-semibold text-foreground flex items-center justify-between">
+                                      {item.name}
+                                      {isSelected && <span className="text-xs text-primary font-bold">✓</span>}
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground truncate">{item.desc}</div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 5. UI Typography Scale */}
+                        <div className="pt-3 border-t border-border/60">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                            <div>
+                              <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                                <Type className="w-4 h-4 text-primary" />
+                                UI Typography Scale
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Adjust text size and interface spacing for smaller laptops or 4K/5K displays.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            {[
+                              { id: 'compact' as const, name: 'Compact (90%)', desc: '13px high density' },
+                              { id: 'standard' as const, name: 'Standard (100%)', desc: '14px balanced (Default)' },
+                              { id: 'large' as const, name: 'Large (110%)', desc: '15.5px high legibility' },
+                            ].map((item) => {
+                              const isSelected = (userPreferences.uiScale || 'standard') === item.id;
+                              return (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => handleUpdatePreference('uiScale', item.id)}
+                                  className={`btn-spring flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
+                                    isSelected
+                                      ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-xs font-semibold text-foreground'
+                                      : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
+                                  }`}
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-xs font-semibold text-foreground flex items-center justify-between">
+                                      {item.name}
+                                      {isSelected && <span className="text-xs text-primary font-bold">✓</span>}
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground truncate">{item.desc}</div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 6. OLED True Black Mode Toggle */}
+                        <div className="pt-3 border-t border-border/60">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-muted/20">
+                            <div className="flex items-start gap-3">
+                              <div className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-0.5 shadow-xs">
+                                <Moon className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                                  OLED Pure Black Mode
+                                  <Badge variant="outline" className={`text-[10px] font-medium border ${userPreferences.oledBlack ? 'text-primary border-primary/30 bg-primary/10' : 'text-muted-foreground border-border'}`}>
+                                    {userPreferences.oledBlack ? 'Active' : 'Disabled'}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                                  Overrides dark theme backgrounds to pure <span className="font-mono text-foreground font-medium">#000000</span> for OLED/mini-LED infinite contrast and battery savings.
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={userPreferences.oledBlack ? 'default' : 'outline'}
+                              onClick={() => handleUpdatePreference('oledBlack', !userPreferences.oledBlack)}
+                              className={`btn-spring text-xs h-8 px-3.5 font-medium shrink-0 ${
+                                userPreferences.oledBlack 
+                                  ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm' 
+                                  : 'border-border text-foreground hover:bg-muted'
+                              }`}
+                            >
+                              {userPreferences.oledBlack ? 'Enabled' : 'Disabled'}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* 7. Tactile Matte Film Grain Toggle */}
+                        <div className="pt-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-muted/20">
+                            <div className="flex items-start gap-3">
+                              <div className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-0.5 shadow-xs">
+                                <Sparkles className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                                  Tactile Matte Film Grain
+                                  <Badge variant="outline" className={`text-[10px] font-medium border ${userPreferences.enableFilmGrain !== false ? 'text-primary border-primary/30 bg-primary/10' : 'text-muted-foreground border-border'}`}>
+                                    {userPreferences.enableFilmGrain !== false ? 'Active' : 'Disabled'}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                                  Applies an ultra-fine, hardware-accelerated matte paper texture across all surfaces and theme palettes (0% CPU).
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={userPreferences.enableFilmGrain !== false ? 'default' : 'outline'}
+                              onClick={() => handleUpdatePreference('enableFilmGrain', userPreferences.enableFilmGrain === false ? true : false)}
+                              className={`btn-spring text-xs h-8 px-3.5 font-medium shrink-0 ${
+                                userPreferences.enableFilmGrain !== false 
+                                  ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm' 
+                                  : 'border-border text-foreground hover:bg-muted'
+                              }`}
+                            >
+                              {userPreferences.enableFilmGrain !== false ? 'Enabled' : 'Disabled'}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
