@@ -167,7 +167,6 @@ function useContainerColumnCount(containerRef: React.RefObject<HTMLDivElement | 
         1,
         Math.floor((netWidth + CARD_GAP) / (MIN_CARD_WIDTH + CARD_GAP))
       );
-      console.log('[Grid ResizeObserver] Measured width:', width, 'netWidth:', netWidth, 'Calculated Cols:', calculatedCols);
       setCols(prev => (prev !== calculatedCols ? calculatedCols : prev));
     }
   }, [containerRef]);
@@ -1219,7 +1218,7 @@ function AppContent() {
           <div className="p-2.5 rounded-xl border border-border bg-muted/60 dark:bg-muted/40 shadow-xs">
             <div className="flex items-center justify-between mb-2 px-0.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse-isolated" />
                 Workspace Stats
               </span>
             </div>
@@ -2064,7 +2063,7 @@ function AppContent() {
                           <RefreshCw className="w-4 h-4 text-primary" />
                           <span className="text-sm font-semibold text-foreground">Automated Rolling Backups</span>
                           <Badge variant="outline" className="text-[10px] font-semibold text-emerald-500 border-emerald-500/30 bg-emerald-500/10 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active (Every 6h)
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-isolated" /> Active (Every 6h)
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">

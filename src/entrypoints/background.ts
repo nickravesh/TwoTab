@@ -166,9 +166,9 @@ export default defineBackground(() => {
     }
   };
 
-  // Track tab updates and persist metadata to storage.session
+  // Track tab updates and persist metadata to storage.session (filtered to actual title/url changes only)
   chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (tab.url && tab.title) {
+    if ((changeInfo.title || changeInfo.url) && tab.url && tab.title) {
       try {
         await getStorageSession().set({
           [`tab_${tabId}`]: { title: tab.title, url: tab.url }
