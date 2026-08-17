@@ -218,6 +218,9 @@ interface VirtualizedCardGridProps {
   setDeleteConfirm: (state: DeleteConfirmState | null) => void;
   cardDensity?: 'comfortable' | 'compact' | 'list';
   faviconStyle?: 'color' | 'monochrome' | 'hidden';
+  search?: string;
+  setSearch?: (val: string) => void;
+  isInitialLoading?: boolean;
 }
 
 function VirtualizedCardGrid({
@@ -239,6 +242,9 @@ function VirtualizedCardGrid({
   setDeleteConfirm,
   cardDensity = 'comfortable',
   faviconStyle = 'color',
+  search = '',
+  setSearch,
+  isInitialLoading = false,
 }: VirtualizedCardGridProps) {
   const isCompact = cardDensity === 'compact';
   const minCardWidth = isCompact ? 240 : 280;
@@ -260,21 +266,45 @@ function VirtualizedCardGrid({
 
   const virtualItems = virtualizer.getVirtualItems();
 
+  if (isInitialLoading) {
+    return <div className="flex-1 min-h-[380px]" />;
+  }
+
   if (filteredGroups.length === 0) {
+    const isSearching = !!(search && search.trim() !== '');
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[400px]">
-        <div className="w-16 h-16 rounded-2xl bg-muted/60 border border-border flex items-center justify-center mb-4 text-muted-foreground shadow-sm animate-float">
-          <Layers className="w-8 h-8 opacity-40 text-primary" />
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[380px]">
+        <div className="w-16 h-16 rounded-2xl bg-muted/60 border border-border flex items-center justify-center mb-4 text-primary shadow-sm animate-float">
+          {isSearching ? (
+            <Search className="w-8 h-8 opacity-70 text-primary" />
+          ) : activeTab === 'archive' ? (
+            <Archive className="w-8 h-8 opacity-70 text-primary" />
+          ) : (
+            <Layers className="w-8 h-8 opacity-70 text-primary" />
+          )}
         </div>
-        <h3 className="text-base font-semibold text-foreground mb-1">
-          {activeTab === 'dashboard' ? 'No Saved Tabs Yet' : 'No Archived Groups'}
+        <h3 className="text-base font-semibold text-foreground mb-1.5">
+          {isSearching 
+            ? `No Matching ${activeTab === 'dashboard' ? 'Tab Groups' : 'Archived Groups'}`
+            : activeTab === 'dashboard' ? 'No Saved Tabs Yet' : 'No Archived Groups'}
         </h3>
         <p className="text-xs text-muted-foreground max-w-sm mb-6 leading-relaxed">
-          {activeTab === 'dashboard' 
-            ? 'Click "+ Save Window" in the top bar to save all open tabs from this window into a clean collection.'
-            : 'Archived tab groups will appear here for safekeeping.'}
+          {isSearching
+            ? `No tab collections match "${search}".`
+            : activeTab === 'dashboard' 
+              ? 'Click "+ Save Window" in the top bar to save all open tabs from this window into a clean collection.'
+              : 'Archived tab collections will appear here for long-term safekeeping.'}
         </p>
-        {activeTab === 'dashboard' && (
+        {isSearching && setSearch ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setSearch('')}
+            className="btn-spring text-xs font-medium"
+          >
+            Clear Search
+          </Button>
+        ) : activeTab === 'dashboard' ? (
           <Button 
             onClick={handleSaveCurrentWindow} 
             disabled={isSaving}
@@ -282,7 +312,7 @@ function VirtualizedCardGrid({
           >
             <Plus className="w-4 h-4 mr-1.5" /> Save Current Window
           </Button>
-        )}
+        ) : null}
       </div>
     );
   }
@@ -690,6 +720,7 @@ function AppContent() {
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
   const [restoreAllConfirm, setRestoreAllConfirm] = useState(false);
   const [showAdvancedAppearance, setShowAdvancedAppearance] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync OLED true black & UI scaling with HTML root
@@ -721,30 +752,36 @@ function AppContent() {
   };
 
   const loadData = async () => {
-    // Also refresh preferences & rolling snapshots
-    getUserPreferences().then(setUserPreferencesState);
-    getRollingBackupSnapshots().then(setBackupSnapshots);
+    try {
+      // Also refresh preferences & rolling snapshots
+      getUserPreferences().then(setUserPreferencesState);
+      getRollingBackupSnapshots().then(setBackupSnapshots);
 
-    const [dashboardData, archiveData] = await Promise.all([
-      getGroups(),
-      getArchivedGroups(),
-    ]);
+      const [dashboardData, archiveData, closedData] = await Promise.all([
+        getGroups(),
+        getArchivedGroups(),
+        getRecentlyClosedItems(),
+      ]);
 
-    const sortedDashboard = (dashboardData || []).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    const sortedArchive = (archiveData || []).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const sortedDashboard = (dashboardData || []).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const sortedArchive = (archiveData || []).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const sortedClosed = closedData || [];
 
-    setAllDashboardGroups(sortedDashboard);
-    setArchivedGroups(sortedArchive);
+      setAllDashboardGroups(sortedDashboard);
+      setArchivedGroups(sortedArchive);
+      setRecentlyClosed(sortedClosed);
 
-    if (activeTab === 'dashboard') {
-      setGroups(sortedDashboard);
-    } else if (activeTab === 'archive') {
-      setGroups(sortedArchive);
-    } else if (activeTab === 'closed') {
-      const items = await getRecentlyClosedItems();
-      setRecentlyClosed(items);
-    } else if (activeTab === 'settings') {
-      runHealthCheck().then(setHealthStatus).catch(console.error);
+      if (activeTab === 'dashboard') {
+        setGroups(sortedDashboard);
+      } else if (activeTab === 'archive') {
+        setGroups(sortedArchive);
+      } else if (activeTab === 'settings') {
+        runHealthCheck().then(setHealthStatus).catch(console.error);
+      }
+    } catch (e) {
+      console.error('Error loading data:', e);
+    } finally {
+      setIsInitialLoading(false);
     }
   };
 
@@ -1138,10 +1175,14 @@ function AppContent() {
 
   const deferredSearch = useDeferredValue(search);
 
+  const currentTabGroups = useMemo(() => {
+    return activeTab === 'dashboard' ? allDashboardGroups : activeTab === 'archive' ? archivedGroups : [];
+  }, [activeTab, allDashboardGroups, archivedGroups]);
+
   const filteredGroups = useMemo(() => {
-    if (!deferredSearch) return groups;
+    if (!deferredSearch) return currentTabGroups;
     const lower = deferredSearch.toLowerCase();
-    return groups
+    return currentTabGroups
       .map(g => {
         const tabs = g.tabs.filter(t =>
           t.title.toLowerCase().includes(lower) ||
@@ -1151,7 +1192,7 @@ function AppContent() {
         return { ...g, tabs };
       })
       .filter(Boolean) as TabGroup[];
-  }, [groups, deferredSearch]);
+  }, [currentTabGroups, deferredSearch]);
 
   const filteredRecentlyClosed = useMemo(() => {
     if (!deferredSearch) return recentlyClosed;
@@ -1697,106 +1738,113 @@ function AppContent() {
             setDeleteConfirm={setDeleteConfirm}
             cardDensity={userPreferences.cardDensity}
             faviconStyle={userPreferences.faviconStyle}
+            search={search}
+            setSearch={setSearch}
+            isInitialLoading={isInitialLoading}
           />
         ) : (
-        <ScrollArea className="flex-1 p-10">
-
+        <>
           {/* Recently Closed View */}
           {activeTab === 'closed' && (
-            <div className="max-w-4xl mx-auto space-y-4">
-              {recentlyClosed.length > 0 && (
-                <div className="flex justify-between items-center px-1 mb-2">
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                    {deferredSearch
-                      ? `${filteredRecentlyClosed.length} of ${recentlyClosed.length} Closed Tabs`
-                      : `${recentlyClosed.length} ${recentlyClosed.length === 1 ? 'Closed Tab' : 'Closed Tabs'}`}
-                  </span>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleClearClosedItems} 
-                    className="btn-spring text-xs border-border hover:bg-destructive/10 hover:text-destructive transition-colors shadow-sm font-semibold"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Clear History
-                  </Button>
+            isInitialLoading ? (
+              <div className="flex-1 min-h-[380px]" />
+            ) : (recentlyClosed.length === 0 || filteredRecentlyClosed.length === 0) ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[380px]">
+                <div className="w-16 h-16 rounded-2xl bg-muted/60 border border-border flex items-center justify-center mb-4 text-primary shadow-sm animate-float">
+                  {recentlyClosed.length === 0 ? (
+                    <History className="w-8 h-8 opacity-70 text-primary" />
+                  ) : (
+                    <Search className="w-8 h-8 opacity-70 text-primary" />
+                  )}
                 </div>
-              )}
-              {recentlyClosed.length === 0 ? (
-                <Card className="p-16 border-border max-w-md mx-auto text-center flex flex-col items-center shadow-2xl bg-card/75 backdrop-blur-xl">
-                  <div className="w-16 h-16 rounded-2xl bg-muted/60 border border-border flex items-center justify-center mb-4 text-primary shadow-sm animate-float">
-                    <History className="w-8 h-8 opacity-80" />
-                  </div>
-                  <h3 className="text-xl font-bold text-foreground mb-2">No Recently Closed Tabs</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Tabs and browser windows you close will automatically appear here so you can reopen them anytime.
-                  </p>
-                </Card>
-              ) : filteredRecentlyClosed.length === 0 ? (
-                <Card className="p-12 border-border max-w-md mx-auto text-center flex flex-col items-center shadow-lg bg-card/75 backdrop-blur-xl">
-                  <div className="w-14 h-14 rounded-2xl bg-muted/60 border border-border flex items-center justify-center mb-3 text-muted-foreground shadow-sm animate-float">
-                    <Search className="w-7 h-7 opacity-60 text-primary" />
-                  </div>
-                  <h3 className="text-base font-bold text-foreground mb-1">No Matching Closed Tabs</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                    No recently closed tabs match "{search}".
-                  </p>
+                <h3 className="text-base font-semibold text-foreground mb-1.5">
+                  {recentlyClosed.length === 0 ? 'No Recently Closed Tabs' : 'No Matching Closed Tabs'}
+                </h3>
+                <p className="text-xs text-muted-foreground max-w-sm mb-6 leading-relaxed">
+                  {recentlyClosed.length === 0
+                    ? 'Tabs and browser windows you close will automatically appear here so you can reopen them anytime.'
+                    : `No recently closed tabs match "${search}".`}
+                </p>
+                {recentlyClosed.length > 0 && filteredRecentlyClosed.length === 0 && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setSearch('')}
-                    className="btn-spring text-xs font-semibold"
+                    className="btn-spring text-xs font-medium"
                   >
                     Clear Search
                   </Button>
-                </Card>
-              ) : (
-                filteredRecentlyClosed.map((item, idx) => {
-                  const domain = getSafeDomain(item.url);
-                  const staggerIndex = Math.min(idx, 12);
-                  return (
-                    <Card 
-                      key={item.id} 
-                      style={{ '--stagger-index': staggerIndex } as React.CSSProperties}
-                      className="animate-card-cascade card-interactive p-3 rounded-xl flex items-center justify-between border-border bg-card shadow-sm group"
+                )}
+              </div>
+            ) : (
+              <ScrollArea className="flex-1 p-10">
+                <div className="max-w-4xl mx-auto space-y-4">
+                  <div className="flex justify-between items-center px-1 mb-2">
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      {deferredSearch
+                        ? `${filteredRecentlyClosed.length} of ${recentlyClosed.length} Closed Tabs`
+                        : `${recentlyClosed.length} ${recentlyClosed.length === 1 ? 'Closed Tab' : 'Closed Tabs'}`}
+                    </span>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleClearClosedItems} 
+                      className="btn-spring text-xs border-border hover:bg-destructive/10 hover:text-destructive transition-colors shadow-sm font-semibold"
                     >
-                      <div className="flex items-center gap-3 truncate min-w-0 flex-1 mr-4">
-                        <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0 border border-border">
-                          {domain ? (
-                            <img 
-                              src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
-                              alt="" 
-                              className="w-3.5 h-3.5 opacity-90 group-hover:scale-110 transition-transform" 
-                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                            />
-                          ) : (
-                            <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-                          )}
+                      <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Clear History
+                    </Button>
+                  </div>
+                  {filteredRecentlyClosed.map((item, idx) => {
+                    const domain = getSafeDomain(item.url);
+                    const staggerIndex = Math.min(idx, 12);
+                    return (
+                      <Card 
+                        key={item.id} 
+                        style={{ '--stagger-index': staggerIndex } as React.CSSProperties}
+                        className="animate-card-cascade card-interactive p-3 rounded-xl flex items-center justify-between border-border bg-card shadow-sm group"
+                      >
+                        <div className="flex items-center gap-3 truncate min-w-0 flex-1 mr-4">
+                          <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0 border border-border">
+                            {domain ? (
+                              <img 
+                                src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
+                                alt="" 
+                                className="w-3.5 h-3.5 opacity-90 group-hover:scale-110 transition-transform" 
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              />
+                            ) : (
+                              <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="truncate flex-1 min-w-0">
+                            <a href={item.url} target="_blank" rel="noreferrer" className="font-medium text-foreground truncate block hover:text-primary transition-colors text-sm">
+                              {item.title || formatDisplayUrl(item.url)}
+                            </a>
+                            <span className="text-xs text-muted-foreground truncate block">{formatDisplayUrl(item.url)}</span>
+                          </div>
                         </div>
-                        <div className="truncate flex-1 min-w-0">
-                          <a href={item.url} target="_blank" rel="noreferrer" className="font-medium text-foreground truncate block hover:text-primary transition-colors text-sm">
-                            {item.title || formatDisplayUrl(item.url)}
-                          </a>
-                          <span className="text-xs text-muted-foreground truncate block">{formatDisplayUrl(item.url)}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs text-muted-foreground font-medium hidden sm:inline mr-2">{getRelativeTime(item.timestamp)}</span>
+                          <Button size="sm" variant="secondary" onClick={() => handleReopenClosedItem(item)} className="btn-spring border border-border/60 font-medium text-xs h-7">
+                            Reopen Tab
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => handleRemoveClosedItem(item.id)} className="btn-spring h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs text-muted-foreground font-medium hidden sm:inline mr-2">{getRelativeTime(item.timestamp)}</span>
-                        <Button size="sm" variant="secondary" onClick={() => handleReopenClosedItem(item)} className="btn-spring border border-border/60 font-medium text-xs h-7">
-                          Reopen Tab
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleRemoveClosedItem(item.id)} className="btn-spring h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </Card>
-                  );
-                })
-              )}
-            </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            )
           )}
 
-          {/* Settings View */}
-          {activeTab === 'settings' && (
+          {/* Settings & Help Views */}
+          {(activeTab === 'settings' || activeTab === 'help') && (
+            <ScrollArea className="flex-1 p-10">
+              {/* Settings View */}
+              {activeTab === 'settings' && (
             <div className="max-w-3xl mx-auto space-y-6">
               {/* Appearance & Theme Settings */}
               <Card style={{ '--stagger-index': 0 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-lg">
@@ -2998,8 +3046,10 @@ function AppContent() {
             </div>
           )}
         </ScrollArea>
-        )}
-      </div>
+      )}
+    </>
+    )}
+  </div>
     </div>
   );
 }
