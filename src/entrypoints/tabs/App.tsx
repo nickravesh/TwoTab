@@ -1063,16 +1063,10 @@ function AppContent() {
         }}
       />
 
-      {/* Tactile Matte Micro-Grain (Native DOM SVG covering entire window including sidebar & header) */}
-      <svg 
-        className="fixed inset-0 w-full h-full pointer-events-none z-40 opacity-30 dark:opacity-45 mix-blend-overlay dark:mix-blend-soft-light"
-        aria-hidden="true"
-      >
-        <filter id="twotab-matte-grain">
-          <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="3" stitchTiles="stitch" />
-        </filter>
-        <rect width="100%" height="100%" filter="url(#twotab-matte-grain)" />
-      </svg>
+      {/* Tactile Matte Micro-Grain (Hardware-Cached Seamless GPU Tile covering entire window) */}
+      {userPreferences.enableFilmGrain !== false && (
+        <div className="bg-noise-grain" aria-hidden="true" />
+      )}
 
       {/* Toast Notification */}
       {message && (
@@ -1218,7 +1212,7 @@ function AppContent() {
           <div className="p-2.5 rounded-xl border border-border bg-muted/60 dark:bg-muted/40 shadow-xs">
             <div className="flex items-center justify-between mb-2 px-0.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse-isolated" />
+                <span className="w-1.5 h-1.5 rounded-full bg-primary ring-2 ring-primary/25 inline-block shrink-0" />
                 Workspace Stats
               </span>
             </div>
@@ -1686,6 +1680,41 @@ function AppContent() {
                       );
                     })}
                   </div>
+
+                  {/* Tactile Matte Film Grain Toggle */}
+                  <div className="pt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-muted/20">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-0.5 shadow-xs">
+                          <Sparkles className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                            Tactile Matte Film Grain
+                            <Badge variant="outline" className={`text-[10px] font-medium border ${userPreferences.enableFilmGrain !== false ? 'text-primary border-primary/30 bg-primary/10' : 'text-muted-foreground border-border'}`}>
+                              {userPreferences.enableFilmGrain !== false ? 'Active' : 'Disabled'}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                            Applies an ultra-fine, hardware-accelerated matte paper texture across all surfaces and theme palettes (0% CPU).
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={userPreferences.enableFilmGrain !== false ? 'default' : 'outline'}
+                        onClick={() => handleUpdatePreference('enableFilmGrain', userPreferences.enableFilmGrain === false ? true : false)}
+                        className={`btn-spring text-xs h-8 px-3.5 font-medium shrink-0 ${
+                          userPreferences.enableFilmGrain !== false 
+                            ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm' 
+                            : 'border-border text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {userPreferences.enableFilmGrain !== false ? 'Enabled' : 'Disabled'}
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -2062,8 +2091,8 @@ function AppContent() {
                         <div className="flex items-center gap-2">
                           <RefreshCw className="w-4 h-4 text-primary" />
                           <span className="text-sm font-semibold text-foreground">Automated Rolling Backups</span>
-                          <Badge variant="outline" className="text-[10px] font-semibold text-emerald-500 border-emerald-500/30 bg-emerald-500/10 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-isolated" /> Active (Every 6h)
+                          <Badge variant="outline" className="text-[10px] font-semibold text-emerald-500 border-emerald-500/30 bg-emerald-500/10 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25 inline-block shrink-0" /> Active (Every 6h)
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">

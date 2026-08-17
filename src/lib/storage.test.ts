@@ -240,6 +240,7 @@ describe('TwoTab Storage Engine Reliability Unit Tests', () => {
     expect(prefs.protectPinnedTabs).toBe(true);
     expect(prefs.restoreDestination).toBe('new_window');
     expect(prefs.restoreBehavior).toBe('keep');
+    expect(prefs.enableFilmGrain).toBe(true);
   });
 
   it('User Preferences: updates and persists partial preferences', async () => {

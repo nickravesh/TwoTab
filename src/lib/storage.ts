@@ -34,6 +34,7 @@ export interface UserPreferences {
   restoreDestination: 'new_window' | 'current_window';
   restoreBehavior: 'keep' | 'remove';
   recentlyClosedLimit: number;
+  enableFilmGrain?: boolean;
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -41,6 +42,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   restoreDestination: 'new_window',
   restoreBehavior: 'keep',
   recentlyClosedLimit: 50,
+  enableFilmGrain: true,
 };
 
 export const PREFERENCES_STORAGE_KEY = 'twotab_user_preferences';
