@@ -223,6 +223,475 @@ interface VirtualizedCardGridProps {
   isInitialLoading?: boolean;
 }
 
+// Smooth Horizontal Auto-Scroll Marquee Component for Long Titles
+function MarqueeText({
+  text,
+  className = '',
+  delayMs = 1000,
+  isParentHovered = false,
+  speedPxPerSec = 40,
+  title,
+  asLink = false,
+  href,
+  target,
+  rel,
+  linkClassName = '',
+}: {
+  text: string;
+  className?: string;
+  delayMs?: number;
+  isParentHovered?: boolean;
+  speedPxPerSec?: number;
+  title?: string;
+  asLink?: boolean;
+  href?: string;
+  target?: string;
+  rel?: string;
+  linkClassName?: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [isSelfHovered, setIsSelfHovered] = useState(false);
+  const [overflowPx, setOverflowPx] = useState(0);
+
+  const active = isParentHovered || isSelfHovered;
+
+  const measure = useCallback(() => {
+    if (containerRef.current && textRef.current) {
+      const cWidth = containerRef.current.clientWidth;
+      const tWidth = textRef.current.scrollWidth;
+      const diff = tWidth - cWidth;
+      setOverflowPx(diff > 3 ? diff : 0);
+    }
+  }, []);
+
+  useEffect(() => {
+    measure();
+    const ro = new ResizeObserver(() => measure());
+    if (containerRef.current) ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, [text, measure]);
+
+  const duration = overflowPx > 0 ? Math.max(1.8, (overflowPx + 16) / speedPxPerSec) : 0;
+
+  const transform = active && overflowPx > 0
+    ? `translateX(-${overflowPx + 8}px)`
+    : 'translateX(0px)';
+
+  const transition = active && overflowPx > 0
+    ? `transform ${duration}s linear ${delayMs}ms`
+    : 'transform 0.4s cubic-bezier(0.2, 0, 0, 1) 0s';
+
+  const inner = (
+    <span
+      className="inline-block whitespace-nowrap will-change-transform"
+      style={{ transform, transition }}
+    >
+      <span ref={textRef} className="inline-block whitespace-nowrap">
+        {text}
+      </span>
+    </span>
+  );
+
+  return (
+    <div
+      ref={containerRef}
+      onMouseEnter={() => { measure(); setIsSelfHovered(true); }}
+      onMouseLeave={() => setIsSelfHovered(false)}
+      title={title || text}
+      className={`relative overflow-hidden whitespace-nowrap min-w-0 max-w-full block select-none ${className}`}
+    >
+      {asLink && href ? (
+        <a
+          href={href}
+          target={target}
+          rel={rel}
+          className={`block truncate hover:underline ${linkClassName}`}
+        >
+          {inner}
+        </a>
+      ) : (
+        inner
+      )}
+    </div>
+  );
+}
+
+// List View Individual Card Item
+function ListCardItem({
+  group,
+  staggerIndex,
+  editingGroupId,
+  editingName,
+  setEditingName,
+  handleSaveRename,
+  handleStartRename,
+  setEditingGroupId,
+  faviconStyle,
+  setDeleteConfirm,
+  handleCopyGroupUrls,
+  activeTab,
+  handleArchiveGroup,
+  handleUnarchiveGroup,
+  handleRestoreGroup,
+}: {
+  group: TabGroup;
+  staggerIndex: number;
+  editingGroupId: number | null;
+  editingName: string;
+  setEditingName: (val: string) => void;
+  handleSaveRename: (id: number) => void;
+  handleStartRename: (group: TabGroup) => void;
+  setEditingGroupId: (id: number | null) => void;
+  faviconStyle: 'color' | 'monochrome' | 'hidden';
+  setDeleteConfirm: (state: DeleteConfirmState | null) => void;
+  handleCopyGroupUrls: (group: TabGroup) => void;
+  activeTab: string;
+  handleArchiveGroup: (id: number) => void;
+  handleUnarchiveGroup: (id: number) => void;
+  handleRestoreGroup: (group: TabGroup) => void;
+}) {
+  const [isCardHovered, setIsCardHovered] = useState(false);
+
+  return (
+    <Card 
+      style={{ '--stagger-index': staggerIndex } as React.CSSProperties}
+      onMouseEnter={() => setIsCardHovered(true)}
+      onMouseLeave={() => setIsCardHovered(false)}
+      className="animate-card-cascade card-interactive border border-border/80 hover:border-primary/40 bg-card text-card-foreground shadow-apple-card rounded-xl overflow-hidden group/card"
+    >
+      <div className="p-3 bg-muted/30 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          {editingGroupId === group.id ? (
+            <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
+              <Input 
+                value={editingName} 
+                onChange={e => setEditingName(e.target.value)} 
+                className="h-7 text-xs bg-background border-input text-foreground focus-visible:ring-1 focus-visible:ring-primary"
+                autoFocus
+                onKeyDown={e => e.key === 'Enter' && handleSaveRename(group.id)}
+              />
+              <Button size="icon" variant="ghost" className="btn-spring h-7 w-7 text-primary hover:bg-primary/20 shrink-0" onClick={() => handleSaveRename(group.id)} title="Save name">
+                <Check className="w-3.5 h-3.5" />
+              </Button>
+              <Button size="icon" variant="ghost" className="btn-spring h-7 w-7 text-muted-foreground hover:text-foreground shrink-0" onClick={() => setEditingGroupId(null)} title="Cancel">
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 group/title min-w-0 cursor-pointer flex-1" onClick={() => handleStartRename(group)} title="Click to rename">
+              <MarqueeText
+                text={group.name || 'Saved Group'}
+                delayMs={1000}
+                isParentHovered={isCardHovered}
+                speedPxPerSec={40}
+                className="font-semibold text-sm text-foreground group-hover/title:text-primary transition-colors flex-1"
+              />
+              <Edit2 className="w-3 h-3 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
+            </div>
+          )}
+          <Badge variant="outline" className="text-[11px] font-medium border-border/70 bg-background/80 text-muted-foreground shrink-0 whitespace-nowrap">
+            {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} • {getRelativeTime(group.date)}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-1 shrink-0 justify-end">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md" 
+            onClick={() => setDeleteConfirm({ type: 'group', id: group.id, title: group.name || 'Saved Group' })}
+            title="Delete group"
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md" 
+            onClick={() => handleCopyGroupUrls(group)}
+            title="Copy URLs"
+          >
+            <Copy className="h-3.5 w-3.5 mr-1" /> Copy
+          </Button>
+          {activeTab === 'dashboard' ? (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md" 
+              onClick={() => handleArchiveGroup(group.id)}
+              title="Archive"
+            >
+              <Archive className="h-3.5 w-3.5 mr-1" /> Archive
+            </Button>
+          ) : (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md" 
+              onClick={() => handleUnarchiveGroup(group.id)}
+              title="Unarchive"
+            >
+              <RotateCcw className="h-3.5 w-3.5 mr-1" /> Unarchive
+            </Button>
+          )}
+          <Button 
+            variant="secondary" 
+            size="sm" 
+            className="btn-spring h-7 px-3 text-xs font-medium bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 rounded-lg shadow-xs flex items-center gap-1.5" 
+            onClick={() => handleRestoreGroup(group)}
+          >
+            <RotateCcw className="h-3 w-3 text-primary" /> Restore Group
+          </Button>
+        </div>
+      </div>
+      <div className="p-2.5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 bg-card/60">
+        {group.tabs.map((tab, i) => {
+          const domain = getSafeDomain(tab.url);
+          return (
+            <div key={i} className="tab-row-hover flex items-center justify-between p-1.5 rounded-lg hover:bg-primary/10 group/tab transition-all">
+              <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                {faviconStyle !== 'hidden' ? (
+                  <div className="w-4 h-4 rounded flex items-center justify-center shrink-0">
+                    {domain ? (
+                      <img 
+                        src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
+                        alt="" 
+                        className={`w-4 h-4 opacity-90 group-hover/tab:opacity-100 group-hover/tab:scale-110 transition-transform ${faviconStyle === 'monochrome' ? 'favicon-monochrome' : ''}`} 
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }} 
+                      />
+                    ) : (
+                      <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                    )}
+                  </div>
+                ) : (
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover/tab:bg-primary shrink-0" />
+                )}
+                <MarqueeText
+                  text={tab.title || tab.url}
+                  delayMs={2000}
+                  speedPxPerSec={45}
+                  asLink
+                  href={tab.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  linkClassName="text-xs text-muted-foreground group-hover/tab:text-foreground font-normal transition-colors"
+                  className="flex-1"
+                />
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="btn-spring h-5 w-5 opacity-0 group-hover/tab:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" 
+                onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
+                title="Remove tab"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+// Grid View Individual Card Item
+function GridCardItem({
+  group,
+  staggerIndex,
+  currentCardHeight,
+  isCompact,
+  editingGroupId,
+  editingName,
+  setEditingName,
+  handleSaveRename,
+  handleStartRename,
+  setEditingGroupId,
+  faviconStyle,
+  setDeleteConfirm,
+  handleCopyGroupUrls,
+  activeTab,
+  handleArchiveGroup,
+  handleUnarchiveGroup,
+  handleRestoreGroup,
+}: {
+  group: TabGroup;
+  staggerIndex: number;
+  currentCardHeight: number;
+  isCompact: boolean;
+  editingGroupId: number | null;
+  editingName: string;
+  setEditingName: (val: string) => void;
+  handleSaveRename: (id: number) => void;
+  handleStartRename: (group: TabGroup) => void;
+  setEditingGroupId: (id: number | null) => void;
+  faviconStyle: 'color' | 'monochrome' | 'hidden';
+  setDeleteConfirm: (state: DeleteConfirmState | null) => void;
+  handleCopyGroupUrls: (group: TabGroup) => void;
+  activeTab: string;
+  handleArchiveGroup: (id: number) => void;
+  handleUnarchiveGroup: (id: number) => void;
+  handleRestoreGroup: (group: TabGroup) => void;
+}) {
+  const [isCardHovered, setIsCardHovered] = useState(false);
+
+  return (
+    <Card 
+      key={group.id} 
+      onMouseEnter={() => setIsCardHovered(true)}
+      onMouseLeave={() => setIsCardHovered(false)}
+      style={{ 
+        '--stagger-index': staggerIndex,
+        height: `${currentCardHeight}px`
+      } as React.CSSProperties}
+      className="animate-card-cascade card-interactive flex flex-col justify-between overflow-hidden rounded-2xl border border-border/80 hover:border-primary/50 bg-card text-card-foreground shadow-apple-card hover:shadow-apple-card-hover group/card"
+    >
+      {/* Card Header (flex-shrink-0) */}
+      <CardHeader className={`${isCompact ? 'p-2.5 pb-1.5' : 'p-3.5 pb-2'} border-b border-border/60 bg-muted/30 flex items-center justify-between shrink-0`}>
+        <div className="flex items-center justify-between gap-2 min-w-0 w-full">
+          {editingGroupId === group.id ? (
+            <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
+              <Input 
+                value={editingName} 
+                onChange={e => setEditingName(e.target.value)} 
+                className="h-7 text-xs bg-background border-input text-foreground focus-visible:ring-1 focus-visible:ring-primary"
+                autoFocus
+                onKeyDown={e => e.key === 'Enter' && handleSaveRename(group.id)}
+              />
+              <Button size="icon" variant="ghost" className="btn-spring h-7 w-7 text-primary hover:bg-primary/20 shrink-0" onClick={() => handleSaveRename(group.id)} title="Save name">
+                <Check className="w-3.5 h-3.5" />
+              </Button>
+              <Button size="icon" variant="ghost" className="btn-spring h-7 w-7 text-muted-foreground hover:text-foreground shrink-0" onClick={() => setEditingGroupId(null)} title="Cancel">
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 group/title min-w-0 flex-1 cursor-pointer" onClick={() => handleStartRename(group)} title="Click to rename">
+              <MarqueeText
+                text={group.name || 'Saved Group'}
+                delayMs={1000}
+                isParentHovered={isCardHovered}
+                speedPxPerSec={40}
+                className="font-semibold text-sm text-foreground group-hover/title:text-primary transition-colors flex-1"
+              />
+              <Edit2 className="w-3 h-3 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
+            </div>
+          )}
+          <span className="shrink-0 text-xs bg-muted/70 text-muted-foreground border border-border/60 px-2 py-0.5 rounded-full font-normal whitespace-nowrap">
+            {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} • {getRelativeTime(group.date)}
+          </span>
+        </div>
+      </CardHeader>
+
+      {/* Card Body (flex-1 overflow-y-auto custom-scrollbar scroll-fade-bottom space-y-1) */}
+      <CardContent className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom ${isCompact ? 'p-2.5 space-y-0.5' : 'p-3.5 space-y-1'}`}>
+        {group.tabs.map((tab, i) => {
+          const domain = getSafeDomain(tab.url);
+          return (
+            <div key={i} className={`tab-row-hover flex items-center justify-between ${isCompact ? 'p-1' : 'p-1.5'} rounded-lg hover:bg-primary/10 group/tab transition-all`}>
+              <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                {faviconStyle !== 'hidden' ? (
+                  <div className="w-4 h-4 rounded flex items-center justify-center shrink-0">
+                    {domain ? (
+                      <img 
+                        src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
+                        alt="" 
+                        className={`w-4 h-4 opacity-90 group-hover/tab:opacity-100 group-hover/tab:scale-110 transition-transform ${faviconStyle === 'monochrome' ? 'favicon-monochrome' : ''}`} 
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }} 
+                      />
+                    ) : (
+                      <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                    )}
+                  </div>
+                ) : (
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover/tab:bg-primary shrink-0" />
+                )}
+                <MarqueeText
+                  text={tab.title || tab.url}
+                  delayMs={2000}
+                  speedPxPerSec={45}
+                  asLink
+                  href={tab.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  linkClassName="text-xs text-muted-foreground group-hover/tab:text-foreground font-normal transition-colors"
+                  className="flex-1"
+                />
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="btn-spring h-5 w-5 opacity-0 group-hover/tab:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" 
+                onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
+                title="Remove tab"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          );
+        })}
+      </CardContent>
+
+      {/* Card Footer */}
+      <CardFooter className={`shrink-0 border-t border-border/60 bg-muted/20 ${isCompact ? 'p-2 pt-1.5' : 'p-2.5 pt-2'} flex items-center justify-between rounded-b-2xl relative z-10`}>
+        <div className="flex items-center gap-1">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="btn-spring h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" 
+            onClick={() => setDeleteConfirm({ type: 'group', id: group.id, title: group.name || 'Saved Group' })}
+            title="Delete group"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="btn-spring h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" 
+            onClick={() => handleCopyGroupUrls(group)}
+            title="Copy all URLs in group"
+          >
+            <Copy className="h-3.5 w-3.5" />
+          </Button>
+          {activeTab === 'dashboard' ? (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="btn-spring h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" 
+              onClick={() => handleArchiveGroup(group.id)}
+              title="Archive group"
+            >
+              <Archive className="h-3.5 w-3.5" />
+            </Button>
+          ) : (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="btn-spring h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" 
+              onClick={() => handleUnarchiveGroup(group.id)}
+              title="Unarchive group"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+        <Button 
+          variant="secondary" 
+          size="sm" 
+          className="btn-spring h-7 px-3 text-xs font-medium bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 rounded-lg shadow-xs flex items-center gap-1.5" 
+          onClick={() => handleRestoreGroup(group)}
+        >
+          <RotateCcw className="h-3 w-3 text-primary" /> Restore
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
 function VirtualizedCardGrid({
   activeTab,
   filteredGroups,
@@ -327,131 +796,24 @@ function VirtualizedCardGrid({
         {filteredGroups.map((group, groupIdx) => {
           const staggerIndex = Math.min(groupIdx, 12);
           return (
-            <Card 
-              key={group.id} 
-              style={{ '--stagger-index': staggerIndex } as React.CSSProperties}
-              className="animate-card-cascade card-interactive border border-border/80 hover:border-primary/40 bg-card text-card-foreground shadow-apple-card rounded-xl overflow-hidden"
-            >
-              <div className="p-3 bg-muted/30 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  {editingGroupId === group.id ? (
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
-                      <Input 
-                        value={editingName} 
-                        onChange={e => setEditingName(e.target.value)} 
-                        className="h-7 text-xs bg-background border-input text-foreground focus-visible:ring-1 focus-visible:ring-primary"
-                        autoFocus
-                        onKeyDown={e => e.key === 'Enter' && handleSaveRename(group.id)}
-                      />
-                      <Button size="icon" variant="ghost" className="btn-spring h-7 w-7 text-primary hover:bg-primary/20 shrink-0" onClick={() => handleSaveRename(group.id)} title="Save name">
-                        <Check className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="btn-spring h-7 w-7 text-muted-foreground hover:text-foreground shrink-0" onClick={() => setEditingGroupId(null)} title="Cancel">
-                        <X className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 group/title min-w-0 cursor-pointer" onClick={() => handleStartRename(group)} title="Click to rename">
-                      <span className="truncate font-semibold text-sm text-foreground group-hover/title:text-primary transition-colors">{group.name || 'Saved Group'}</span>
-                      <Edit2 className="w-3 h-3 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
-                    </div>
-                  )}
-                  <Badge variant="outline" className="text-[11px] font-medium border-border/70 bg-background/80 text-muted-foreground shrink-0 whitespace-nowrap">
-                    {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} • {getRelativeTime(group.date)}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-1 shrink-0 justify-end">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md" 
-                    onClick={() => setDeleteConfirm({ type: 'group', id: group.id, title: group.name || 'Saved Group' })}
-                    title="Delete group"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md" 
-                    onClick={() => handleCopyGroupUrls(group)}
-                    title="Copy URLs"
-                  >
-                    <Copy className="h-3.5 w-3.5 mr-1" /> Copy
-                  </Button>
-                  {activeTab === 'dashboard' ? (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md" 
-                      onClick={() => handleArchiveGroup(group.id)}
-                      title="Archive"
-                    >
-                      <Archive className="h-3.5 w-3.5 mr-1" /> Archive
-                    </Button>
-                  ) : (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md" 
-                      onClick={() => handleUnarchiveGroup(group.id)}
-                      title="Unarchive"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5 mr-1" /> Unarchive
-                    </Button>
-                  )}
-                  <Button 
-                    variant="secondary" 
-                    size="sm" 
-                    className="btn-spring h-7 px-3 text-xs font-medium bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 rounded-lg shadow-xs flex items-center gap-1.5" 
-                    onClick={() => handleRestoreGroup(group)}
-                  >
-                    <RotateCcw className="h-3 w-3 text-primary" /> Restore Group
-                  </Button>
-                </div>
-              </div>
-              <div className="p-2.5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 bg-card/60">
-                {group.tabs.map((tab, i) => {
-                  const domain = getSafeDomain(tab.url);
-                  return (
-                    <div key={i} className="tab-row-hover flex items-center justify-between p-1.5 rounded-lg hover:bg-primary/10 group transition-all">
-                      <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                        {faviconStyle !== 'hidden' ? (
-                          <div className="w-4 h-4 rounded flex items-center justify-center shrink-0">
-                            {domain ? (
-                              <img 
-                                src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
-                                alt="" 
-                                className={`w-4 h-4 opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-transform ${faviconStyle === 'monochrome' ? 'favicon-monochrome' : ''}`} 
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                }} 
-                              />
-                            ) : (
-                              <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-                            )}
-                          </div>
-                        ) : (
-                          <span className="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover:bg-primary shrink-0" />
-                        )}
-                        <a href={tab.url} target="_blank" rel="noreferrer" className="truncate text-xs text-muted-foreground group-hover:text-foreground font-normal hover:underline transition-colors">
-                          {tab.title || tab.url}
-                        </a>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="btn-spring h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" 
-                        onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
-                        title="Remove tab"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
+            <ListCardItem
+              key={group.id}
+              group={group}
+              staggerIndex={staggerIndex}
+              editingGroupId={editingGroupId}
+              editingName={editingName}
+              setEditingName={setEditingName}
+              handleSaveRename={handleSaveRename}
+              handleStartRename={handleStartRename}
+              setEditingGroupId={setEditingGroupId}
+              faviconStyle={faviconStyle}
+              setDeleteConfirm={setDeleteConfirm}
+              handleCopyGroupUrls={handleCopyGroupUrls}
+              activeTab={activeTab}
+              handleArchiveGroup={handleArchiveGroup}
+              handleUnarchiveGroup={handleUnarchiveGroup}
+              handleRestoreGroup={handleRestoreGroup}
+            />
           );
         })}
       </div>
@@ -500,141 +862,26 @@ function VirtualizedCardGrid({
                 {rowGroups.map((group, colIdx) => {
                   const staggerIndex = Math.min(virtualRow.index * cols + colIdx, 12);
                   return (
-                    <Card 
-                      key={group.id} 
-                      style={{ 
-                        '--stagger-index': staggerIndex,
-                        height: `${currentCardHeight}px`
-                      } as React.CSSProperties}
-                      className="animate-card-cascade card-interactive flex flex-col justify-between overflow-hidden rounded-2xl border border-border/80 hover:border-primary/50 bg-card text-card-foreground shadow-apple-card hover:shadow-apple-card-hover"
-                    >
-                      {/* Card Header (flex-shrink-0) */}
-                      <CardHeader className={`${isCompact ? 'p-2.5 pb-1.5' : 'p-3.5 pb-2'} border-b border-border/60 bg-muted/30 flex items-center justify-between shrink-0`}>
-                        <div className="flex items-center justify-between gap-2 min-w-0 w-full">
-                          {editingGroupId === group.id ? (
-                            <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
-                              <Input 
-                                value={editingName} 
-                                onChange={e => setEditingName(e.target.value)} 
-                                className="h-7 text-xs bg-background border-input text-foreground focus-visible:ring-1 focus-visible:ring-primary"
-                                autoFocus
-                                onKeyDown={e => e.key === 'Enter' && handleSaveRename(group.id)}
-                              />
-                              <Button size="icon" variant="ghost" className="btn-spring h-7 w-7 text-primary hover:bg-primary/20 shrink-0" onClick={() => handleSaveRename(group.id)} title="Save name">
-                                <Check className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button size="icon" variant="ghost" className="btn-spring h-7 w-7 text-muted-foreground hover:text-foreground shrink-0" onClick={() => setEditingGroupId(null)} title="Cancel">
-                                <X className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 group/title min-w-0 flex-1 cursor-pointer" onClick={() => handleStartRename(group)} title="Click to rename">
-                              <span className="truncate font-semibold text-sm text-foreground group-hover/title:text-primary transition-colors">{group.name || 'Saved Group'}</span>
-                              <Edit2 className="w-3 h-3 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
-                            </div>
-                          )}
-                          <span className="shrink-0 text-xs bg-muted/70 text-muted-foreground border border-border/60 px-2 py-0.5 rounded-full font-normal whitespace-nowrap">
-                            {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} • {getRelativeTime(group.date)}
-                          </span>
-                        </div>
-                      </CardHeader>
-
-                      {/* Card Body (flex-1 overflow-y-auto custom-scrollbar scroll-fade-bottom space-y-1) */}
-                      <CardContent className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom ${isCompact ? 'p-2.5 space-y-0.5' : 'p-3.5 space-y-1'}`}>
-                        {group.tabs.map((tab, i) => {
-                          const domain = getSafeDomain(tab.url);
-                          return (
-                            <div key={i} className={`tab-row-hover flex items-center justify-between ${isCompact ? 'p-1' : 'p-1.5'} rounded-lg hover:bg-primary/10 group transition-all`}>
-                              <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                                {faviconStyle !== 'hidden' ? (
-                                  <div className="w-4 h-4 rounded flex items-center justify-center shrink-0">
-                                    {domain ? (
-                                      <img 
-                                        src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
-                                        alt="" 
-                                        className={`w-4 h-4 opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-transform ${faviconStyle === 'monochrome' ? 'favicon-monochrome' : ''}`} 
-                                        onError={(e) => {
-                                          e.currentTarget.style.display = 'none';
-                                        }} 
-                                      />
-                                    ) : (
-                                      <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover:bg-primary shrink-0" />
-                                )}
-                                <a href={tab.url} target="_blank" rel="noreferrer" className="truncate text-xs text-muted-foreground group-hover:text-foreground font-normal hover:underline transition-colors">
-                                  {tab.title || tab.url}
-                                </a>
-                              </div>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="btn-spring h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" 
-                                onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
-                                title="Remove tab"
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          );
-                        })}
-                      </CardContent>
-
-                      {/* Card Footer */}
-                      <CardFooter className={`shrink-0 border-t border-border/60 bg-muted/20 ${isCompact ? 'p-2 pt-1.5' : 'p-2.5 pt-2'} flex items-center justify-between rounded-b-2xl relative z-10`}>
-                        <div className="flex items-center gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="btn-spring h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" 
-                            onClick={() => setDeleteConfirm({ type: 'group', id: group.id, title: group.name || 'Saved Group' })}
-                            title="Delete group"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="btn-spring h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" 
-                            onClick={() => handleCopyGroupUrls(group)}
-                            title="Copy all URLs in group"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                          {activeTab === 'dashboard' ? (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="btn-spring h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" 
-                              onClick={() => handleArchiveGroup(group.id)}
-                              title="Archive group"
-                            >
-                              <Archive className="h-3.5 w-3.5" />
-                            </Button>
-                          ) : (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="btn-spring h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" 
-                              onClick={() => handleUnarchiveGroup(group.id)}
-                              title="Unarchive group"
-                            >
-                              <RotateCcw className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
-                        <Button 
-                          variant="secondary" 
-                          size="sm" 
-                          className="btn-spring h-7 px-3 text-xs font-medium bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 rounded-lg shadow-xs transition-colors flex items-center gap-1.5" 
-                          onClick={() => handleRestoreGroup(group)}
-                        >
-                          <RotateCcw className="h-3 w-3 text-primary" /> Restore
-                        </Button>
-                      </CardFooter>
-                    </Card>
+                    <GridCardItem
+                      key={group.id}
+                      group={group}
+                      staggerIndex={staggerIndex}
+                      currentCardHeight={currentCardHeight}
+                      isCompact={isCompact}
+                      editingGroupId={editingGroupId}
+                      editingName={editingName}
+                      setEditingName={setEditingName}
+                      handleSaveRename={handleSaveRename}
+                      handleStartRename={handleStartRename}
+                      setEditingGroupId={setEditingGroupId}
+                      faviconStyle={faviconStyle}
+                      setDeleteConfirm={setDeleteConfirm}
+                      handleCopyGroupUrls={handleCopyGroupUrls}
+                      activeTab={activeTab}
+                      handleArchiveGroup={handleArchiveGroup}
+                      handleUnarchiveGroup={handleUnarchiveGroup}
+                      handleRestoreGroup={handleRestoreGroup}
+                    />
                   );
                 })}
               </div>
