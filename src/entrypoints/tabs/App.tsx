@@ -293,12 +293,22 @@ function MarqueeText({
     </span>
   );
 
+  const maskStyle = overflowPx > 0
+    ? (active
+        ? 'linear-gradient(to right, transparent 0%, black 12px, black calc(100% - 18px), transparent 100%)'
+        : 'linear-gradient(to right, black calc(100% - 18px), transparent 100%)')
+    : undefined;
+
   return (
     <div
       ref={containerRef}
       onMouseEnter={() => { measure(); setIsSelfHovered(true); }}
       onMouseLeave={() => setIsSelfHovered(false)}
       aria-label={text}
+      style={{
+        maskImage: maskStyle,
+        WebkitMaskImage: maskStyle,
+      }}
       className={`relative overflow-hidden whitespace-nowrap min-w-0 max-w-full block select-none ${className}`}
     >
       {asLink && href ? (
@@ -448,8 +458,8 @@ function ListCardItem({
         {group.tabs.map((tab, i) => {
           const domain = getSafeDomain(tab.url);
           return (
-            <div key={i} className="tab-row-hover flex items-center justify-between p-1.5 rounded-lg hover:bg-primary/10 group/tab transition-all">
-              <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+            <div key={i} className="relative tab-row-hover flex items-center justify-between p-1.5 rounded-lg hover:bg-primary/10 group/tab transition-all">
+              <div className="flex items-center gap-2 min-w-0 flex-1 w-full">
                 {faviconStyle !== 'hidden' ? (
                   <div className="w-4 h-4 rounded flex items-center justify-center shrink-0">
                     {domain ? (
@@ -483,7 +493,7 @@ function ListCardItem({
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="btn-spring h-5 w-5 opacity-0 group-hover/tab:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" 
+                className="absolute right-1 top-1/2 -translate-y-1/2 btn-spring h-5 w-5 opacity-0 group-hover/tab:opacity-100 transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/15 bg-card/85 backdrop-blur-xs border border-border/50 shadow-xs rounded-md z-10 flex items-center justify-center" 
                 onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
                 title="Remove tab"
               >
@@ -590,8 +600,8 @@ function GridCardItem({
         {group.tabs.map((tab, i) => {
           const domain = getSafeDomain(tab.url);
           return (
-            <div key={i} className={`tab-row-hover flex items-center justify-between ${isCompact ? 'p-1' : 'p-1.5'} rounded-lg hover:bg-primary/10 group/tab transition-all`}>
-              <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+            <div key={i} className={`relative tab-row-hover flex items-center justify-between ${isCompact ? 'p-1' : 'p-1.5'} rounded-lg hover:bg-primary/10 group/tab transition-all`}>
+              <div className="flex items-center gap-2 min-w-0 flex-1 w-full">
                 {faviconStyle !== 'hidden' ? (
                   <div className="w-4 h-4 rounded flex items-center justify-center shrink-0">
                     {domain ? (
@@ -625,7 +635,7 @@ function GridCardItem({
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="btn-spring h-5 w-5 opacity-0 group-hover/tab:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" 
+                className="absolute right-1 top-1/2 -translate-y-1/2 btn-spring h-5 w-5 opacity-0 group-hover/tab:opacity-100 transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/15 bg-card/85 backdrop-blur-xs border border-border/50 shadow-xs rounded-md z-10 flex items-center justify-center" 
                 onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
                 title="Remove tab"
               >
