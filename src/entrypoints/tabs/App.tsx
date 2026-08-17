@@ -125,7 +125,13 @@ import {
   AlertCircle,
   Activity,
   HardDrive,
-  ShieldCheck
+  ShieldCheck,
+  LayoutGrid,
+  List,
+  Type,
+  SunMedium,
+  Maximize2,
+  Grid
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { THEME_PALETTES, type ThemePalette } from '@/lib/theme';
@@ -148,11 +154,11 @@ const MIN_CARD_WIDTH = 280;
 const ROW_HEIGHT = CARD_HEIGHT + CARD_GAP;
 const GRID_PADDING = 32; // p-8 = 32px
 
-function useContainerColumnCount(containerRef: React.RefObject<HTMLDivElement | null>) {
+function useContainerColumnCount(containerRef: React.RefObject<HTMLDivElement | null>, minCardWidth: number = 280, gap: number = 20) {
   const [cols, setCols] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const approxWidth = Math.max(0, window.innerWidth - 256 - GRID_PADDING * 2);
-      return Math.max(1, Math.floor((approxWidth + CARD_GAP) / (MIN_CARD_WIDTH + CARD_GAP)));
+      return Math.max(1, Math.floor((approxWidth + gap) / (minCardWidth + gap)));
     }
     return 1;
   });
@@ -165,11 +171,11 @@ function useContainerColumnCount(containerRef: React.RefObject<HTMLDivElement | 
       const netWidth = Math.max(0, width - GRID_PADDING * 2);
       const calculatedCols = Math.max(
         1,
-        Math.floor((netWidth + CARD_GAP) / (MIN_CARD_WIDTH + CARD_GAP))
+        Math.floor((netWidth + gap) / (minCardWidth + gap))
       );
       setCols(prev => (prev !== calculatedCols ? calculatedCols : prev));
     }
-  }, [containerRef]);
+  }, [containerRef, minCardWidth, gap]);
 
   useLayoutEffect(() => {
     updateCols();
@@ -210,6 +216,8 @@ interface VirtualizedCardGridProps {
   handleRestoreGroup: (group: TabGroup) => void;
   handleCopyGroupUrls: (group: TabGroup) => void;
   setDeleteConfirm: (state: DeleteConfirmState | null) => void;
+  cardDensity?: 'comfortable' | 'compact' | 'list';
+  faviconStyle?: 'color' | 'monochrome' | 'hidden';
 }
 
 function VirtualizedCardGrid({
@@ -229,16 +237,24 @@ function VirtualizedCardGrid({
   handleRestoreGroup,
   handleCopyGroupUrls,
   setDeleteConfirm,
+  cardDensity = 'comfortable',
+  faviconStyle = 'color',
 }: VirtualizedCardGridProps) {
+  const isCompact = cardDensity === 'compact';
+  const minCardWidth = isCompact ? 240 : 280;
+  const currentCardHeight = isCompact ? 165 : 220;
+  const currentCardGap = isCompact ? 16 : 20;
+  const currentRowHeight = currentCardHeight + currentCardGap;
+
   const parentRef = useRef<HTMLDivElement>(null);
-  const cols = useContainerColumnCount(parentRef);
+  const cols = useContainerColumnCount(parentRef, minCardWidth, currentCardGap);
 
   const rowCount = Math.ceil(filteredGroups.length / cols);
 
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: () => currentRowHeight,
     overscan: 2,
   });
 
@@ -271,6 +287,148 @@ function VirtualizedCardGrid({
     );
   }
 
+  // 1. List View layout (Full-Width stacked cards)
+  if (cardDensity === 'list') {
+    return (
+      <div 
+        ref={parentRef} 
+        className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6 max-w-5xl mx-auto w-full space-y-3"
+      >
+        {filteredGroups.map((group, groupIdx) => {
+          const staggerIndex = Math.min(groupIdx, 12);
+          return (
+            <Card 
+              key={group.id} 
+              style={{ '--stagger-index': staggerIndex } as React.CSSProperties}
+              className="animate-card-cascade card-interactive border border-border/80 hover:border-primary/40 bg-card text-card-foreground shadow-apple-card rounded-xl overflow-hidden"
+            >
+              <div className="p-3 bg-muted/30 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  {editingGroupId === group.id ? (
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
+                      <Input 
+                        value={editingName} 
+                        onChange={e => setEditingName(e.target.value)} 
+                        className="h-7 text-xs bg-background border-input text-foreground focus-visible:ring-1 focus-visible:ring-primary"
+                        autoFocus
+                        onKeyDown={e => e.key === 'Enter' && handleSaveRename(group.id)}
+                      />
+                      <Button size="icon" variant="ghost" className="btn-spring h-7 w-7 text-primary hover:bg-primary/20 shrink-0" onClick={() => handleSaveRename(group.id)} title="Save name">
+                        <Check className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="btn-spring h-7 w-7 text-muted-foreground hover:text-foreground shrink-0" onClick={() => setEditingGroupId(null)} title="Cancel">
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 group/title min-w-0 cursor-pointer" onClick={() => handleStartRename(group)} title="Click to rename">
+                      <span className="truncate font-semibold text-sm text-foreground group-hover/title:text-primary transition-colors">{group.name || 'Saved Group'}</span>
+                      <Edit2 className="w-3 h-3 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
+                    </div>
+                  )}
+                  <Badge variant="outline" className="text-[11px] font-medium border-border/70 bg-background/80 text-muted-foreground shrink-0 whitespace-nowrap">
+                    {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} • {getRelativeTime(group.date)}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-1 shrink-0 justify-end">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md" 
+                    onClick={() => setDeleteConfirm({ type: 'group', id: group.id, title: group.name || 'Saved Group' })}
+                    title="Delete group"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md" 
+                    onClick={() => handleCopyGroupUrls(group)}
+                    title="Copy URLs"
+                  >
+                    <Copy className="h-3.5 w-3.5 mr-1" /> Copy
+                  </Button>
+                  {activeTab === 'dashboard' ? (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md" 
+                      onClick={() => handleArchiveGroup(group.id)}
+                      title="Archive"
+                    >
+                      <Archive className="h-3.5 w-3.5 mr-1" /> Archive
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md" 
+                      onClick={() => handleUnarchiveGroup(group.id)}
+                      title="Unarchive"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5 mr-1" /> Unarchive
+                    </Button>
+                  )}
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    className="btn-spring h-7 px-3 text-xs font-medium bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 rounded-lg shadow-xs flex items-center gap-1.5" 
+                    onClick={() => handleRestoreGroup(group)}
+                  >
+                    <RotateCcw className="h-3 w-3 text-primary" /> Restore Group
+                  </Button>
+                </div>
+              </div>
+              <div className="p-2.5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 bg-card/60">
+                {group.tabs.map((tab, i) => {
+                  const domain = getSafeDomain(tab.url);
+                  return (
+                    <div key={i} className="tab-row-hover flex items-center justify-between p-1.5 rounded-lg hover:bg-primary/10 group transition-all">
+                      <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                        {faviconStyle !== 'hidden' ? (
+                          <div className="w-4 h-4 rounded flex items-center justify-center shrink-0">
+                            {domain ? (
+                              <img 
+                                src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
+                                alt="" 
+                                className={`w-4 h-4 opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-transform ${faviconStyle === 'monochrome' ? 'favicon-monochrome' : ''}`} 
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }} 
+                              />
+                            ) : (
+                              <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                            )}
+                          </div>
+                        ) : (
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover:bg-primary shrink-0" />
+                        )}
+                        <a href={tab.url} target="_blank" rel="noreferrer" className="truncate text-xs text-muted-foreground group-hover:text-foreground font-normal hover:underline transition-colors">
+                          {tab.title || tab.url}
+                        </a>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="btn-spring h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" 
+                        onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
+                        title="Remove tab"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // 2. Virtualized Grid View (Comfortable & Compact Deck)
   return (
     <div 
       ref={parentRef} 
@@ -306,7 +464,7 @@ function VirtualizedCardGrid({
                 style={{
                   display: 'grid',
                   gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-                  gap: `${CARD_GAP}px`,
+                  gap: `${currentCardGap}px`,
                 }}
               >
                 {rowGroups.map((group, colIdx) => {
@@ -314,11 +472,14 @@ function VirtualizedCardGrid({
                   return (
                     <Card 
                       key={group.id} 
-                      style={{ '--stagger-index': staggerIndex } as React.CSSProperties}
-                      className="animate-card-cascade card-interactive flex flex-col justify-between h-[220px] overflow-hidden rounded-2xl border border-border/80 hover:border-primary/50 bg-card text-card-foreground shadow-apple-card hover:shadow-apple-card-hover"
+                      style={{ 
+                        '--stagger-index': staggerIndex,
+                        height: `${currentCardHeight}px`
+                      } as React.CSSProperties}
+                      className="animate-card-cascade card-interactive flex flex-col justify-between overflow-hidden rounded-2xl border border-border/80 hover:border-primary/50 bg-card text-card-foreground shadow-apple-card hover:shadow-apple-card-hover"
                     >
                       {/* Card Header (flex-shrink-0) */}
-                      <CardHeader className="p-3.5 pb-2 border-b border-border/60 bg-muted/30 flex items-center justify-between shrink-0">
+                      <CardHeader className={`${isCompact ? 'p-2.5 pb-1.5' : 'p-3.5 pb-2'} border-b border-border/60 bg-muted/30 flex items-center justify-between shrink-0`}>
                         <div className="flex items-center justify-between gap-2 min-w-0 w-full">
                           {editingGroupId === group.id ? (
                             <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
@@ -348,27 +509,31 @@ function VirtualizedCardGrid({
                         </div>
                       </CardHeader>
 
-                      {/* Card Body (flex-1 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3.5 space-y-1) */}
-                      <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3.5 space-y-1">
+                      {/* Card Body (flex-1 overflow-y-auto custom-scrollbar scroll-fade-bottom space-y-1) */}
+                      <CardContent className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom ${isCompact ? 'p-2.5 space-y-0.5' : 'p-3.5 space-y-1'}`}>
                         {group.tabs.map((tab, i) => {
                           const domain = getSafeDomain(tab.url);
                           return (
-                            <div key={i} className="tab-row-hover flex items-center justify-between p-1.5 rounded-lg hover:bg-primary/10 group transition-all">
+                            <div key={i} className={`tab-row-hover flex items-center justify-between ${isCompact ? 'p-1' : 'p-1.5'} rounded-lg hover:bg-primary/10 group transition-all`}>
                               <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                                <div className="w-4 h-4 rounded flex items-center justify-center shrink-0">
-                                  {domain ? (
-                                    <img 
-                                      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
-                                      alt="" 
-                                      className="w-4 h-4 opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-transform" 
-                                      onError={(e) => {
-                                        e.currentTarget.style.display = 'none';
-                                      }} 
-                                    />
-                                  ) : (
-                                    <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-                                  )}
-                                </div>
+                                {faviconStyle !== 'hidden' ? (
+                                  <div className="w-4 h-4 rounded flex items-center justify-center shrink-0">
+                                    {domain ? (
+                                      <img 
+                                        src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`} 
+                                        alt="" 
+                                        className={`w-4 h-4 opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-transform ${faviconStyle === 'monochrome' ? 'favicon-monochrome' : ''}`} 
+                                        onError={(e) => {
+                                          e.currentTarget.style.display = 'none';
+                                        }} 
+                                      />
+                                    ) : (
+                                      <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover:bg-primary shrink-0" />
+                                )}
                                 <a href={tab.url} target="_blank" rel="noreferrer" className="truncate text-xs text-muted-foreground group-hover:text-foreground font-normal hover:underline transition-colors">
                                   {tab.title || tab.url}
                                 </a>
@@ -388,7 +553,7 @@ function VirtualizedCardGrid({
                       </CardContent>
 
                       {/* Card Footer */}
-                      <CardFooter className="shrink-0 border-t border-border/60 bg-muted/20 p-2.5 pt-2 flex items-center justify-between rounded-b-2xl relative z-10">
+                      <CardFooter className={`shrink-0 border-t border-border/60 bg-muted/20 ${isCompact ? 'p-2 pt-1.5' : 'p-2.5 pt-2'} flex items-center justify-between rounded-b-2xl relative z-10`}>
                         <div className="flex items-center gap-1">
                           <Button 
                             variant="ghost" 
@@ -525,6 +690,18 @@ function AppContent() {
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
   const [restoreAllConfirm, setRestoreAllConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync OLED true black & UI scaling with HTML root
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      if (userPreferences.oledBlack) {
+        document.documentElement.classList.add('oled-true-black');
+      } else {
+        document.documentElement.classList.remove('oled-true-black');
+      }
+      document.documentElement.setAttribute('data-ui-scale', userPreferences.uiScale || 'standard');
+    }
+  }, [userPreferences.oledBlack, userPreferences.uiScale]);
 
   const showMessage = (text: string, type: 'success' | 'error' = 'success') => {
     setMessage({ type, text });
@@ -1056,12 +1233,16 @@ function AppContent() {
   return (
     <div className="flex h-screen overflow-hidden bg-background font-sans relative text-foreground p-3 gap-3">
       {/* Atmospheric Studio Lighting Halo */}
-      <div 
-        className="fixed inset-0 pointer-events-none z-0"
-        style={{
-          background: 'radial-gradient(circle 900px at 50% -100px, hsl(var(--primary) / 0.16), transparent 75%), radial-gradient(circle 700px at 85% 95%, hsl(var(--accent) / 0.08), transparent 65%)',
-        }}
-      />
+      {userPreferences.ambientGlow !== 'none' && (
+        <div 
+          className="fixed inset-0 pointer-events-none z-0 transition-opacity duration-300"
+          style={{
+            background: userPreferences.ambientGlow === 'vibrant'
+              ? 'radial-gradient(circle 1000px at 50% -100px, hsl(var(--primary) / 0.30), transparent 70%), radial-gradient(circle 800px at 85% 95%, hsl(var(--accent) / 0.18), transparent 60%)'
+              : 'radial-gradient(circle 900px at 50% -100px, hsl(var(--primary) / 0.16), transparent 75%), radial-gradient(circle 700px at 85% 95%, hsl(var(--accent) / 0.08), transparent 65%)',
+          }}
+        />
+      )}
 
       {/* Tactile Matte Micro-Grain (Hardware-Cached Seamless GPU Tile covering entire window) */}
       {userPreferences.enableFilmGrain !== false && (
@@ -1513,6 +1694,8 @@ function AppContent() {
             handleRestoreGroup={handleRestoreGroup}
             handleCopyGroupUrls={handleCopyGroupUrls}
             setDeleteConfirm={setDeleteConfirm}
+            cardDensity={userPreferences.cardDensity}
+            faviconStyle={userPreferences.faviconStyle}
           />
         ) : (
         <ScrollArea className="flex-1 p-10">
@@ -1681,7 +1864,222 @@ function AppContent() {
                     })}
                   </div>
 
-                  {/* Tactile Matte Film Grain Toggle */}
+                  {/* 2. Card Layout & View Density */}
+                  <div className="pt-3 border-t border-border/60">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                      <div>
+                        <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          <LayoutGrid className="w-4 h-4 text-primary" />
+                          Card View Density & Layout
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Choose between spacious decks, dense multi-card grid, or classic stacked list.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {[
+                        { id: 'comfortable' as const, name: 'Comfortable', desc: 'Spacious 220px decks (Default)', icon: LayoutGrid },
+                        { id: 'compact' as const, name: 'Compact Grid', desc: 'Condensed 165px cards (2x more)', icon: Maximize2 },
+                        { id: 'list' as const, name: 'List View', desc: 'Full-width stacked rows', icon: List },
+                      ].map((item) => {
+                        const isSelected = (userPreferences.cardDensity || 'comfortable') === item.id;
+                        const ItemIcon = item.icon;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => handleUpdatePreference('cardDensity', item.id)}
+                            className={`btn-spring flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
+                              isSelected
+                                ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-xs font-semibold text-foreground'
+                                : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
+                            }`}
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-primary/15 border border-primary/20 flex items-center justify-center text-primary shrink-0 shadow-xs">
+                              <ItemIcon className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-semibold text-foreground flex items-center justify-between">
+                                {item.name}
+                                {isSelected && <span className="text-xs text-primary font-bold">✓</span>}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground truncate">{item.desc}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 3. Ambient Studio Lighting Glow */}
+                  <div className="pt-3 border-t border-border/60">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                      <div>
+                        <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          <SunMedium className="w-4 h-4 text-primary" />
+                          Ambient Studio Lighting
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Control the atmospheric radial aura glowing behind your glass deck.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {[
+                        { id: 'subtle' as const, name: 'Subtle Aura', desc: 'Soft & balanced (Default)' },
+                        { id: 'vibrant' as const, name: 'Vibrant Glow', desc: 'High luminosity accent halos' },
+                        { id: 'none' as const, name: 'Off (Matte)', desc: 'Pure flat canvas' },
+                      ].map((item) => {
+                        const isSelected = (userPreferences.ambientGlow || 'subtle') === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => handleUpdatePreference('ambientGlow', item.id)}
+                            className={`btn-spring flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
+                              isSelected
+                                ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-xs font-semibold text-foreground'
+                                : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-semibold text-foreground flex items-center justify-between">
+                                {item.name}
+                                {isSelected && <span className="text-xs text-primary font-bold">✓</span>}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground truncate">{item.desc}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 4. Favicon Display Styling */}
+                  <div className="pt-3 border-t border-border/60">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                      <div>
+                        <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          <Globe className="w-4 h-4 text-primary" />
+                          Website Favicon Style
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Choose how website icons render inside your saved tab collections.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {[
+                        { id: 'color' as const, name: 'Full Color', desc: 'Original brand logos (Default)' },
+                        { id: 'monochrome' as const, name: 'Monochrome', desc: 'Theme tinted harmony' },
+                        { id: 'hidden' as const, name: 'Hidden', desc: 'Clean bullet points' },
+                      ].map((item) => {
+                        const isSelected = (userPreferences.faviconStyle || 'color') === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => handleUpdatePreference('faviconStyle', item.id)}
+                            className={`btn-spring flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
+                              isSelected
+                                ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-xs font-semibold text-foreground'
+                                : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-semibold text-foreground flex items-center justify-between">
+                                {item.name}
+                                {isSelected && <span className="text-xs text-primary font-bold">✓</span>}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground truncate">{item.desc}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 5. UI Typography Scale */}
+                  <div className="pt-3 border-t border-border/60">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                      <div>
+                        <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          <Type className="w-4 h-4 text-primary" />
+                          UI Typography Scale
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Adjust text size and interface spacing for smaller laptops or 4K/5K displays.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {[
+                        { id: 'compact' as const, name: 'Compact (90%)', desc: '13px high density' },
+                        { id: 'standard' as const, name: 'Standard (100%)', desc: '14px balanced (Default)' },
+                        { id: 'large' as const, name: 'Large (110%)', desc: '15.5px high legibility' },
+                      ].map((item) => {
+                        const isSelected = (userPreferences.uiScale || 'standard') === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => handleUpdatePreference('uiScale', item.id)}
+                            className={`btn-spring flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
+                              isSelected
+                                ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-xs font-semibold text-foreground'
+                                : 'border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground font-medium'
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-semibold text-foreground flex items-center justify-between">
+                                {item.name}
+                                {isSelected && <span className="text-xs text-primary font-bold">✓</span>}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground truncate">{item.desc}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 6. OLED True Black Mode Toggle */}
+                  <div className="pt-3 border-t border-border/60">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-muted/20">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-0.5 shadow-xs">
+                          <Moon className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                            OLED Pure Black Mode
+                            <Badge variant="outline" className={`text-[10px] font-medium border ${userPreferences.oledBlack ? 'text-primary border-primary/30 bg-primary/10' : 'text-muted-foreground border-border'}`}>
+                              {userPreferences.oledBlack ? 'Active' : 'Disabled'}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                            Overrides dark theme backgrounds to pure <span className="font-mono text-foreground font-medium">#000000</span> for OLED/mini-LED infinite contrast and battery savings.
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={userPreferences.oledBlack ? 'default' : 'outline'}
+                        onClick={() => handleUpdatePreference('oledBlack', !userPreferences.oledBlack)}
+                        className={`btn-spring text-xs h-8 px-3.5 font-medium shrink-0 ${
+                          userPreferences.oledBlack 
+                            ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm' 
+                            : 'border-border text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {userPreferences.oledBlack ? 'Enabled' : 'Disabled'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 7. Tactile Matte Film Grain Toggle */}
                   <div className="pt-2">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-muted/20">
                       <div className="flex items-start gap-3">

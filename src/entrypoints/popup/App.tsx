@@ -8,6 +8,9 @@ import {
   getSafeDomain,
   formatDisplayUrl,
   restoreTabGroup,
+  getUserPreferences,
+  type UserPreferences,
+  DEFAULT_USER_PREFERENCES,
 } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -103,6 +106,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 function PopupContent() {
   const { themeMode, resolvedTheme, setThemeMode } = useTheme();
   const [groups, setGroups] = useState<TabGroup[]>([]);
+  const [userPreferences, setUserPreferencesState] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -112,17 +116,30 @@ function PopupContent() {
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const loadGroups = async () => {
+  const loadData = async () => {
     try {
-      const data = await getGroups();
-      setGroups(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      const [groupsData, prefs] = await Promise.all([
+        getGroups(),
+        getUserPreferences(),
+      ]);
+      setGroups(groupsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      setUserPreferencesState(prefs);
+
+      if (typeof document !== 'undefined') {
+        if (prefs.oledBlack) {
+          document.documentElement.classList.add('oled-true-black');
+        } else {
+          document.documentElement.classList.remove('oled-true-black');
+        }
+        document.documentElement.setAttribute('data-ui-scale', prefs.uiScale || 'standard');
+      }
     } catch (e) {
-      console.error('Error loading groups:', e);
+      console.error('Error loading popup data:', e);
     }
   };
 
   useEffect(() => {
-    loadGroups();
+    loadData();
   }, []);
 
   const handleOpenDashboard = () => {
@@ -514,7 +531,7 @@ function PopupContent() {
                             <img
                               src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`}
                               alt=""
-                              className="w-3 h-3 opacity-90 group-hover/tablink:opacity-100 shrink-0"
+                              className={`w-3 h-3 opacity-90 group-hover/tablink:opacity-100 shrink-0 ${userPreferences.faviconStyle === 'monochrome' ? 'favicon-monochrome' : ''}`}
                               onError={(e) => {
                                 e.currentTarget.style.display = 'none';
                               }}

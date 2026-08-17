@@ -35,6 +35,11 @@ export interface UserPreferences {
   restoreBehavior: 'keep' | 'remove';
   recentlyClosedLimit: number;
   enableFilmGrain?: boolean;
+  cardDensity?: 'comfortable' | 'compact' | 'list';
+  ambientGlow?: 'subtle' | 'vibrant' | 'none';
+  faviconStyle?: 'color' | 'monochrome' | 'hidden';
+  uiScale?: 'compact' | 'standard' | 'large';
+  oledBlack?: boolean;
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -43,6 +48,11 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   restoreBehavior: 'keep',
   recentlyClosedLimit: 50,
   enableFilmGrain: true,
+  cardDensity: 'comfortable',
+  ambientGlow: 'subtle',
+  faviconStyle: 'color',
+  uiScale: 'standard',
+  oledBlack: false,
 };
 
 export const PREFERENCES_STORAGE_KEY = 'twotab_user_preferences';

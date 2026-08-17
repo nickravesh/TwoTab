@@ -241,6 +241,11 @@ describe('TwoTab Storage Engine Reliability Unit Tests', () => {
     expect(prefs.restoreDestination).toBe('new_window');
     expect(prefs.restoreBehavior).toBe('keep');
     expect(prefs.enableFilmGrain).toBe(true);
+    expect(prefs.cardDensity).toBe('comfortable');
+    expect(prefs.ambientGlow).toBe('subtle');
+    expect(prefs.faviconStyle).toBe('color');
+    expect(prefs.uiScale).toBe('standard');
+    expect(prefs.oledBlack).toBe(false);
   });
 
   it('User Preferences: updates and persists partial preferences', async () => {

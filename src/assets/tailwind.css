@@ -278,6 +278,43 @@
     --input: 28 14% 19%;
     --ring: 38 92% 50%;
   }
+
+  /* OLED True Black Mode Overrides (#000000) for OLED / mini-LED displays */
+  html.oled-true-black.dark,
+  html.oled-true-black[data-theme="midnight"],
+  html.oled-true-black[data-theme="obsidian"],
+  html.oled-true-black[data-theme="nord"],
+  html.oled-true-black[data-theme="ocean"],
+  html.oled-true-black[data-theme="amber"] {
+    --background: 0 0% 0%;
+    --card: 240 4% 5%;
+    --popover: 240 4% 5%;
+    --secondary: 240 4% 4%;
+    --muted: 240 4% 6%;
+    --border: 240 4% 14%;
+    --input: 240 4% 14%;
+  }
+}
+
+/* UI Typography & Viewport Scaling */
+html[data-ui-scale="compact"] {
+  font-size: 13px;
+}
+html[data-ui-scale="standard"] {
+  font-size: 14px;
+}
+html[data-ui-scale="large"] {
+  font-size: 15.5px;
+}
+
+/* Monochromatic Favicon Filter (with full-color reveal on hover) */
+.favicon-monochrome {
+  filter: grayscale(100%) opacity(0.72) contrast(1.1);
+  transition: filter 160ms ease, opacity 160ms ease;
+}
+.group:hover .favicon-monochrome,
+.tab-row-hover:hover .favicon-monochrome {
+  filter: grayscale(0%) opacity(1) contrast(1);
 }
 
 @layer base {
