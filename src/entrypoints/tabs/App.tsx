@@ -493,7 +493,7 @@ function ListCardItem({
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="absolute right-1 top-1/2 -translate-y-1/2 btn-spring h-5 w-5 opacity-0 group-hover/tab:opacity-100 transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/15 bg-card/85 backdrop-blur-xs border border-border/50 shadow-xs rounded-md z-10 flex items-center justify-center" 
+                className="absolute right-1 top-1/2 -translate-y-1/2 btn-spring h-5 w-5 opacity-0 group-hover/tab:opacity-100 transition-all text-muted-foreground bg-card hover:bg-destructive hover:text-destructive-foreground border border-border hover:border-destructive shadow-sm rounded-md z-10 flex items-center justify-center" 
                 onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
                 title="Remove tab"
               >
@@ -635,7 +635,7 @@ function GridCardItem({
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="absolute right-1 top-1/2 -translate-y-1/2 btn-spring h-5 w-5 opacity-0 group-hover/tab:opacity-100 transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/15 bg-card/85 backdrop-blur-xs border border-border/50 shadow-xs rounded-md z-10 flex items-center justify-center" 
+                className="absolute right-1 top-1/2 -translate-y-1/2 btn-spring h-5 w-5 opacity-0 group-hover/tab:opacity-100 transition-all text-muted-foreground bg-card hover:bg-destructive hover:text-destructive-foreground border border-border hover:border-destructive shadow-sm rounded-md z-10 flex items-center justify-center" 
                 onClick={() => setDeleteConfirm({ type: 'tab', groupId: group.id, url: tab.url, title: tab.title || tab.url })}
                 title="Remove tab"
               >
