@@ -298,7 +298,7 @@ function MarqueeText({
       ref={containerRef}
       onMouseEnter={() => { measure(); setIsSelfHovered(true); }}
       onMouseLeave={() => setIsSelfHovered(false)}
-      title={title || text}
+      aria-label={text}
       className={`relative overflow-hidden whitespace-nowrap min-w-0 max-w-full block select-none ${className}`}
     >
       {asLink && href ? (
@@ -379,7 +379,7 @@ function ListCardItem({
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 group/title min-w-0 cursor-pointer flex-1" onClick={() => handleStartRename(group)} title="Click to rename">
+            <div className="flex items-center gap-2 group/title min-w-0 cursor-pointer flex-1" onClick={() => handleStartRename(group)}>
               <MarqueeText
                 text={group.name || 'Saved Group'}
                 delayMs={1000}
@@ -568,7 +568,7 @@ function GridCardItem({
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 group/title min-w-0 flex-1 cursor-pointer" onClick={() => handleStartRename(group)} title="Click to rename">
+            <div className="flex items-center gap-2 group/title min-w-0 flex-1 cursor-pointer" onClick={() => handleStartRename(group)}>
               <MarqueeText
                 text={group.name || 'Saved Group'}
                 delayMs={1000}
