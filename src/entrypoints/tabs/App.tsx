@@ -980,8 +980,14 @@ function AppContent() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync OLED true black & UI scaling with HTML root
+  // Sync OLED true black & UI scaling with HTML root and localStorage
   useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('twotab_oled', userPreferences.oledBlack ? 'true' : 'false');
+        localStorage.setItem('twotab_ui_scale', userPreferences.uiScale || 'standard');
+      } catch (e) {}
+    }
     if (typeof document !== 'undefined') {
       if (userPreferences.oledBlack) {
         document.documentElement.classList.add('oled-true-black');

@@ -119,6 +119,15 @@ export const VALID_MODES: ThemeMode[] = [
  */
 export async function getStoredThemeMode(): Promise<ThemeMode> {
   try {
+    if (typeof localStorage !== 'undefined') {
+      const cached = localStorage.getItem(THEME_STORAGE_KEY);
+      if (cached && VALID_MODES.includes(cached as ThemeMode)) {
+        return cached as ThemeMode;
+      }
+    }
+  } catch (e) {}
+
+  try {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       const data = await chrome.storage.local.get(THEME_STORAGE_KEY);
       if (data && VALID_MODES.includes(data[THEME_STORAGE_KEY])) {
@@ -132,9 +141,15 @@ export async function getStoredThemeMode(): Promise<ThemeMode> {
 }
 
 /**
- * Persists the selected theme mode into chrome.storage.local.
+ * Persists the selected theme mode into both localStorage (instant sync) and chrome.storage.local.
  */
 export async function setStoredThemeMode(mode: ThemeMode): Promise<void> {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(THEME_STORAGE_KEY, mode);
+    }
+  } catch (e) {}
+
   try {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       await chrome.storage.local.set({ [THEME_STORAGE_KEY]: mode });
@@ -181,11 +196,18 @@ export function resolvePalette(mode: ThemeMode): ThemePalette {
  * - Sets the data-theme attribute
  * - Adds or removes the 'dark' CSS class
  * - Sets color-scheme to 'dark' or 'light'
+ * - Caches mode synchronously in localStorage for zero-flash page boots
  * Returns the resolved theme ('dark' | 'light').
  */
 export function applyThemeToDOM(mode: ThemeMode): ResolvedTheme {
   const resolved = resolveTheme(mode);
   const palette = resolvePalette(mode);
+
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, mode);
+    } catch (e) {}
+  }
 
   if (typeof document !== 'undefined' && document.documentElement) {
     document.documentElement.setAttribute('data-theme', palette);

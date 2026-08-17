@@ -13,8 +13,24 @@ import {
 } from '@/lib/theme';
 
 export function useTheme() {
-  const [themeMode, setThemeModeState] = useState<ThemeMode>(DEFAULT_THEME_MODE);
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => resolveTheme(DEFAULT_THEME_MODE));
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode;
+        if (stored && VALID_MODES.includes(stored)) return stored;
+      } catch (e) {}
+    }
+    return DEFAULT_THEME_MODE;
+  });
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode;
+        if (stored && VALID_MODES.includes(stored)) return resolveTheme(stored);
+      } catch (e) {}
+    }
+    return resolveTheme(DEFAULT_THEME_MODE);
+  });
 
   // Initialize and apply theme on mount
   useEffect(() => {

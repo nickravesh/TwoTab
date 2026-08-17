@@ -1,27 +1,57 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TwoTab</title>
     <script>
-      try {
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-          chrome.storage.local.get('twotab_theme_mode', function (res) {
-            var mode = res && res.twotab_theme_mode ? res.twotab_theme_mode : 'dark';
-            var isDark =
-              mode === 'dark' ||
-              (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-            if (isDark) {
-              document.documentElement.classList.add('dark');
-              document.documentElement.style.colorScheme = 'dark';
+      (function () {
+        try {
+          var root = document.documentElement;
+          var mode = 'midnight';
+          var uiScale = 'standard';
+          var oled = false;
+          if (typeof localStorage !== 'undefined') {
+            var stored = localStorage.getItem('twotab_theme_mode');
+            if (stored) mode = stored;
+            var storedScale = localStorage.getItem('twotab_ui_scale');
+            if (storedScale) uiScale = storedScale;
+            var storedOled = localStorage.getItem('twotab_oled');
+            if (storedOled === 'true') oled = true;
+          }
+          var isDark =
+            mode === 'dark' ||
+            mode === 'midnight' ||
+            mode === 'obsidian' ||
+            mode === 'nord' ||
+            mode === 'ocean' ||
+            mode === 'amber' ||
+            (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+          var palette = mode;
+          if (mode === 'system') {
+            palette = isDark ? 'midnight' : 'light';
+          } else if (mode === 'dark') {
+            palette = 'midnight';
+          }
+
+          root.setAttribute('data-theme', palette);
+          root.setAttribute('data-ui-scale', uiScale);
+          if (isDark) {
+            root.classList.add('dark');
+            root.style.colorScheme = 'dark';
+            if (oled) {
+              root.classList.add('oled-true-black');
             } else {
-              document.documentElement.classList.remove('dark');
-              document.documentElement.style.colorScheme = 'light';
+              root.classList.remove('oled-true-black');
             }
-          });
-        }
-      } catch (e) {}
+          } else {
+            root.classList.remove('dark');
+            root.classList.remove('oled-true-black');
+            root.style.colorScheme = 'light';
+          }
+        } catch (e) {}
+      })();
     </script>
     <style>
       body {
