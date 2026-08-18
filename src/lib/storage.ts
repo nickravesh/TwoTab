@@ -150,6 +150,8 @@ export interface UserPreferences {
   faviconStyle?: 'color' | 'monochrome' | 'hidden';
   uiScale?: 'compact' | 'standard' | 'large';
   oledBlack?: boolean;
+  lazyLoadRestoration?: 'threshold' | 'always' | 'never';
+  lazyLoadThreshold?: number;
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -163,6 +165,8 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   faviconStyle: 'color',
   uiScale: 'standard',
   oledBlack: false,
+  lazyLoadRestoration: 'threshold',
+  lazyLoadThreshold: 10,
 };
 
 export const PREFERENCES_STORAGE_KEY = 'twotab_user_preferences';
@@ -506,46 +510,108 @@ export function exportSingleGroupAsPlainText(group: TabGroup): string {
   return group.tabs.map(t => `${t.url} | ${t.title || t.url}`).join('\n');
 }
 
+export function unwrapDormantUrl(url?: string): string {
+  if (!url) return '';
+  if (url.includes('dormant.html') && url.includes('url=')) {
+    try {
+      const parsed = new URL(url);
+      const target = parsed.searchParams.get('url');
+      if (target) return decodeURIComponent(target);
+    } catch (_) {}
+  }
+  return url;
+}
+
+export function unwrapDormantTitle(title?: string, url?: string): string {
+  if (!url) return title || '';
+  if (url.includes('dormant.html') && url.includes('title=')) {
+    try {
+      const parsed = new URL(url);
+      const target = parsed.searchParams.get('title');
+      if (target) return decodeURIComponent(target);
+    } catch (_) {}
+  }
+  return title || '';
+}
+
+export function getDormantUrl(targetUrl: string, title?: string): string {
+  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+    try {
+      const dormantPath = chrome.runtime.getURL('dormant.html');
+      return `${dormantPath}?url=${encodeURIComponent(targetUrl)}&title=${encodeURIComponent(title || '')}`;
+    } catch (_) {}
+  }
+  return targetUrl;
+}
+
 export async function restoreTabsAsChromeGroup(
   groupName: string,
   tabs: Tab[],
   groupColor?: TabGroupColor,
-  destination: 'current_window' | 'new_window' = 'current_window'
+  destination: 'current_window' | 'new_window' = 'current_window',
+  prefs?: UserPreferences
 ): Promise<{ count: number }> {
-  const validUrls = (tabs || [])
-    .map((t) => t.url)
-    .filter((url) => {
-      if (!url) return false;
-      const lower = url.toLowerCase();
-      return !(
-        lower.startsWith('chrome-extension://') ||
-        lower.startsWith('chrome://') ||
-        lower.startsWith('about:') ||
-        lower.startsWith('edge:') ||
-        lower.startsWith('data:')
-      );
-    });
+  const userPrefs = prefs || (await getUserPreferences());
+  const validTabs = (tabs || []).filter((t) => {
+    if (!t || !t.url) return false;
+    const lower = t.url.toLowerCase();
+    return !(
+      lower.startsWith('chrome-extension://') ||
+      lower.startsWith('chrome://') ||
+      lower.startsWith('about:') ||
+      lower.startsWith('edge:') ||
+      lower.startsWith('data:')
+    );
+  });
 
-  if (validUrls.length === 0 || typeof chrome === 'undefined' || !chrome.tabs) {
+  if (validTabs.length === 0 || typeof chrome === 'undefined' || !chrome.tabs) {
     return { count: 0 };
   }
+
+  const shouldLazyLoad =
+    userPrefs.lazyLoadRestoration === 'always' ||
+    (userPrefs.lazyLoadRestoration !== 'never' && validTabs.length > (userPrefs.lazyLoadThreshold ?? 10));
 
   const createdTabIds: number[] = [];
 
   if (destination === 'new_window' && chrome.windows) {
-    const win = await chrome.windows.create({ url: validUrls[0], focused: true });
-    if (win.tabs && win.tabs[0]?.id) {
-      createdTabIds.push(win.tabs[0].id);
-    }
-    const winId = win.id;
-    for (let i = 1; i < validUrls.length; i++) {
-      const tab = await chrome.tabs.create({ url: validUrls[i], windowId: winId, active: false });
-      if (tab.id) createdTabIds.push(tab.id);
+    if (shouldLazyLoad) {
+      const win = await chrome.windows.create({ url: validTabs[0].url, focused: true });
+      if (win.tabs && win.tabs[0]?.id) {
+        createdTabIds.push(win.tabs[0].id);
+      }
+      const winId = win.id;
+      for (let i = 1; i < validTabs.length; i++) {
+        const dormantUrl = getDormantUrl(validTabs[i].url, validTabs[i].title);
+        const tab = await chrome.tabs.create({ url: dormantUrl, windowId: winId, active: false });
+        if (tab.id) createdTabIds.push(tab.id);
+        if (i % 5 === 0 && validTabs.length > 15) {
+          await new Promise((r) => setTimeout(r, 15));
+        }
+      }
+    } else {
+      const win = await chrome.windows.create({ url: validTabs.map((t) => t.url), focused: true });
+      if (win.tabs && win.tabs.length > 0) {
+        for (const t of win.tabs) {
+          if (t.id) createdTabIds.push(t.id);
+        }
+      } else if (win.id && chrome.tabs.query) {
+        const windowTabs = await chrome.tabs.query({ windowId: win.id });
+        for (const t of windowTabs) {
+          if (t.id) createdTabIds.push(t.id);
+        }
+      }
     }
   } else {
-    for (const url of validUrls) {
-      const tab = await chrome.tabs.create({ url, active: false });
+    for (let i = 0; i < validTabs.length; i++) {
+      const tabUrl = shouldLazyLoad
+        ? getDormantUrl(validTabs[i].url, validTabs[i].title)
+        : validTabs[i].url;
+      const tab = await chrome.tabs.create({ url: tabUrl, active: false });
       if (tab.id) createdTabIds.push(tab.id);
+      if (i % 5 === 0 && validTabs.length > 15) {
+        await new Promise((r) => setTimeout(r, 15));
+      }
     }
   }
 
@@ -559,6 +625,9 @@ export async function restoreTabsAsChromeGroup(
         if (groupColor) {
           updateProps.color = groupColor as chrome.tabGroups.ColorEnum;
         }
+        if (validTabs.length >= 20) {
+          updateProps.collapsed = true;
+        }
         await chrome.tabGroups.update(groupId, updateProps);
       }
     } catch (err) {
@@ -566,7 +635,7 @@ export async function restoreTabsAsChromeGroup(
     }
   }
 
-  return { count: validUrls.length };
+  return { count: validTabs.length };
 }
 
 // =============================================================================
@@ -578,28 +647,48 @@ export async function restoreTabGroup(
   prefs?: UserPreferences
 ): Promise<{ count: number; removed: boolean }> {
   const userPrefs = prefs || (await getUserPreferences());
-  const validUrls = (group.tabs || [])
-    .map((t) => t.url)
-    .filter((url) => {
-      if (!url) return false;
-      const lower = url.toLowerCase();
-      return !(
-        lower.startsWith('chrome-extension://') ||
-        lower.startsWith('chrome://') ||
-        lower.startsWith('about:') ||
-        lower.startsWith('edge:') ||
-        lower.startsWith('data:')
-      );
-    });
+  const validTabs = (group.tabs || []).filter((t) => {
+    if (!t || !t.url) return false;
+    const lower = t.url.toLowerCase();
+    return !(
+      lower.startsWith('chrome-extension://') ||
+      lower.startsWith('chrome://') ||
+      lower.startsWith('about:') ||
+      lower.startsWith('edge:') ||
+      lower.startsWith('data:')
+    );
+  });
 
-  if (validUrls.length === 0) return { count: 0, removed: false };
+  if (validTabs.length === 0) return { count: 0, removed: false };
+
+  const shouldLazyLoad =
+    userPrefs.lazyLoadRestoration === 'always' ||
+    (userPrefs.lazyLoadRestoration !== 'never' && validTabs.length > (userPrefs.lazyLoadThreshold ?? 10));
 
   if (typeof chrome !== 'undefined' && chrome.tabs) {
     if (userPrefs.restoreDestination === 'new_window' && chrome.windows) {
-      await chrome.windows.create({ url: validUrls, focused: true });
+      if (shouldLazyLoad) {
+        const win = await chrome.windows.create({ url: validTabs[0].url, focused: true });
+        const winId = win.id;
+        for (let i = 1; i < validTabs.length; i++) {
+          const dormantUrl = getDormantUrl(validTabs[i].url, validTabs[i].title);
+          await chrome.tabs.create({ url: dormantUrl, windowId: winId, active: false });
+          if (i % 5 === 0 && validTabs.length > 15) {
+            await new Promise((r) => setTimeout(r, 15));
+          }
+        }
+      } else {
+        await chrome.windows.create({ url: validTabs.map((t) => t.url), focused: true });
+      }
     } else {
-      for (const url of validUrls) {
-        await chrome.tabs.create({ url, active: false });
+      for (let i = 0; i < validTabs.length; i++) {
+        const tabUrl = shouldLazyLoad
+          ? getDormantUrl(validTabs[i].url, validTabs[i].title)
+          : validTabs[i].url;
+        await chrome.tabs.create({ url: tabUrl, active: false });
+        if (i % 5 === 0 && validTabs.length > 15) {
+          await new Promise((r) => setTimeout(r, 15));
+        }
       }
     }
   }
@@ -610,7 +699,7 @@ export async function restoreTabGroup(
     removed = true;
   }
 
-  return { count: validUrls.length, removed };
+  return { count: validTabs.length, removed };
 }
 
 export async function restoreAllTabGroups(
@@ -619,34 +708,54 @@ export async function restoreAllTabGroups(
 ): Promise<{ count: number; groupsCount: number; removed: boolean }> {
   const userPrefs = prefs || (await getUserPreferences());
   let totalCount = 0;
-  const allUrls: string[] = [];
+  const allTabs: Tab[] = [];
 
   for (const group of groups) {
-    const validUrls = (group.tabs || [])
-      .map((t) => t.url)
-      .filter((url) => {
-        if (!url) return false;
-        const lower = url.toLowerCase();
-        return !(
-          lower.startsWith('chrome-extension://') ||
-          lower.startsWith('chrome://') ||
-          lower.startsWith('about:') ||
-          lower.startsWith('edge:') ||
-          lower.startsWith('data:')
-        );
-      });
-    allUrls.push(...validUrls);
-    totalCount += validUrls.length;
+    const validTabs = (group.tabs || []).filter((t) => {
+      if (!t || !t.url) return false;
+      const lower = t.url.toLowerCase();
+      return !(
+        lower.startsWith('chrome-extension://') ||
+        lower.startsWith('chrome://') ||
+        lower.startsWith('about:') ||
+        lower.startsWith('edge:') ||
+        lower.startsWith('data:')
+      );
+    });
+    allTabs.push(...validTabs);
+    totalCount += validTabs.length;
   }
 
-  if (allUrls.length === 0) return { count: 0, groupsCount: 0, removed: false };
+  if (allTabs.length === 0) return { count: 0, groupsCount: 0, removed: false };
+
+  const shouldLazyLoad =
+    userPrefs.lazyLoadRestoration === 'always' ||
+    (userPrefs.lazyLoadRestoration !== 'never' && allTabs.length > (userPrefs.lazyLoadThreshold ?? 10));
 
   if (typeof chrome !== 'undefined' && chrome.tabs) {
     if (userPrefs.restoreDestination === 'new_window' && chrome.windows) {
-      await chrome.windows.create({ url: allUrls, focused: true });
+      if (shouldLazyLoad) {
+        const win = await chrome.windows.create({ url: allTabs[0].url, focused: true });
+        const winId = win.id;
+        for (let i = 1; i < allTabs.length; i++) {
+          const dormantUrl = getDormantUrl(allTabs[i].url, allTabs[i].title);
+          await chrome.tabs.create({ url: dormantUrl, windowId: winId, active: false });
+          if (i % 5 === 0 && allTabs.length > 15) {
+            await new Promise((r) => setTimeout(r, 15));
+          }
+        }
+      } else {
+        await chrome.windows.create({ url: allTabs.map((t) => t.url), focused: true });
+      }
     } else {
-      for (const url of allUrls) {
-        await chrome.tabs.create({ url, active: false });
+      for (let i = 0; i < allTabs.length; i++) {
+        const tabUrl = shouldLazyLoad
+          ? getDormantUrl(allTabs[i].url, allTabs[i].title)
+          : allTabs[i].url;
+        await chrome.tabs.create({ url: tabUrl, active: false });
+        if (i % 5 === 0 && allTabs.length > 15) {
+          await new Promise((r) => setTimeout(r, 15));
+        }
       }
     }
   }

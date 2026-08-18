@@ -1,4 +1,12 @@
-import { migrateIfNeeded, runHealthCheck, createRollingBackup, getUserPreferences, safeStorageSet } from '@/lib/storage';
+import {
+  migrateIfNeeded,
+  runHealthCheck,
+  createRollingBackup,
+  getUserPreferences,
+  safeStorageSet,
+  unwrapDormantUrl,
+  unwrapDormantTitle,
+} from '@/lib/storage';
 
 export default defineBackground(() => {
   const getStorageSession = () => chrome.storage.session || chrome.storage.local;
@@ -155,7 +163,9 @@ export default defineBackground(() => {
       const cacheUpdate: Record<string, { title: string; url: string }> = {};
       tabs.forEach(tab => {
         if (tab.id !== undefined && tab.url && tab.title) {
-          cacheUpdate[`tab_${tab.id}`] = { title: tab.title, url: tab.url };
+          const realUrl = unwrapDormantUrl(tab.url);
+          const realTitle = unwrapDormantTitle(tab.title, tab.url) || tab.title;
+          cacheUpdate[`tab_${tab.id}`] = { title: realTitle, url: realUrl };
         }
       });
       if (Object.keys(cacheUpdate).length > 0) {
@@ -170,8 +180,10 @@ export default defineBackground(() => {
   chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if ((changeInfo.title || changeInfo.url) && tab.url && tab.title) {
       try {
+        const realUrl = unwrapDormantUrl(tab.url);
+        const realTitle = unwrapDormantTitle(tab.title, tab.url) || tab.title;
         await getStorageSession().set({
-          [`tab_${tabId}`]: { title: tab.title, url: tab.url }
+          [`tab_${tabId}`]: { title: realTitle, url: realUrl }
         });
       } catch (e) {
         console.error('[TwoTab] Error updating tab cache:', e);
@@ -183,8 +195,10 @@ export default defineBackground(() => {
   chrome.tabs.onCreated.addListener(async (tab) => {
     if (tab.id !== undefined && tab.url && tab.title) {
       try {
+        const realUrl = unwrapDormantUrl(tab.url);
+        const realTitle = unwrapDormantTitle(tab.title, tab.url) || tab.title;
         await getStorageSession().set({
-          [`tab_${tab.id}`]: { title: tab.title, url: tab.url }
+          [`tab_${tab.id}`]: { title: realTitle, url: realUrl }
         });
       } catch (e) {
         console.error('[TwoTab] Error caching created tab:', e);
@@ -192,8 +206,28 @@ export default defineBackground(() => {
     }
   });
 
+  function extractEligibleTab(tab: chrome.tabs.Tab, protectPinned: boolean): { url: string; title: string } | null {
+    if (!tab || !tab.url) return null;
+    if (tab.pinned && protectPinned) return null;
+
+    const realUrl = unwrapDormantUrl(tab.url);
+    const lower = realUrl.toLowerCase();
+    if (
+      lower.startsWith('chrome-extension://') ||
+      lower.startsWith('chrome://') ||
+      lower.startsWith('about:') ||
+      lower.startsWith('edge:') ||
+      lower.startsWith('data:')
+    ) {
+      return null;
+    }
+
+    const realTitle = unwrapDormantTitle(tab.title, tab.url) || realUrl;
+    return { url: realUrl, title: realTitle };
+  }
+
   // ==========================================================================
-  // Tab Closure → Recently Closed Tracking (Race-safe with safeStorageSet)
+  // Recently Closed Tab Lifecycle Monitor (chrome.tabs.onRemoved)
   // ==========================================================================
 
   chrome.tabs.onRemoved.addListener(async (tabId) => {
@@ -205,7 +239,8 @@ export default defineBackground(() => {
 
       if (!cached || !cached.url) return;
 
-      const lower = cached.url.toLowerCase();
+      const realUrl = unwrapDormantUrl(cached.url);
+      const lower = realUrl.toLowerCase();
       // Protocol filter: exclude internal system pages ONLY
       if (
         lower.startsWith('chrome-extension://') ||
@@ -222,8 +257,8 @@ export default defineBackground(() => {
 
       const newItem = {
         id: `closed_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-        title: cached.title || cached.url,
-        url: cached.url,
+        title: unwrapDormantTitle(cached.title, cached.url) || realUrl,
+        url: realUrl,
         timestamp: new Date().toISOString(),
       };
 
@@ -293,19 +328,9 @@ export default defineBackground(() => {
     if (!activeTab || !activeTab.url) {
       return { status: 'no_tabs', reason: 'No active tab found' };
     }
-    if (activeTab.pinned && prefs.protectPinnedTabs) {
-      return { status: 'no_tabs', reason: 'Active tab is pinned and protected by your settings' };
-    }
-
-    const lower = activeTab.url.toLowerCase();
-    if (
-      lower.startsWith('chrome-extension://') ||
-      lower.startsWith('chrome://') ||
-      lower.startsWith('about:') ||
-      lower.startsWith('edge:') ||
-      lower.startsWith('data:')
-    ) {
-      return { status: 'no_tabs', reason: 'System and browser settings pages cannot be saved' };
+    const eligible = extractEligibleTab(activeTab, prefs.protectPinnedTabs);
+    if (!eligible) {
+      return { status: 'no_tabs', reason: activeTab.pinned && prefs.protectPinnedTabs ? 'Active tab is pinned and protected' : 'System pages cannot be saved' };
     }
 
     const data = await chrome.storage.local.get('tabGroups');
@@ -314,8 +339,8 @@ export default defineBackground(() => {
     const newGroup = {
       id: Date.now() + Math.floor(Math.random() * 1000),
       date: new Date().toISOString(),
-      name: activeTab.title ? (activeTab.title.length > 35 ? `${activeTab.title.slice(0, 35)}...` : activeTab.title) : 'Saved Tab',
-      tabs: [{ title: activeTab.title || activeTab.url, url: activeTab.url }]
+      name: eligible.title ? (eligible.title.length > 35 ? `${eligible.title.slice(0, 35)}...` : eligible.title) : 'Saved Tab',
+      tabs: [{ title: eligible.title, url: eligible.url }]
     };
     tabGroups.push(newGroup);
     await safeStorageSet({ tabGroups });
@@ -359,20 +384,14 @@ export default defineBackground(() => {
 
   async function processTabsForWindow(tabs: chrome.tabs.Tab[]) {
     const prefs = await getUserPreferences();
-    const tabData = tabs
-      .filter(tab => {
-        if (!tab.url) return false;
-        if (tab.pinned && prefs.protectPinnedTabs) return false;
-        const lower = tab.url.toLowerCase();
-        return !(
-          lower.startsWith('chrome-extension://') ||
-          lower.startsWith('chrome://') ||
-          lower.startsWith('about:') ||
-          lower.startsWith('edge:') ||
-          lower.startsWith('data:')
-        );
-      })
-      .map(tab => ({ title: tab.title || tab.url || '', url: tab.url || '' }));
+    const tabData: { title: string; url: string }[] = [];
+
+    tabs.forEach((tab) => {
+      const eligible = extractEligibleTab(tab, prefs.protectPinnedTabs);
+      if (eligible) {
+        tabData.push(eligible);
+      }
+    });
 
     if (tabData.length === 0) {
       return { status: 'no_tabs', reason: 'No eligible tabs in this window (all tabs are pinned or system pages)' };
@@ -408,20 +427,14 @@ export default defineBackground(() => {
 
   async function saveSpecificTabs(tabsToSave: chrome.tabs.Tab[], closeTabs: boolean = true) {
     const prefs = await getUserPreferences();
-    const validTabs = tabsToSave
-      .filter(tab => {
-        if (!tab.url) return false;
-        if (tab.pinned && prefs.protectPinnedTabs) return false;
-        const lower = tab.url.toLowerCase();
-        return !(
-          lower.startsWith('chrome-extension://') ||
-          lower.startsWith('chrome://') ||
-          lower.startsWith('about:') ||
-          lower.startsWith('edge:') ||
-          lower.startsWith('data:')
-        );
-      })
-      .map(tab => ({ title: tab.title || tab.url || '', url: tab.url || '' }));
+    const validTabs: { title: string; url: string }[] = [];
+
+    tabsToSave.forEach((tab) => {
+      const eligible = extractEligibleTab(tab, prefs.protectPinnedTabs);
+      if (eligible) {
+        validTabs.push(eligible);
+      }
+    });
 
     if (validTabs.length === 0) {
       return { status: 'no_tabs', reason: 'Tabs are protected or system pages' };

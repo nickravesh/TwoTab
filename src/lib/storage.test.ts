@@ -43,6 +43,9 @@ import {
   exportSingleGroupAsMarkdown,
   exportSingleGroupAsPlainText,
   restoreTabsAsChromeGroup,
+  unwrapDormantUrl,
+  unwrapDormantTitle,
+  getDormantUrl,
   DEFAULT_USER_PREFERENCES,
   CURRENT_SCHEMA_VERSION,
   type TabGroup,
@@ -59,10 +62,16 @@ const mockChrome = {
     get lastError() {
       return mockLastError;
     },
+    getURL: vi.fn((path: string) => `chrome-extension://twotab/${path}`),
   },
   tabs: {
     create: vi.fn((props: { url: string; active?: boolean }) => Promise.resolve({ id: 100, ...props })),
+    discard: vi.fn((tabId: number) => Promise.resolve({ id: tabId, discarded: true })),
     group: vi.fn((props: { tabIds: number[] }) => Promise.resolve(777)),
+    onUpdated: {
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    },
   },
   tabGroups: {
     update: vi.fn((groupId: number, props: { title?: string; color?: string }) => Promise.resolve({ id: groupId, ...props })),
@@ -1058,6 +1067,147 @@ https://site3.com | Site Three
 
       const result2 = await extractTabsToNewGroup(99999, [0]);
       expect(result2).toBeNull();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 17. Tab Restoration Engine & Dormant Tab Auto-Wake Pipeline
+  // ---------------------------------------------------------------------------
+  describe('Tab Restoration Engine & Dormant Tab Auto-Wake Pipeline', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('Dormant URL Helpers: correctly encodes and unwraps dormant tab URLs and titles', () => {
+      const rawUrl = 'https://github.com/nickravesh/TwoTab?ref=search';
+      const title = 'TwoTab: GitHub Repository';
+
+      const dormant = getDormantUrl(rawUrl, title);
+      expect(dormant).toContain('chrome-extension://twotab/dormant.html?url=');
+
+      const unwrappedUrl = unwrapDormantUrl(dormant);
+      expect(unwrappedUrl).toBe(rawUrl);
+
+      const unwrappedTitle = unwrapDormantTitle('Opening...', dormant);
+      expect(unwrappedTitle).toBe(title);
+
+      // Non-dormant URL passthrough
+      expect(unwrapDormantUrl('https://example.com')).toBe('https://example.com');
+      expect(unwrapDormantTitle('Example Title', 'https://example.com')).toBe('Example Title');
+    });
+
+    it('Restoration (Direct Mode): opens dedicated window with all URLs when lazy loading is disabled', async () => {
+      const tabList = Array.from({ length: 12 }, (_, i) => ({
+        title: `Tab ${i + 1}`,
+        url: `https://example.com/page-${i + 1}`,
+      }));
+
+      const group: TabGroup = {
+        id: 901,
+        date: '2026-08-18',
+        name: 'Large 12-Tab Collection',
+        tabs: tabList,
+      };
+
+      const result = await restoreTabGroup(group, {
+        protectPinnedTabs: true,
+        restoreDestination: 'new_window',
+        restoreBehavior: 'keep',
+        recentlyClosedLimit: 50,
+        lazyLoadRestoration: 'never',
+      });
+
+      expect(result.count).toBe(12);
+      expect(mockChrome.windows.create).toHaveBeenCalledWith({
+        url: tabList.map((t) => t.url),
+        focused: true,
+      });
+    });
+
+    it('Restoration (Lazy-Load Threshold): opens first tab active and background tabs dormant when > threshold', async () => {
+      const tabList = Array.from({ length: 12 }, (_, i) => ({
+        title: `Tab ${i + 1}`,
+        url: `https://example.com/page-${i + 1}`,
+      }));
+
+      const group: TabGroup = {
+        id: 902,
+        date: '2026-08-18',
+        name: 'Large 12-Tab Collection',
+        tabs: tabList,
+      };
+
+      const result = await restoreTabGroup(group, {
+        protectPinnedTabs: true,
+        restoreDestination: 'new_window',
+        restoreBehavior: 'keep',
+        recentlyClosedLimit: 50,
+        lazyLoadRestoration: 'threshold',
+        lazyLoadThreshold: 10,
+      });
+
+      expect(result.count).toBe(12);
+      // First tab opens live
+      expect(mockChrome.windows.create).toHaveBeenCalledWith({
+        url: 'https://example.com/page-1',
+        focused: true,
+      });
+      // 11 background tabs created as dormant zero-bandwidth tabs
+      expect(mockChrome.tabs.create).toHaveBeenCalledTimes(11);
+      expect(mockChrome.tabs.create).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          url: expect.stringContaining('dormant.html?url='),
+          active: false,
+        })
+      );
+    });
+
+    it('Restoration: opens individual background tabs when destination is current_window', async () => {
+      const tabs = [
+        { title: 'T1', url: 'https://1.com' },
+        { title: 'T2', url: 'https://2.com' },
+      ];
+
+      const group: TabGroup = {
+        id: 905,
+        date: '2026-08-18',
+        name: 'Current Window Test',
+        tabs,
+      };
+
+      const result = await restoreTabGroup(group, {
+        protectPinnedTabs: true,
+        restoreDestination: 'current_window',
+        restoreBehavior: 'keep',
+        recentlyClosedLimit: 50,
+      });
+
+      expect(result.count).toBe(2);
+      expect(mockChrome.tabs.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('Restoration: restoreTabsAsChromeGroup creates, groups, and auto-collapses large groups', async () => {
+      const tabs = Array.from({ length: 22 }, (_, i) => ({
+        title: `Tab ${i + 1}`,
+        url: `https://test.com/tab-${i + 1}`,
+      }));
+
+      const result = await restoreTabsAsChromeGroup(
+        'Large Chrome Group',
+        tabs,
+        'blue',
+        'current_window'
+      );
+
+      expect(result.count).toBe(22);
+      expect(mockChrome.tabs.create).toHaveBeenCalledTimes(22);
+      expect(mockChrome.tabs.group).toHaveBeenCalled();
+      expect(mockChrome.tabGroups.update).toHaveBeenCalledWith(777, {
+        title: 'Large Chrome Group',
+        color: 'blue',
+        collapsed: true,
+      });
     });
   });
 });
