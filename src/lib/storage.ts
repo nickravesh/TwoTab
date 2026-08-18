@@ -15,10 +15,13 @@ export interface Tab {
   url: string;
 }
 
+export type TabGroupColor = 'grey' | 'blue' | 'red' | 'yellow' | 'green' | 'pink' | 'purple' | 'cyan' | 'orange';
+
 export interface TabGroup {
   id: number;
   date: string;
   name?: string;
+  color?: TabGroupColor;
   tabs: Tab[];
 }
 
@@ -285,6 +288,178 @@ export async function renameGroup(id: number, newName: string): Promise<void> {
     const updated = groups.map(g => g.id === id ? { ...g, name: trimmed || g.name } : g);
     await safeStorageSet({ tabGroups: updated });
   });
+}
+
+export async function setGroupColor(id: number, color?: TabGroupColor): Promise<void> {
+  return storageQueue.enqueue(async () => {
+    const groups = await getGroups();
+    const updated = groups.map(g => g.id === id ? { ...g, color } : g);
+    await safeStorageSet({ tabGroups: updated });
+  });
+}
+
+export async function reorderTabsInGroup(groupId: number, fromIndex: number, toIndex: number): Promise<void> {
+  return storageQueue.enqueue(async () => {
+    const groups = await getGroups();
+    const updated = groups.map(g => {
+      if (g.id === groupId) {
+        const newTabs = [...g.tabs];
+        if (fromIndex >= 0 && fromIndex < newTabs.length && toIndex >= 0 && toIndex < newTabs.length) {
+          const [moved] = newTabs.splice(fromIndex, 1);
+          newTabs.splice(toIndex, 0, moved);
+        }
+        return { ...g, tabs: newTabs };
+      }
+      return g;
+    });
+    await safeStorageSet({ tabGroups: updated });
+  });
+}
+
+export async function deleteMultipleTabsFromGroup(groupId: number, tabIndices: number[]): Promise<void> {
+  const indexSet = new Set(tabIndices);
+  return storageQueue.enqueue(async () => {
+    const groups = await getGroups();
+    const updated = groups.map(g => {
+      if (g.id === groupId) {
+        const newTabs = g.tabs.filter((_, idx) => !indexSet.has(idx));
+        return { ...g, tabs: newTabs };
+      }
+      return g;
+    }).filter(g => g.tabs.length > 0);
+    await safeStorageSet({ tabGroups: updated });
+  });
+}
+
+export async function addTabToGroup(groupId: number, tab: Tab): Promise<void> {
+  if (!tab.url || !tab.url.trim()) return;
+  return storageQueue.enqueue(async () => {
+    const groups = await getGroups();
+    const updated = groups.map(g => {
+      if (g.id === groupId) {
+        return { ...g, tabs: [...g.tabs, { title: tab.title.trim() || tab.url.trim(), url: tab.url.trim() }] };
+      }
+      return g;
+    });
+    await safeStorageSet({ tabGroups: updated });
+  });
+}
+
+export async function extractTabsToNewGroup(
+  sourceGroupId: number,
+  tabIndices: number[],
+  newGroupName?: string
+): Promise<number | null> {
+  const indexSet = new Set(tabIndices);
+  let newGroupId: number | null = null;
+
+  await storageQueue.enqueue(async () => {
+    const groups = await getGroups();
+    const sourceGroup = groups.find(g => g.id === sourceGroupId);
+    if (!sourceGroup) return;
+
+    const extractedTabs = sourceGroup.tabs.filter((_, idx) => indexSet.has(idx));
+    if (extractedTabs.length === 0) return;
+
+    newGroupId = Date.now();
+    const newGroup: TabGroup = {
+      id: newGroupId,
+      date: new Date().toISOString(),
+      name: (newGroupName || `${sourceGroup.name || 'Saved Group'} (Extract)`).trim(),
+      tabs: extractedTabs,
+      color: sourceGroup.color,
+    };
+
+    const updatedGroups = groups.map(g => {
+      if (g.id === sourceGroupId) {
+        const remainingTabs = g.tabs.filter((_, idx) => !indexSet.has(idx));
+        return { ...g, tabs: remainingTabs };
+      }
+      return g;
+    }).filter(g => g.tabs.length > 0);
+
+    await safeStorageSet({ tabGroups: [newGroup, ...updatedGroups] });
+  });
+
+  return newGroupId;
+}
+
+export function exportSingleGroupAsMarkdown(group: TabGroup): string {
+  const lines: string[] = [];
+  lines.push(`## ${group.name || 'Saved Group'} (${group.tabs.length} tabs)`);
+  lines.push(`*Created: ${new Date(group.date).toLocaleString()}*\n`);
+  for (const tab of group.tabs) {
+    const title = (tab.title || tab.url).replace(/[\[\]]/g, '');
+    lines.push(`- [${title}](${tab.url})`);
+  }
+  return lines.join('\n');
+}
+
+export function exportSingleGroupAsPlainText(group: TabGroup): string {
+  return group.tabs.map(t => `${t.url} | ${t.title || t.url}`).join('\n');
+}
+
+export async function restoreTabsAsChromeGroup(
+  groupName: string,
+  tabs: Tab[],
+  groupColor?: TabGroupColor,
+  destination: 'current_window' | 'new_window' = 'current_window'
+): Promise<{ count: number }> {
+  const validUrls = (tabs || [])
+    .map((t) => t.url)
+    .filter((url) => {
+      if (!url) return false;
+      const lower = url.toLowerCase();
+      return !(
+        lower.startsWith('chrome-extension://') ||
+        lower.startsWith('chrome://') ||
+        lower.startsWith('about:') ||
+        lower.startsWith('edge:') ||
+        lower.startsWith('data:')
+      );
+    });
+
+  if (validUrls.length === 0 || typeof chrome === 'undefined' || !chrome.tabs) {
+    return { count: 0 };
+  }
+
+  const createdTabIds: number[] = [];
+
+  if (destination === 'new_window' && chrome.windows) {
+    const win = await chrome.windows.create({ url: validUrls[0], focused: true });
+    if (win.tabs && win.tabs[0]?.id) {
+      createdTabIds.push(win.tabs[0].id);
+    }
+    const winId = win.id;
+    for (let i = 1; i < validUrls.length; i++) {
+      const tab = await chrome.tabs.create({ url: validUrls[i], windowId: winId, active: false });
+      if (tab.id) createdTabIds.push(tab.id);
+    }
+  } else {
+    for (const url of validUrls) {
+      const tab = await chrome.tabs.create({ url, active: false });
+      if (tab.id) createdTabIds.push(tab.id);
+    }
+  }
+
+  if (createdTabIds.length > 0 && chrome.tabs.group) {
+    try {
+      const groupId = await chrome.tabs.group({ tabIds: createdTabIds });
+      if (chrome.tabGroups && chrome.tabGroups.update) {
+        const updateProps: chrome.tabGroups.UpdateProperties = {
+          title: groupName || 'TwoTab Group',
+        };
+        if (groupColor) {
+          updateProps.color = groupColor as chrome.tabGroups.ColorEnum;
+        }
+        await chrome.tabGroups.update(groupId, updateProps);
+      }
+    } catch (err) {
+      console.warn('[TwoTab] Failed to create native chrome tab group:', err);
+    }
+  }
+
+  return { count: validUrls.length };
 }
 
 // =============================================================================

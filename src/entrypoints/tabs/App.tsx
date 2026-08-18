@@ -61,6 +61,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { TabGroupInspectorModal } from '@/components/TabGroupInspectorModal';
 import {
   Accordion,
   AccordionContent,
@@ -221,6 +222,7 @@ interface VirtualizedCardGridProps {
   search?: string;
   setSearch?: (val: string) => void;
   isInitialLoading?: boolean;
+  handleInspectGroup?: (group: TabGroup) => void;
 }
 
 // Smooth Horizontal Auto-Scroll Marquee Component for Long Titles
@@ -344,6 +346,7 @@ function ListCardItem({
   handleArchiveGroup,
   handleUnarchiveGroup,
   handleRestoreGroup,
+  handleInspectGroup,
 }: {
   group: TabGroup;
   staggerIndex: number;
@@ -360,6 +363,7 @@ function ListCardItem({
   handleArchiveGroup: (id: number) => void;
   handleUnarchiveGroup: (id: number) => void;
   handleRestoreGroup: (group: TabGroup) => void;
+  handleInspectGroup?: (group: TabGroup) => void;
 }) {
   const [isCardHovered, setIsCardHovered] = useState(false);
 
@@ -368,9 +372,13 @@ function ListCardItem({
       style={{ '--stagger-index': staggerIndex } as React.CSSProperties}
       onMouseEnter={() => setIsCardHovered(true)}
       onMouseLeave={() => setIsCardHovered(false)}
-      className="animate-card-cascade card-interactive border border-border/80 hover:border-primary/40 bg-card text-card-foreground shadow-apple-card rounded-xl overflow-hidden group/card"
+      onDoubleClick={() => handleInspectGroup && handleInspectGroup(group)}
+      className="animate-card-cascade card-interactive border border-border/80 hover:border-primary/40 bg-card text-card-foreground shadow-apple-card rounded-xl overflow-hidden group/card cursor-default"
     >
-      <div className="p-3 bg-muted/30 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+      <div 
+        className="p-3 bg-muted/30 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+        onDoubleClick={() => handleInspectGroup && handleInspectGroup(group)}
+      >
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           {editingGroupId === group.id ? (
             <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
@@ -404,7 +412,18 @@ function ListCardItem({
             {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} • {getRelativeTime(group.date)}
           </Badge>
         </div>
-        <div className="flex items-center gap-1 shrink-0 justify-end">
+        <div className="flex items-center gap-1 shrink-0 justify-end" onClick={e => e.stopPropagation()}>
+          {handleInspectGroup && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md" 
+              onClick={() => handleInspectGroup(group)}
+              title="Inspect & expand group"
+            >
+              <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
+            </Button>
+          )}
           <Button 
             variant="ghost" 
             size="sm" 
@@ -526,6 +545,7 @@ function GridCardItem({
   handleArchiveGroup,
   handleUnarchiveGroup,
   handleRestoreGroup,
+  handleInspectGroup,
 }: {
   group: TabGroup;
   staggerIndex: number;
@@ -544,25 +564,42 @@ function GridCardItem({
   handleArchiveGroup: (id: number) => void;
   handleUnarchiveGroup: (id: number) => void;
   handleRestoreGroup: (group: TabGroup) => void;
+  handleInspectGroup?: (group: TabGroup) => void;
 }) {
   const [isCardHovered, setIsCardHovered] = useState(false);
+
+  const groupColorMap: Record<string, string> = {
+    grey: 'bg-zinc-400 dark:bg-zinc-500',
+    blue: 'bg-blue-500',
+    purple: 'bg-purple-500',
+    pink: 'bg-pink-500',
+    red: 'bg-red-500',
+    orange: 'bg-orange-500',
+    yellow: 'bg-amber-400',
+    green: 'bg-emerald-500',
+    cyan: 'bg-cyan-500',
+  };
 
   return (
     <Card 
       key={group.id} 
       onMouseEnter={() => setIsCardHovered(true)}
       onMouseLeave={() => setIsCardHovered(false)}
+      onDoubleClick={() => handleInspectGroup && handleInspectGroup(group)}
       style={{ 
         '--stagger-index': staggerIndex,
         height: `${currentCardHeight}px`
       } as React.CSSProperties}
-      className="animate-card-cascade card-interactive flex flex-col justify-between overflow-hidden rounded-2xl border border-border/80 hover:border-primary/50 bg-card text-card-foreground shadow-apple-card hover:shadow-apple-card-hover group/card"
+      className="animate-card-cascade card-interactive flex flex-col justify-between overflow-hidden rounded-2xl border border-border/80 hover:border-primary/50 bg-card text-card-foreground shadow-apple-card hover:shadow-apple-card-hover group/card cursor-default"
     >
       {/* Card Header (flex-shrink-0) */}
-      <CardHeader className={`${isCompact ? 'p-2.5 pb-1.5' : 'p-3.5 pb-2'} border-b border-border/60 bg-muted/30 flex items-center justify-between shrink-0`}>
+      <CardHeader 
+        className={`${isCompact ? 'p-2.5 pb-1.5' : 'p-3.5 pb-2'} border-b border-border/60 bg-muted/30 flex items-center justify-between shrink-0`}
+        onDoubleClick={() => handleInspectGroup && handleInspectGroup(group)}
+      >
         <div className="flex items-center justify-between gap-2 min-w-0 w-full">
           {editingGroupId === group.id ? (
-            <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
+            <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-1" onClick={e => e.stopPropagation()}>
               <Input 
                 value={editingName} 
                 onChange={e => setEditingName(e.target.value)} 
@@ -578,7 +615,10 @@ function GridCardItem({
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 group/title min-w-0 flex-1 cursor-pointer" onClick={() => handleStartRename(group)}>
+            <div className="flex items-center gap-1.5 group/title min-w-0 flex-1 cursor-pointer" onClick={() => handleStartRename(group)}>
+              {group.color && groupColorMap[group.color] && (
+                <span className={`w-2 h-2 rounded-full shrink-0 ${groupColorMap[group.color]}`} />
+              )}
               <MarqueeText
                 text={group.name || 'Saved Group'}
                 delayMs={1000}
@@ -648,7 +688,18 @@ function GridCardItem({
 
       {/* Card Footer */}
       <CardFooter className={`shrink-0 border-t border-border/60 bg-muted/20 ${isCompact ? 'p-2 pt-1.5' : 'p-2.5 pt-2'} flex items-center justify-between rounded-b-2xl relative z-10`}>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+          {handleInspectGroup && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="btn-spring h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors" 
+              onClick={() => handleInspectGroup(group)}
+              title="Inspect & expand group"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button 
             variant="ghost" 
             size="icon" 
@@ -693,7 +744,10 @@ function GridCardItem({
           variant="secondary" 
           size="sm" 
           className="btn-spring h-7 px-3 text-xs font-medium bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 rounded-lg shadow-xs flex items-center gap-1.5" 
-          onClick={() => handleRestoreGroup(group)}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleRestoreGroup(group);
+          }}
         >
           <RotateCcw className="h-3 w-3 text-primary" /> Restore
         </Button>
@@ -724,6 +778,7 @@ function VirtualizedCardGrid({
   search = '',
   setSearch,
   isInitialLoading = false,
+  handleInspectGroup,
 }: VirtualizedCardGridProps) {
   const isCompact = cardDensity === 'compact';
   const minCardWidth = isCompact ? 240 : 280;
@@ -762,7 +817,7 @@ function VirtualizedCardGrid({
             <Layers className="w-8 h-8 opacity-70 text-primary" />
           )}
         </div>
-        <h3 className="text-base font-semibold text-foreground mb-1.5">
+        <h3 className="text-sm font-semibold text-foreground mb-1.5">
           {isSearching 
             ? `No Matching ${activeTab === 'dashboard' ? 'Tab Groups' : 'Archived Groups'}`
             : activeTab === 'dashboard' ? 'No Saved Tabs Yet' : 'No Archived Groups'}
@@ -823,6 +878,7 @@ function VirtualizedCardGrid({
               handleArchiveGroup={handleArchiveGroup}
               handleUnarchiveGroup={handleUnarchiveGroup}
               handleRestoreGroup={handleRestoreGroup}
+              handleInspectGroup={handleInspectGroup}
             />
           );
         })}
@@ -891,6 +947,7 @@ function VirtualizedCardGrid({
                       handleArchiveGroup={handleArchiveGroup}
                       handleUnarchiveGroup={handleUnarchiveGroup}
                       handleRestoreGroup={handleRestoreGroup}
+                      handleInspectGroup={handleInspectGroup}
                     />
                   );
                 })}
@@ -978,7 +1035,21 @@ function AppContent() {
   const [restoreAllConfirm, setRestoreAllConfirm] = useState(false);
   const [showAdvancedAppearance, setShowAdvancedAppearance] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [inspectedGroup, setInspectedGroup] = useState<TabGroup | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Keep inspectedGroup synchronized with live storage state
+  useEffect(() => {
+    if (inspectedGroup) {
+      const currentList = activeTab === 'archive' ? archivedGroups : groups;
+      const updated = currentList.find((g) => g.id === inspectedGroup.id);
+      if (updated) {
+        setInspectedGroup(updated);
+      } else {
+        setInspectedGroup(null);
+      }
+    }
+  }, [groups, archivedGroups, activeTab]);
 
   // Sync OLED true black & UI scaling with HTML root and localStorage
   useEffect(() => {
@@ -1626,6 +1697,19 @@ function AppContent() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Tab Group Inspector Modal */}
+      <TabGroupInspectorModal
+        isOpen={!!inspectedGroup}
+        onClose={() => setInspectedGroup(null)}
+        group={inspectedGroup}
+        onGroupUpdated={loadData}
+        onDeleteGroup={(id, name) => setDeleteConfirm({ type: 'group', id, title: name })}
+        onArchiveGroup={activeTab === 'dashboard' ? handleArchiveGroup : undefined}
+        onUnarchiveGroup={activeTab === 'archive' ? handleUnarchiveGroup : undefined}
+        isArchived={activeTab === 'archive'}
+        faviconStyle={userPreferences.faviconStyle}
+      />
+
       {/* Sidebar (Floating Glass Pane) */}
       <aside className="w-64 h-full rounded-2xl glass-macos-sidebar p-5 flex flex-col justify-between z-20 shrink-0 relative overflow-hidden">
         {/* Top-Left Sidebar Ambient Glow */}
@@ -2004,6 +2088,7 @@ function AppContent() {
             search={search}
             setSearch={setSearch}
             isInitialLoading={isInitialLoading}
+            handleInspectGroup={(g) => setInspectedGroup(g)}
           />
         ) : (
         <>

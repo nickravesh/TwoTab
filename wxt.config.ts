@@ -7,7 +7,7 @@ export default defineConfig({
   manifest: {
     name: 'TwoTab',
     description: 'TwoTab is a privacy-first, lightweight Google Chrome browser extension designed to replace OneTab.',
-    permissions: ['tabs', 'storage', 'sessions', 'unlimitedStorage', 'alarms', 'contextMenus'],
+    permissions: ['tabs', 'storage', 'sessions', 'unlimitedStorage', 'alarms', 'contextMenus', 'tabGroups'],
     icons: {
       '16': 'icons/icon-16.png',
       '32': 'icons/icon-32.png',

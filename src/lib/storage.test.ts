@@ -35,9 +35,18 @@ import {
   restoreFromRollingBackup,
   safeStorageSet,
   copyToClipboardSafe,
+  reorderTabsInGroup,
+  deleteMultipleTabsFromGroup,
+  addTabToGroup,
+  setGroupColor,
+  extractTabsToNewGroup,
+  exportSingleGroupAsMarkdown,
+  exportSingleGroupAsPlainText,
+  restoreTabsAsChromeGroup,
   DEFAULT_USER_PREFERENCES,
   CURRENT_SCHEMA_VERSION,
   type TabGroup,
+  type TabGroupColor,
 } from './storage';
 
 // In-memory store to simulate chrome.storage.local
@@ -779,5 +788,134 @@ https://site3.com | Site Three
     const success = await copyToClipboardSafe('https://example.com');
     expect(success).toBe(true);
     expect(mockWriteText).toHaveBeenCalledWith('https://example.com');
+  });
+
+  // ---------------------------------------------------------------------------
+  // 21. Inspector Tab Group Operations (Reorder, Batch Delete, Add, Color, Extract)
+  // ---------------------------------------------------------------------------
+  it('reorderTabsInGroup: reorders tabs within a group accurately', async () => {
+    mockStorageStore = {
+      tabGroups: [
+        {
+          id: 801,
+          date: '2026-08-11',
+          name: 'Reorder Test',
+          tabs: [
+            { title: 'Tab 0', url: 'https://0.com' },
+            { title: 'Tab 1', url: 'https://1.com' },
+            { title: 'Tab 2', url: 'https://2.com' },
+          ],
+        },
+      ],
+    };
+
+    await reorderTabsInGroup(801, 0, 2);
+    expect(mockStorageStore.tabGroups[0].tabs.map((t: any) => t.title)).toEqual(['Tab 1', 'Tab 2', 'Tab 0']);
+  });
+
+  it('deleteMultipleTabsFromGroup: deletes selected tabs by index and cleans empty groups', async () => {
+    mockStorageStore = {
+      tabGroups: [
+        {
+          id: 802,
+          date: '2026-08-11',
+          name: 'Batch Delete Test',
+          tabs: [
+            { title: 'Tab A', url: 'https://a.com' },
+            { title: 'Tab B', url: 'https://b.com' },
+            { title: 'Tab C', url: 'https://c.com' },
+          ],
+        },
+      ],
+    };
+
+    await deleteMultipleTabsFromGroup(802, [0, 2]);
+    expect(mockStorageStore.tabGroups[0].tabs.length).toBe(1);
+    expect(mockStorageStore.tabGroups[0].tabs[0].title).toBe('Tab B');
+
+    // Deleting the last tab removes the group
+    await deleteMultipleTabsFromGroup(802, [0]);
+    expect(mockStorageStore.tabGroups.length).toBe(0);
+  });
+
+  it('addTabToGroup: appends new tab safely', async () => {
+    mockStorageStore = {
+      tabGroups: [
+        {
+          id: 803,
+          date: '2026-08-11',
+          name: 'Add Tab Test',
+          tabs: [{ title: 'Existing', url: 'https://existing.com' }],
+        },
+      ],
+    };
+
+    await addTabToGroup(803, { title: 'New Tab', url: 'https://newtab.com' });
+    expect(mockStorageStore.tabGroups[0].tabs.length).toBe(2);
+    expect(mockStorageStore.tabGroups[0].tabs[1].url).toBe('https://newtab.com');
+  });
+
+  it('setGroupColor: updates group color accent', async () => {
+    mockStorageStore = {
+      tabGroups: [
+        {
+          id: 804,
+          date: '2026-08-11',
+          name: 'Color Test',
+          tabs: [{ title: 'Tab', url: 'https://tab.com' }],
+        },
+      ],
+    };
+
+    await setGroupColor(804, 'purple');
+    expect(mockStorageStore.tabGroups[0].color).toBe('purple');
+  });
+
+  it('extractTabsToNewGroup: splits selected tabs into a new group atomically', async () => {
+    mockStorageStore = {
+      tabGroups: [
+        {
+          id: 805,
+          date: '2026-08-11',
+          name: 'Source Group',
+          color: 'cyan',
+          tabs: [
+            { title: 'Tab 1', url: 'https://1.com' },
+            { title: 'Tab 2', url: 'https://2.com' },
+            { title: 'Tab 3', url: 'https://3.com' },
+          ],
+        },
+      ],
+    };
+
+    const newId = await extractTabsToNewGroup(805, [0, 2], 'Extracted Project');
+    expect(newId).toBeTruthy();
+    expect(mockStorageStore.tabGroups.length).toBe(2);
+    expect(mockStorageStore.tabGroups[0].name).toBe('Extracted Project');
+    expect(mockStorageStore.tabGroups[0].tabs.length).toBe(2);
+    expect(mockStorageStore.tabGroups[0].color).toBe('cyan');
+    // Source group has 1 tab left
+    expect(mockStorageStore.tabGroups[1].tabs.length).toBe(1);
+    expect(mockStorageStore.tabGroups[1].tabs[0].title).toBe('Tab 2');
+  });
+
+  it('exportSingleGroup formats markdown and plaintext correctly', () => {
+    const group: TabGroup = {
+      id: 806,
+      date: '2026-08-11T12:00:00Z',
+      name: 'Single Export Test',
+      tabs: [
+        { title: 'Alpha [Special]', url: 'https://alpha.com' },
+        { title: 'Beta', url: 'https://beta.com' },
+      ],
+    };
+
+    const md = exportSingleGroupAsMarkdown(group);
+    expect(md).toContain('## Single Export Test (2 tabs)');
+    expect(md).toContain('- [Alpha Special](https://alpha.com)');
+    expect(md).toContain('- [Beta](https://beta.com)');
+
+    const txt = exportSingleGroupAsPlainText(group);
+    expect(txt).toBe('https://alpha.com | Alpha [Special]\nhttps://beta.com | Beta');
   });
 });
