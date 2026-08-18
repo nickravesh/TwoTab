@@ -62,9 +62,13 @@ const mockChrome = {
   },
   tabs: {
     create: vi.fn((props: { url: string; active?: boolean }) => Promise.resolve({ id: 100, ...props })),
+    group: vi.fn((props: { tabIds: number[] }) => Promise.resolve(777)),
+  },
+  tabGroups: {
+    update: vi.fn((groupId: number, props: { title?: string; color?: string }) => Promise.resolve({ id: groupId, ...props })),
   },
   windows: {
-    create: vi.fn((props: { url?: string | string[]; focused?: boolean }) => Promise.resolve({ id: 200, ...props })),
+    create: vi.fn((props: { url?: string | string[]; focused?: boolean }) => Promise.resolve({ id: 200, tabs: [{ id: 101, url: props.url }], ...props })),
   },
   storage: {
     local: {
@@ -917,5 +921,143 @@ https://site3.com | Site Three
 
     const txt = exportSingleGroupAsPlainText(group);
     expect(txt).toBe('https://alpha.com | Alpha [Special]\nhttps://beta.com | Beta');
+  });
+
+  describe('URL Parsing & Formatting Helpers', () => {
+    it('getSafeDomain: correctly extracts hostnames and handles edge cases', () => {
+      expect(getSafeDomain('https://www.google.com/search?q=test')).toBe('www.google.com');
+      expect(getSafeDomain('http://sub.domain.example.co.uk:8080/path')).toBe('sub.domain.example.co.uk');
+      expect(getSafeDomain('https://192.168.1.1/dashboard')).toBe('192.168.1.1');
+      expect(getSafeDomain('https://localhost:3000')).toBe('localhost');
+
+      // Invalid or non-web protocols return null
+      expect(getSafeDomain('about:blank')).toBeNull();
+      expect(getSafeDomain('javascript:void(0)')).toBeNull();
+      expect(getSafeDomain('')).toBeNull();
+      expect(getSafeDomain('invalid-url-string')).toBeNull();
+    });
+
+    it('formatDisplayUrl: handles URI decoding and fallbacks cleanly', () => {
+      expect(formatDisplayUrl('https://example.com/hello%20world')).toBe('https://example.com/hello world');
+      expect(formatDisplayUrl('https://example.com/path?q=1')).toBe('https://example.com/path?q=1');
+      expect(formatDisplayUrl('')).toBe('');
+    });
+
+    it('getRelativeTime: formats relative intervals accurately', () => {
+      const now = new Date();
+      expect(getRelativeTime(now.toISOString())).toBe('just now');
+
+      const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+      expect(getRelativeTime(fiveMinutesAgo.toISOString())).toBe('5m ago');
+
+      const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+      expect(getRelativeTime(twoHoursAgo.toISOString())).toBe('2h ago');
+
+      const yesterday = new Date(now.getTime() - 26 * 60 * 60 * 1000);
+      expect(getRelativeTime(yesterday.toISOString())).toBe('yesterday');
+
+      const fourDaysAgo = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000);
+      expect(getRelativeTime(fourDaysAgo.toISOString())).toBe('4d ago');
+    });
+  });
+
+  describe('Native Chrome Tab Group Restoration', () => {
+    it('restoreTabsAsChromeGroup: creates tabs and groups them via chrome.tabs.group and tabGroups.update', async () => {
+      const tabs = [
+        { title: 'GitHub', url: 'https://github.com' },
+        { title: 'Google', url: 'https://google.com' },
+      ];
+
+      await restoreTabsAsChromeGroup('Dev Project', tabs, 'cyan', 'current_window');
+
+      expect(mockChrome.tabs.create).toHaveBeenCalledWith({ url: 'https://github.com', active: false });
+      expect(mockChrome.tabs.create).toHaveBeenCalledWith({ url: 'https://google.com', active: false });
+      expect(mockChrome.tabs.group).toHaveBeenCalled();
+      expect(mockChrome.tabGroups.update).toHaveBeenCalledWith(777, {
+        title: 'Dev Project',
+        color: 'cyan',
+      });
+    });
+
+    it('restoreTabsAsChromeGroup: handles new_window mode and window creation', async () => {
+      const tabs = [{ title: 'Single Tab', url: 'https://single.com' }];
+      await restoreTabsAsChromeGroup('New Window Group', tabs, 'purple', 'new_window');
+
+      expect(mockChrome.windows.create).toHaveBeenCalled();
+      expect(mockChrome.tabGroups.update).toHaveBeenCalledWith(777, {
+        title: 'New Window Group',
+        color: 'purple',
+      });
+    });
+  });
+
+  describe('Inspector Storage Operations Edge Cases', () => {
+    it('reorderTabsInGroup: ignores invalid or out-of-bound indices safely', async () => {
+      mockStorageStore = {
+        tabGroups: [
+          {
+            id: 880,
+            date: '2026-08-11',
+            tabs: [
+              { title: 'T1', url: 'https://1.com' },
+              { title: 'T2', url: 'https://2.com' },
+            ],
+          },
+        ],
+      };
+
+      await reorderTabsInGroup(880, -1, 5);
+      expect(mockStorageStore.tabGroups[0].tabs.map((t: any) => t.title)).toEqual(['T1', 'T2']);
+    });
+
+    it('addTabToGroup: rejects empty or whitespace-only URLs without throwing', async () => {
+      mockStorageStore = {
+        tabGroups: [
+          {
+            id: 881,
+            date: '2026-08-11',
+            tabs: [{ title: 'T1', url: 'https://1.com' }],
+          },
+        ],
+      };
+
+      await addTabToGroup(881, { title: 'Empty', url: '   ' });
+      expect(mockStorageStore.tabGroups[0].tabs.length).toBe(1);
+    });
+
+    it('setGroupColor: clears group color when undefined is passed', async () => {
+      mockStorageStore = {
+        tabGroups: [
+          {
+            id: 882,
+            date: '2026-08-11',
+            color: 'orange',
+            tabs: [{ title: 'T1', url: 'https://1.com' }],
+          },
+        ],
+      };
+
+      await setGroupColor(882, undefined);
+      expect(mockStorageStore.tabGroups[0].color).toBeUndefined();
+    });
+
+    it('extractTabsToNewGroup: returns null when passed empty indices or non-existent group', async () => {
+      mockStorageStore = {
+        tabGroups: [
+          {
+            id: 883,
+            date: '2026-08-11',
+            tabs: [{ title: 'T1', url: 'https://1.com' }],
+          },
+        ],
+      };
+
+      const result1 = await extractTabsToNewGroup(883, []);
+      expect(result1).toBeNull();
+      expect(mockStorageStore.tabGroups.length).toBe(1);
+
+      const result2 = await extractTabsToNewGroup(99999, [0]);
+      expect(result2).toBeNull();
+    });
   });
 });

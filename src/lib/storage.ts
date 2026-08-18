@@ -17,6 +17,113 @@ export interface Tab {
 
 export type TabGroupColor = 'grey' | 'blue' | 'red' | 'yellow' | 'green' | 'pink' | 'purple' | 'cyan' | 'orange';
 
+export type SortOption =
+  | 'date-desc'
+  | 'date-asc'
+  | 'tabs-desc'
+  | 'tabs-asc'
+  | 'title-asc'
+  | 'title-desc'
+  | 'color';
+
+export interface SortOptionItem {
+  id: SortOption;
+  label: string;
+  description: string;
+}
+
+export const SORT_OPTIONS: SortOptionItem[] = [
+  { id: 'date-desc', label: 'Newest First', description: 'Recent groups first' },
+  { id: 'date-asc', label: 'Oldest First', description: 'Earliest groups first' },
+  { id: 'tabs-desc', label: 'Most Tabs', description: 'Largest collections first' },
+  { id: 'tabs-asc', label: 'Fewest Tabs', description: 'Smallest collections first' },
+  { id: 'title-asc', label: 'Name (A → Z)', description: 'Alphabetical order' },
+  { id: 'title-desc', label: 'Name (Z → A)', description: 'Reverse alphabetical' },
+  { id: 'color', label: 'Color Tag', description: 'Grouped by tag color' },
+];
+
+export interface ColorFilterItem {
+  id: string;
+  label: string;
+  colorStyle: string;
+  borderStyle: string;
+}
+
+export const COLOR_FILTER_ITEMS: ColorFilterItem[] = [
+  { id: 'grey', label: 'Slate', colorStyle: 'hsl(220 10% 55%)', borderStyle: 'hsl(220 10% 45%)' },
+  { id: 'blue', label: 'Blue', colorStyle: 'hsl(217 91% 60%)', borderStyle: 'hsl(217 91% 50%)' },
+  { id: 'purple', label: 'Purple', colorStyle: 'hsl(271 91% 65%)', borderStyle: 'hsl(271 91% 55%)' },
+  { id: 'pink', label: 'Pink', colorStyle: 'hsl(330 85% 65%)', borderStyle: 'hsl(330 85% 55%)' },
+  { id: 'red', label: 'Red', colorStyle: 'hsl(0 84% 60%)', borderStyle: 'hsl(0 84% 50%)' },
+  { id: 'orange', label: 'Orange', colorStyle: 'hsl(25 95% 53%)', borderStyle: 'hsl(25 95% 45%)' },
+  { id: 'yellow', label: 'Amber', colorStyle: 'hsl(45 93% 47%)', borderStyle: 'hsl(45 93% 40%)' },
+  { id: 'green', label: 'Emerald', colorStyle: 'hsl(152 76% 40%)', borderStyle: 'hsl(152 76% 32%)' },
+  { id: 'cyan', label: 'Cyan', colorStyle: 'hsl(188 86% 45%)', borderStyle: 'hsl(188 86% 38%)' },
+  { id: 'none', label: 'Untagged', colorStyle: 'hsl(var(--muted-foreground) / 0.3)', borderStyle: 'hsl(var(--border))' },
+];
+
+export function filterAndSortTabGroups(
+  groups: TabGroup[],
+  selectedColorFilters: Set<string> | string[] = new Set(),
+  searchQuery: string = '',
+  sortOption: SortOption = 'date-desc'
+): TabGroup[] {
+  let result = [...groups];
+  const filterSet = selectedColorFilters instanceof Set ? selectedColorFilters : new Set(selectedColorFilters);
+
+  // 1. Color Tag Filtering
+  if (filterSet.size > 0) {
+    result = result.filter((g) => {
+      const c = g.color || 'none';
+      return filterSet.has(c);
+    });
+  }
+
+  // 2. Search Query Filtering
+  if (searchQuery && searchQuery.trim() !== '') {
+    const lower = searchQuery.toLowerCase().trim();
+    result = result
+      .map((g) => {
+        const tabs = g.tabs.filter(
+          (t) =>
+            (t.title && t.title.toLowerCase().includes(lower)) ||
+            (t.url && t.url.toLowerCase().includes(lower))
+        );
+        if (tabs.length === 0 && !(g.name && g.name.toLowerCase().includes(lower))) return null;
+        return { ...g, tabs: tabs.length > 0 ? tabs : g.tabs };
+      })
+      .filter(Boolean) as TabGroup[];
+  }
+
+  // 3. Sorting
+  result.sort((a, b) => {
+    switch (sortOption) {
+      case 'date-desc':
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      case 'date-asc':
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      case 'tabs-desc':
+        return (b.tabs?.length || 0) - (a.tabs?.length || 0);
+      case 'tabs-asc':
+        return (a.tabs?.length || 0) - (b.tabs?.length || 0);
+      case 'title-asc':
+        return (a.name || 'Saved Group').localeCompare(b.name || 'Saved Group');
+      case 'title-desc':
+        return (b.name || 'Saved Group').localeCompare(a.name || 'Saved Group');
+      case 'color': {
+        const colorOrder = ['blue', 'cyan', 'green', 'yellow', 'orange', 'red', 'pink', 'purple', 'grey', 'none'];
+        const aIdx = colorOrder.indexOf(a.color || 'none');
+        const bIdx = colorOrder.indexOf(b.color || 'none');
+        return aIdx - bIdx;
+      }
+      default:
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+    }
+  });
+
+  return result;
+}
+
 export interface TabGroup {
   id: number;
   date: string;
