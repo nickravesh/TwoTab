@@ -119,6 +119,9 @@ export function TabGroupInspectorModal({
   // Copy Feedback State
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
+  // In-Modal Delete Confirmation State
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Sync draft title when group changes
@@ -130,6 +133,7 @@ export function TabGroupInspectorModal({
     setIsAddingTab(false);
     setUndoSnapshot(null);
     setIsEditingTitle(false);
+    setShowDeleteConfirm(false);
   }, [group.id, isOpen]);
 
   // Compute Domain Statistics — cleanly filtered to non-empty valid domains
@@ -852,10 +856,7 @@ export function TabGroupInspectorModal({
               variant="ghost"
               size="sm"
               className="h-8 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg gap-1.5"
-              onClick={() => {
-                onClose();
-                onDeleteGroup(group.id, group.name || 'Saved Group');
-              }}
+              onClick={() => setShowDeleteConfirm(true)}
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Delete Group</span>
@@ -951,6 +952,43 @@ export function TabGroupInspectorModal({
             </DropdownMenu>
           </div>
         </div>
+
+        {/* In-Modal Delete Confirmation Nested Dialog */}
+        <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <DialogContent className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] max-w-sm w-[90vw] p-5 rounded-2xl border border-border bg-card shadow-2xl text-card-foreground">
+            <DialogHeader className="space-y-2 text-left">
+              <DialogTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-destructive" />
+                Delete Tab Group?
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+                Are you sure you want to delete <strong className="text-foreground font-medium">"{group.name || 'Saved Group'}"</strong>? All {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} in this collection will be permanently deleted.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs font-medium"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  onClose();
+                  onDeleteGroup(group.id, group.name || 'Saved Group');
+                }}
+              >
+                Delete Group
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );

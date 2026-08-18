@@ -1725,7 +1725,17 @@ function AppContent() {
         onClose={() => setInspectedGroup(null)}
         group={inspectedGroup}
         onGroupUpdated={loadData}
-        onDeleteGroup={(id, name) => setDeleteConfirm({ type: 'group', id, title: name })}
+        onDeleteGroup={async (id) => {
+          if (activeTab === 'archive') {
+            const { deleteArchivedGroup } = await import('@/lib/storage');
+            await deleteArchivedGroup(id);
+          } else {
+            const { deleteGroup } = await import('@/lib/storage');
+            await deleteGroup(id);
+          }
+          showMessage('Group deleted');
+          loadData();
+        }}
         onArchiveGroup={activeTab === 'dashboard' ? handleArchiveGroup : undefined}
         onUnarchiveGroup={activeTab === 'archive' ? handleUnarchiveGroup : undefined}
         isArchived={activeTab === 'archive'}

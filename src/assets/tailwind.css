@@ -561,6 +561,32 @@ html[data-ui-scale="large"] {
   }
 }
 
+@keyframes modalSpringIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, calc(-50% + 20px), 0) scale(0.93);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) scale(1);
+  }
+}
+
+@keyframes modalSpringOut {
+  0% {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, calc(-50% + 14px), 0) scale(0.95);
+  }
+}
+
+.ease-out-apple {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* Fluid Entrance Cascade */
 .animate-card-cascade {
   animation: cardCascadeIn 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
