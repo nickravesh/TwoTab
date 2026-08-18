@@ -132,16 +132,20 @@ export function TabGroupInspectorModal({
     setIsEditingTitle(false);
   }, [group.id, isOpen]);
 
-  // Compute Domain Statistics
+  // Compute Domain Statistics — cleanly filtered to non-empty valid domains
   const domainStats = useMemo(() => {
     const counts = new Map<string, number>();
     for (const tab of group.tabs) {
-      const domain = getSafeDomain(tab.url);
-      if (domain) {
-        counts.set(domain, (counts.get(domain) || 0) + 1);
+      const rawDomain = getSafeDomain(tab.url);
+      if (rawDomain && typeof rawDomain === 'string') {
+        const cleanDomain = rawDomain.trim().toLowerCase();
+        if (cleanDomain.length > 0 && cleanDomain !== 'null' && cleanDomain !== 'undefined') {
+          counts.set(cleanDomain, (counts.get(cleanDomain) || 0) + 1);
+        }
       }
     }
     return Array.from(counts.entries())
+      .filter(([domain]) => domain && domain.trim().length > 0)
       .sort((a, b) => b[1] - a[1])
       .map(([domain, count]) => ({ domain, count }));
   }, [group.tabs]);
@@ -153,7 +157,7 @@ export function TabGroupInspectorModal({
       .map((tab, originalIndex) => ({ tab, originalIndex }))
       .filter(({ tab }) => {
         if (activeDomainFilter) {
-          const domain = getSafeDomain(tab.url);
+          const domain = getSafeDomain(tab.url)?.trim().toLowerCase();
           if (domain !== activeDomainFilter) return false;
         }
         if (!q) return true;
@@ -445,9 +449,13 @@ export function TabGroupInspectorModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl w-[94vw] h-[84vh] max-h-[720px] flex flex-col p-0 overflow-hidden rounded-2xl border border-border/80 bg-card/95 backdrop-blur-2xl shadow-2xl text-card-foreground gap-0 focus:outline-none">
+      {/* Expanded Modal Size: max-w-3xl (768px width) with rich frosted glass backdrop & specular top rim */}
+      <DialogContent className="max-w-3xl w-[94vw] h-[86vh] max-h-[760px] flex flex-col p-0 overflow-hidden rounded-2xl border border-border/80 bg-card/95 backdrop-blur-2xl shadow-2xl text-card-foreground gap-0 focus:outline-none relative">
+        {/* Ambient Top Rim Highlight */}
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent pointer-events-none z-30" />
+
         {/* Tier 1: Fixed Modal Header */}
-        <DialogHeader className="shrink-0 p-4 pb-3 border-b border-border/60 bg-muted/20 space-y-2.5 text-left pr-12">
+        <DialogHeader className="shrink-0 p-4 pb-3 border-b border-border/60 bg-muted/25 space-y-3 text-left pr-12">
           {/* Top Line: Title & Color Picker & Metadata */}
           <div className="flex items-center justify-between gap-3 min-w-0">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -583,7 +591,7 @@ export function TabGroupInspectorModal({
             </form>
           )}
 
-          {/* Tier 2: Domain Filter Pills (rendered only when >= 2 domains exist) */}
+          {/* Tier 2: Domain Filter Pills (rendered only when >= 2 valid domains exist) */}
           {domainStats.length >= 2 && (
             <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 text-xs">
               <button
@@ -596,34 +604,36 @@ export function TabGroupInspectorModal({
               >
                 All ({group.tabs.length})
               </button>
-              {domainStats.map(({ domain, count }) => (
-                <button
-                  key={domain}
-                  onClick={() => setActiveDomainFilter(activeDomainFilter === domain ? null : domain)}
-                  className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border transition-all whitespace-nowrap font-medium cursor-pointer ${
-                    activeDomainFilter === domain
-                      ? 'bg-primary text-primary-foreground border-primary shadow-xs'
-                      : 'bg-muted/50 text-muted-foreground border-border/60 hover:bg-muted hover:text-foreground'
-                  }`}
-                >
-                  <img
-                    src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`}
-                    alt=""
-                    className="w-3 h-3 rounded-xs shrink-0"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                  <span>{domain}</span>
-                  <span className="text-[10px] opacity-75">({count})</span>
-                </button>
-              ))}
+              {domainStats
+                .filter(({ domain }) => Boolean(domain && domain.trim().length > 0))
+                .map(({ domain, count }) => (
+                  <button
+                    key={domain}
+                    onClick={() => setActiveDomainFilter(activeDomainFilter === domain ? null : domain)}
+                    className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border transition-all whitespace-nowrap font-medium cursor-pointer ${
+                      activeDomainFilter === domain
+                        ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                        : 'bg-muted/50 text-muted-foreground border-border/60 hover:bg-muted hover:text-foreground'
+                    }`}
+                  >
+                    <img
+                      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`}
+                      alt=""
+                      className="w-3 h-3 rounded-xs shrink-0"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                    <span>{domain}</span>
+                    <span className="text-[10px] opacity-75">({count})</span>
+                  </button>
+                ))}
             </div>
           )}
         </DialogHeader>
 
-        {/* Tier 3: Scrollable Tab List Body */}
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3 space-y-1 relative">
+        {/* Tier 3: Scrollable Tab List Body with Enhanced Depth & Spacing */}
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3.5 space-y-1.5 relative">
           {filteredIndexedTabs.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground space-y-2">
               <Search className="w-8 h-8 mx-auto opacity-30 text-muted-foreground" />
@@ -658,21 +668,21 @@ export function TabGroupInspectorModal({
                   onDragOver={(e) => handleDragOver(e, originalIndex)}
                   onDrop={() => handleDrop(originalIndex)}
                   onClick={(e) => handleToggleSelect(originalIndex, e)}
-                  className={`group/row relative flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer select-none ${
+                  className={`group/row relative flex items-center justify-between px-3 py-2 rounded-xl border backdrop-blur-md transition-all cursor-pointer select-none shadow-xs ${
                     isDragging ? 'opacity-30 border-dashed border-primary' : ''
                   } ${isDragOver ? 'border-t-2 border-t-primary bg-primary/10' : ''} ${
                     isSelected
-                      ? 'bg-primary/15 border-primary/40 shadow-xs'
+                      ? 'bg-primary/12 border-primary/40 shadow-sm'
                       : isFocused
                       ? 'bg-muted/70 border-border'
-                      : 'bg-card hover:bg-muted/40 border-border/40'
+                      : 'bg-card/70 hover:bg-muted/50 border-border/50 hover:border-primary/40'
                   }`}
                 >
                   {/* Left Grip & Checkbox & Content */}
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-24">
+                  <div className="flex items-center gap-3 min-w-0 flex-1 pr-24">
                     {/* Drag Handle */}
                     <div
-                      className="cursor-grab active:cursor-grabbing text-muted-foreground/40 group-hover/row:text-muted-foreground transition-colors shrink-0"
+                      className="cursor-grab active:cursor-grabbing text-muted-foreground/35 group-hover/row:text-muted-foreground transition-colors shrink-0"
                       onClick={(e) => e.stopPropagation()}
                       title="Drag to reorder"
                     >
@@ -688,7 +698,7 @@ export function TabGroupInspectorModal({
                       className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors shrink-0 cursor-pointer ${
                         isSelected
                           ? 'bg-primary border-primary text-primary-foreground'
-                          : 'border-border/80 bg-background group-hover/row:border-primary/50'
+                          : 'border-border/80 bg-background/80 group-hover/row:border-primary/50'
                       }`}
                     >
                       {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
@@ -729,7 +739,7 @@ export function TabGroupInspectorModal({
 
                   {/* Right Hover Actions */}
                   <div
-                    className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity bg-card/90 backdrop-blur-md p-0.5 rounded-lg border border-border/60 shadow-xs z-10"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity bg-card/95 backdrop-blur-md p-0.5 rounded-lg border border-border/60 shadow-xs z-10"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Button
@@ -887,26 +897,25 @@ export function TabGroupInspectorModal({
             ) : null}
           </div>
 
-          {/* Right Restore Actions (Split Button) */}
-          <div className="flex items-center gap-1">
-            <Button
-              variant="default"
-              size="sm"
-              className="h-8 px-3 text-xs font-semibold bg-primary text-primary-foreground rounded-l-lg rounded-r-none shadow-xs flex items-center gap-1.5"
+          {/* Right Restore Actions — Unified Segmented Button without harsh vertical divider */}
+          <div className="inline-flex rounded-lg overflow-hidden shadow-xs border border-primary/40 bg-primary">
+            <button
+              type="button"
+              className="h-8 px-3.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-1.5 transition-colors cursor-pointer"
               onClick={handleRestoreCurrent}
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Restore All</span>
-            </Button>
+            </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="h-8 px-1.5 bg-primary text-primary-foreground border-l border-primary-foreground/25 rounded-l-none rounded-r-lg"
+                <button
+                  type="button"
+                  className="h-8 px-2 bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center transition-colors cursor-pointer focus:outline-none"
+                  title="More restore options"
                 >
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </Button>
+                  <ChevronDown className="w-3.5 h-3.5 opacity-80" />
+                </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 bg-card border-border shadow-xl">
                 <DropdownMenuItem onClick={handleRestoreCurrent} className="text-xs cursor-pointer gap-2">

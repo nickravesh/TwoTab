@@ -423,17 +423,6 @@ function ListCardItem({
           </Badge>
         </div>
         <div className="flex items-center gap-1 shrink-0 justify-end" onClick={e => e.stopPropagation()}>
-          {handleInspectGroup && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md" 
-              onClick={() => handleInspectGroup(group)}
-              title="Inspect & expand group"
-            >
-              <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
-            </Button>
-          )}
           <Button 
             variant="ghost" 
             size="sm" 
@@ -471,6 +460,17 @@ function ListCardItem({
               title="Unarchive"
             >
               <RotateCcw className="h-3.5 w-3.5 mr-1" /> Unarchive
+            </Button>
+          )}
+          {handleInspectGroup && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md" 
+              onClick={() => handleInspectGroup(group)}
+              title="Inspect & expand group"
+            >
+              <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
             </Button>
           )}
           <Button 
@@ -712,17 +712,6 @@ function GridCardItem({
       {/* Card Footer */}
       <CardFooter className={`shrink-0 border-t border-border/60 bg-muted/20 ${isCompact ? 'p-2 pt-1.5' : 'p-2.5 pt-2'} flex items-center justify-between rounded-b-2xl relative z-10`}>
         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-          {handleInspectGroup && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="btn-spring h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors" 
-              onClick={() => handleInspectGroup(group)}
-              title="Inspect & expand group"
-            >
-              <Maximize2 className="h-3.5 w-3.5" />
-            </Button>
-          )}
           <Button 
             variant="ghost" 
             size="icon" 
@@ -763,17 +752,27 @@ function GridCardItem({
             </Button>
           )}
         </div>
-        <Button 
-          variant="secondary" 
-          size="sm" 
-          className="btn-spring h-7 px-3 text-xs font-medium bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 rounded-lg shadow-xs flex items-center gap-1.5" 
-          onClick={(e) => {
-            e.stopPropagation();
-            handleRestoreGroup(group);
-          }}
-        >
-          <RotateCcw className="h-3 w-3 text-primary" /> Restore
-        </Button>
+        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+          {handleInspectGroup && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="btn-spring h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors" 
+              onClick={() => handleInspectGroup(group)}
+              title="Inspect & expand group"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          <Button 
+            variant="secondary" 
+            size="sm" 
+            className="btn-spring h-7 px-3 text-xs font-medium bg-primary/15 hover:bg-primary/25 text-primary border border-primary/20 rounded-lg shadow-xs flex items-center gap-1.5" 
+            onClick={() => handleRestoreGroup(group)}
+          >
+            <RotateCcw className="h-3 w-3 text-primary" /> Restore
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );
