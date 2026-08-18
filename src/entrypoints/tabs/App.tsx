@@ -130,12 +130,47 @@ import {
   LayoutGrid,
   List,
   Type,
-  SunMedium,
   Maximize2,
-  Grid
+  Grid,
+  Tag,
+  ArrowUpDown,
+  SlidersHorizontal,
+  Filter,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { THEME_PALETTES, type ThemePalette } from '@/lib/theme';
+
+export type SortOption =
+  | 'date-desc'
+  | 'date-asc'
+  | 'tabs-desc'
+  | 'tabs-asc'
+  | 'title-asc'
+  | 'title-desc'
+  | 'color';
+
+export const SORT_OPTIONS: { id: SortOption; label: string; description: string }[] = [
+  { id: 'date-desc', label: 'Newest First', description: 'Recent groups first' },
+  { id: 'date-asc', label: 'Oldest First', description: 'Earliest groups first' },
+  { id: 'tabs-desc', label: 'Most Tabs', description: 'Largest collections first' },
+  { id: 'tabs-asc', label: 'Fewest Tabs', description: 'Smallest collections first' },
+  { id: 'title-asc', label: 'Name (A → Z)', description: 'Alphabetical order' },
+  { id: 'title-desc', label: 'Name (Z → A)', description: 'Reverse alphabetical' },
+  { id: 'color', label: 'Color Tag', description: 'Grouped by tag color' },
+];
+
+export const COLOR_FILTER_ITEMS: { id: string; label: string; colorStyle: string; borderStyle: string }[] = [
+  { id: 'grey', label: 'Slate', colorStyle: 'hsl(220 10% 55%)', borderStyle: 'hsl(220 10% 45%)' },
+  { id: 'blue', label: 'Blue', colorStyle: 'hsl(217 91% 60%)', borderStyle: 'hsl(217 91% 50%)' },
+  { id: 'purple', label: 'Purple', colorStyle: 'hsl(271 91% 65%)', borderStyle: 'hsl(271 91% 55%)' },
+  { id: 'pink', label: 'Pink', colorStyle: 'hsl(330 85% 65%)', borderStyle: 'hsl(330 85% 55%)' },
+  { id: 'red', label: 'Red', colorStyle: 'hsl(0 84% 60%)', borderStyle: 'hsl(0 84% 50%)' },
+  { id: 'orange', label: 'Orange', colorStyle: 'hsl(25 95% 53%)', borderStyle: 'hsl(25 95% 45%)' },
+  { id: 'yellow', label: 'Amber', colorStyle: 'hsl(45 93% 47%)', borderStyle: 'hsl(45 93% 40%)' },
+  { id: 'green', label: 'Emerald', colorStyle: 'hsl(152 76% 40%)', borderStyle: 'hsl(152 76% 32%)' },
+  { id: 'cyan', label: 'Cyan', colorStyle: 'hsl(188 86% 45%)', borderStyle: 'hsl(188 86% 38%)' },
+  { id: 'none', label: 'Untagged', colorStyle: 'hsl(var(--muted-foreground) / 0.3)', borderStyle: 'hsl(var(--border))' },
+];
 
 interface DeleteConfirmState {
   type: 'group' | 'tab' | 'all';
@@ -223,6 +258,8 @@ interface VirtualizedCardGridProps {
   setSearch?: (val: string) => void;
   isInitialLoading?: boolean;
   handleInspectGroup?: (group: TabGroup, cardElement?: HTMLElement | null) => void;
+  hasColorFilters?: boolean;
+  onClearColorFilters?: () => void;
 }
 
 // Smooth Horizontal Auto-Scroll Marquee Component for Long Titles
@@ -827,6 +864,8 @@ function VirtualizedCardGrid({
   setSearch,
   isInitialLoading = false,
   handleInspectGroup,
+  hasColorFilters = false,
+  onClearColorFilters,
 }: VirtualizedCardGridProps) {
   const isCompact = cardDensity === 'compact';
   const minCardWidth = isCompact ? 240 : 280;
@@ -859,6 +898,8 @@ function VirtualizedCardGrid({
         <div className="w-16 h-16 rounded-2xl bg-muted/60 border border-border flex items-center justify-center mb-4 text-primary shadow-sm animate-float">
           {isSearching ? (
             <Search className="w-8 h-8 opacity-70 text-primary" />
+          ) : hasColorFilters ? (
+            <Tag className="w-8 h-8 opacity-70 text-primary" />
           ) : activeTab === 'archive' ? (
             <Archive className="w-8 h-8 opacity-70 text-primary" />
           ) : (
@@ -868,11 +909,15 @@ function VirtualizedCardGrid({
         <h3 className="text-sm font-semibold text-foreground mb-1.5">
           {isSearching 
             ? `No Matching ${activeTab === 'dashboard' ? 'Tab Groups' : 'Archived Groups'}`
+            : hasColorFilters
+            ? 'No Groups Match Selected Color Tags'
             : activeTab === 'dashboard' ? 'No Saved Tabs Yet' : 'No Archived Groups'}
         </h3>
         <p className="text-xs text-muted-foreground max-w-sm mb-6 leading-relaxed">
           {isSearching
             ? `No tab collections match "${search}".`
+            : hasColorFilters
+            ? 'Try selecting different color tags or clear all color filters to view your tab collections.'
             : activeTab === 'dashboard' 
               ? 'Click "+ Save Window" in the top bar to save all open tabs from this window into a clean collection.'
               : 'Archived tab collections will appear here for long-term safekeeping.'}
@@ -885,6 +930,15 @@ function VirtualizedCardGrid({
             className="btn-spring text-xs font-medium"
           >
             Clear Search
+          </Button>
+        ) : hasColorFilters && onClearColorFilters ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onClearColorFilters}
+            className="btn-spring text-xs font-medium"
+          >
+            Clear Color Filters
           </Button>
         ) : activeTab === 'dashboard' ? (
           <Button 
@@ -1075,6 +1129,8 @@ function AppContent() {
   const [backupSnapshots, setBackupSnapshots] = useState<BackupSnapshot[]>([]);
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [search, setSearch] = useState('');
+  const [selectedColorFilters, setSelectedColorFilters] = useState<Set<string>>(new Set());
+  const [sortOption, setSortOption] = useState<SortOption>('date-desc');
   const [isSaving, setIsSaving] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -1572,20 +1628,70 @@ function AppContent() {
     return activeTab === 'dashboard' ? allDashboardGroups : activeTab === 'archive' ? archivedGroups : [];
   }, [activeTab, allDashboardGroups, archivedGroups]);
 
-  const filteredGroups = useMemo(() => {
-    if (!deferredSearch) return currentTabGroups;
-    const lower = deferredSearch.toLowerCase();
-    return currentTabGroups
-      .map(g => {
-        const tabs = g.tabs.filter(t =>
-          t.title.toLowerCase().includes(lower) ||
-          t.url.toLowerCase().includes(lower)
-        );
-        if (tabs.length === 0 && !g.name?.toLowerCase().includes(lower)) return null;
-        return { ...g, tabs };
-      })
-      .filter(Boolean) as TabGroup[];
-  }, [currentTabGroups, deferredSearch]);
+  const colorTagCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const g of currentTabGroups) {
+      const c = g.color || 'none';
+      counts.set(c, (counts.get(c) || 0) + 1);
+    }
+    return counts;
+  }, [currentTabGroups]);
+
+  const filteredAndSortedGroups = useMemo(() => {
+    let result = [...currentTabGroups];
+
+    // 1. Filter by Color Tag(s)
+    if (selectedColorFilters.size > 0) {
+      result = result.filter((g) => {
+        const c = g.color || 'none';
+        return selectedColorFilters.has(c);
+      });
+    }
+
+    // 2. Filter by Search Query
+    if (deferredSearch) {
+      const lower = deferredSearch.toLowerCase();
+      result = result
+        .map((g) => {
+          const tabs = g.tabs.filter(
+            (t) =>
+              (t.title && t.title.toLowerCase().includes(lower)) ||
+              (t.url && t.url.toLowerCase().includes(lower))
+          );
+          if (tabs.length === 0 && !(g.name && g.name.toLowerCase().includes(lower))) return null;
+          return { ...g, tabs: tabs.length > 0 ? tabs : g.tabs };
+        })
+        .filter(Boolean) as TabGroup[];
+    }
+
+    // 3. Apply Sorting
+    result.sort((a, b) => {
+      switch (sortOption) {
+        case 'date-desc':
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
+        case 'date-asc':
+          return new Date(a.date).getTime() - new Date(b.date).getTime();
+        case 'tabs-desc':
+          return (b.tabs?.length || 0) - (a.tabs?.length || 0);
+        case 'tabs-asc':
+          return (a.tabs?.length || 0) - (b.tabs?.length || 0);
+        case 'title-asc':
+          return (a.name || 'Saved Group').localeCompare(b.name || 'Saved Group');
+        case 'title-desc':
+          return (b.name || 'Saved Group').localeCompare(a.name || 'Saved Group');
+        case 'color': {
+          const colorOrder = ['blue', 'cyan', 'green', 'yellow', 'orange', 'red', 'pink', 'purple', 'grey', 'none'];
+          const aIdx = colorOrder.indexOf(a.color || 'none');
+          const bIdx = colorOrder.indexOf(b.color || 'none');
+          return aIdx - bIdx;
+        }
+        default:
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
+      }
+    });
+
+    return result;
+  }, [currentTabGroups, selectedColorFilters, deferredSearch, sortOption]);
 
   const filteredRecentlyClosed = useMemo(() => {
     if (!deferredSearch) return recentlyClosed;
@@ -1958,7 +2064,7 @@ function AppContent() {
           <div className="flex items-center gap-2">
             {/* 1. Search input */}
             {(activeTab === 'dashboard' || activeTab === 'archive' || activeTab === 'closed') && (
-              <div className="relative max-w-xs w-60 group">
+              <div className="relative max-w-xs w-56 sm:w-60 group">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary pointer-events-none" />
                 <Input 
                   placeholder={activeTab === 'closed' ? "Search closed tabs..." : "Search saved tabs..."} 
@@ -1984,7 +2090,132 @@ function AppContent() {
               </div>
             )}
 
-            {/* 2. Restore All Action */}
+            {/* 2. Color Tag Filter Dropdown */}
+            {(activeTab === 'dashboard' || activeTab === 'archive') && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`btn-spring h-9 px-2.5 gap-1.5 text-xs font-medium border shadow-2xs rounded-lg transition-colors cursor-pointer ${
+                      selectedColorFilters.size > 0
+                        ? 'bg-primary/10 border-primary/50 text-primary hover:bg-primary/20'
+                        : 'bg-background/80 dark:bg-background/60 border-border/80 text-muted-foreground hover:text-foreground hover:bg-background'
+                    }`}
+                    title="Filter by color tag"
+                  >
+                    <Tag className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Color</span>
+                    {selectedColorFilters.size > 0 && (
+                      <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">
+                        {selectedColorFilters.size}
+                      </span>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 p-1.5 bg-popover border-border shadow-apple-popover rounded-xl text-popover-foreground">
+                  <div className="px-2 py-1.5 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground">Filter by Tag</span>
+                    {selectedColorFilters.size > 0 && (
+                      <button
+                        onClick={() => setSelectedColorFilters(new Set())}
+                        className="text-[11px] text-primary hover:underline cursor-pointer font-medium"
+                      >
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+                  <Separator className="my-1 bg-border/60" />
+                  <div className="space-y-0.5 max-h-56 overflow-y-auto custom-scrollbar p-0.5">
+                    {COLOR_FILTER_ITEMS.map((item) => {
+                      const count = colorTagCounts.get(item.id) || 0;
+                      const isSelected = selectedColorFilters.has(item.id);
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => {
+                            setSelectedColorFilters((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(item.id)) {
+                                next.delete(item.id);
+                              } else {
+                                next.add(item.id);
+                              }
+                              return next;
+                            });
+                          }}
+                          className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                            isSelected ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted text-foreground'
+                          } ${count === 0 && !isSelected ? 'opacity-40' : ''}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3.5 h-3.5 rounded-full border shrink-0"
+                              style={{ backgroundColor: item.colorStyle, borderColor: item.borderStyle }}
+                            />
+                            <span>{item.label}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-muted-foreground">({count})</span>
+                            <div
+                              className={`w-3.5 h-3.5 rounded-xs border flex items-center justify-center ${
+                                isSelected ? 'bg-primary border-primary text-primary-foreground' : 'border-border bg-background'
+                              }`}
+                            >
+                              {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            {/* 3. Sort Options Dropdown */}
+            {(activeTab === 'dashboard' || activeTab === 'archive') && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`btn-spring h-9 px-2.5 gap-1.5 text-xs font-medium border shadow-2xs rounded-lg transition-colors cursor-pointer ${
+                      sortOption !== 'date-desc'
+                        ? 'bg-primary/10 border-primary/50 text-primary hover:bg-primary/20'
+                        : 'bg-background/80 dark:bg-background/60 border-border/80 text-muted-foreground hover:text-foreground hover:bg-background'
+                    }`}
+                    title="Sort tab groups"
+                  >
+                    <ArrowUpDown className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">
+                      {SORT_OPTIONS.find((s) => s.id === sortOption)?.label || 'Sort'}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 p-1.5 bg-popover border-border shadow-apple-popover rounded-xl text-popover-foreground">
+                  <div className="px-2 py-1 text-xs font-semibold text-foreground">Sort Groups By</div>
+                  <Separator className="my-1 bg-border/60" />
+                  {SORT_OPTIONS.map((opt) => (
+                    <DropdownMenuItem
+                      key={opt.id}
+                      onClick={() => setSortOption(opt.id)}
+                      className={`cursor-pointer text-xs py-1.5 px-2 rounded-lg flex items-center justify-between ${
+                        sortOption === opt.id ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-muted'
+                      }`}
+                    >
+                      <div className="flex flex-col text-left">
+                        <span>{opt.label}</span>
+                        <span className="text-[10px] text-muted-foreground font-normal">{opt.description}</span>
+                      </div>
+                      {sortOption === opt.id && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            {/* 4. Restore All Action */}
             {activeTab === 'dashboard' && groups.length > 0 && (
               <Button 
                 variant="outline" 
@@ -2141,7 +2372,7 @@ function AppContent() {
         {(activeTab === 'dashboard' || activeTab === 'archive') ? (
           <VirtualizedCardGrid
             activeTab={activeTab}
-            filteredGroups={filteredGroups}
+            filteredGroups={filteredAndSortedGroups}
             isSaving={isSaving}
             editingGroupId={editingGroupId}
             editingName={editingName}
@@ -2162,6 +2393,8 @@ function AppContent() {
             setSearch={setSearch}
             isInitialLoading={isInitialLoading}
             handleInspectGroup={handleInspectGroup}
+            hasColorFilters={selectedColorFilters.size > 0}
+            onClearColorFilters={() => setSelectedColorFilters(new Set())}
           />
         ) : (
         <>
