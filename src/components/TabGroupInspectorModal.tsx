@@ -1,12 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -57,6 +50,7 @@ export interface TabGroupInspectorModalProps {
   isOpen: boolean;
   onClose: () => void;
   group: TabGroup | null;
+  sourceRect?: DOMRect | null;
   onGroupUpdated: () => void;
   onDeleteGroup: (groupId: number, groupName: string) => void;
   onArchiveGroup?: (groupId: number) => void;
@@ -81,6 +75,7 @@ export function TabGroupInspectorModal({
   isOpen,
   onClose,
   group,
+  sourceRect,
   onGroupUpdated,
   onDeleteGroup,
   onArchiveGroup,
@@ -88,7 +83,14 @@ export function TabGroupInspectorModal({
   isArchived = false,
   faviconStyle = 'color',
 }: TabGroupInspectorModalProps) {
-  if (!group) return null;
+  // Spatial Morph Animation State
+  const [animationState, setAnimationState] = useState<'idle' | 'expanding' | 'open' | 'collapsing'>('idle');
+  const [currentOrigin, setCurrentOrigin] = useState<{ deltaX: number; deltaY: number; scaleX: number; scaleY: number }>({
+    deltaX: 0,
+    deltaY: 30,
+    scaleX: 0.9,
+    scaleY: 0.9,
+  });
 
   // Search & Filtering State
   const [searchQuery, setSearchQuery] = useState('');
@@ -96,7 +98,7 @@ export function TabGroupInspectorModal({
 
   // Renaming State
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState(group.name || '');
+  const [titleDraft, setTitleDraft] = useState('');
 
   // Selection State
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
@@ -123,21 +125,73 @@ export function TabGroupInspectorModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const modalContainerRef = useRef<HTMLDivElement>(null);
 
-  // Sync draft title when group changes
+  // Compute Spatial Origin Deltas from Source Rect
+  const calculateDeltas = useCallback((rect?: DOMRect | null) => {
+    if (typeof window === 'undefined') return { deltaX: 0, deltaY: 30, scaleX: 0.9, scaleY: 0.9 };
+    const targetWidth = Math.min(window.innerWidth * 0.92, 768);
+    const targetHeight = Math.min(window.innerHeight * 0.82, 680);
+
+    if (rect && rect.width > 0 && rect.height > 0) {
+      const deltaX = (rect.left + rect.width / 2) - (window.innerWidth / 2);
+      const deltaY = (rect.top + rect.height / 2) - (window.innerHeight / 2);
+      const scaleX = Math.max(0.15, rect.width / targetWidth);
+      const scaleY = Math.max(0.15, rect.height / targetHeight);
+      return { deltaX, deltaY, scaleX, scaleY };
+    }
+
+    return { deltaX: 0, deltaY: 30, scaleX: 0.9, scaleY: 0.9 };
+  }, []);
+
+  // Handle Opening Animation Lifecycle
   useEffect(() => {
-    setTitleDraft(group.name || '');
-    setSelectedIndices(new Set());
-    setSearchQuery('');
-    setActiveDomainFilter(null);
-    setIsAddingTab(false);
-    setUndoSnapshot(null);
-    setIsEditingTitle(false);
-    setShowDeleteConfirm(false);
-  }, [group.id, isOpen]);
+    if (isOpen && group) {
+      setTitleDraft(group.name || '');
+      setSelectedIndices(new Set());
+      setSearchQuery('');
+      setActiveDomainFilter(null);
+      setIsAddingTab(false);
+      setUndoSnapshot(null);
+      setIsEditingTitle(false);
+      setShowDeleteConfirm(false);
 
-  // Compute Domain Statistics — cleanly filtered to non-empty valid domains
+      // 1. Calculate Initial Origin from sourceRect
+      const initialDeltas = calculateDeltas(sourceRect);
+      setCurrentOrigin(initialDeltas);
+      setAnimationState('expanding');
+
+      // 2. Animate to Full Expansion on Next Frame
+      const frame = requestAnimationFrame(() => {
+        setAnimationState('open');
+      });
+
+      return () => cancelAnimationFrame(frame);
+    } else {
+      setAnimationState('idle');
+    }
+  }, [isOpen, group?.id, sourceRect, calculateDeltas]);
+
+  // Handle Smooth Collapse Dismissal Back to Source Location
+  const handleClose = useCallback(() => {
+    if (animationState === 'collapsing' || animationState === 'idle') return;
+
+    // Look up live position of source card in case window scrolled
+    if (group) {
+      const sourceEl = document.querySelector(`[data-group-id="${group.id}"]`) as HTMLElement | null;
+      const rect = sourceEl ? sourceEl.getBoundingClientRect() : sourceRect;
+      setCurrentOrigin(calculateDeltas(rect));
+    }
+
+    setAnimationState('collapsing');
+    setTimeout(() => {
+      onClose();
+    }, 280);
+  }, [animationState, group, sourceRect, calculateDeltas, onClose]);
+
+  // Compute Domain Statistics
   const domainStats = useMemo(() => {
+    if (!group) return [];
     const counts = new Map<string, number>();
     for (const tab of group.tabs) {
       const rawDomain = getSafeDomain(tab.url);
@@ -152,10 +206,11 @@ export function TabGroupInspectorModal({
       .filter(([domain]) => domain && domain.trim().length > 0)
       .sort((a, b) => b[1] - a[1])
       .map(([domain, count]) => ({ domain, count }));
-  }, [group.tabs]);
+  }, [group?.tabs]);
 
   // Compute Filtered Tabs with original index mapping
   const filteredIndexedTabs = useMemo(() => {
+    if (!group) return [];
     const q = searchQuery.toLowerCase().trim();
     return group.tabs
       .map((tab, originalIndex) => ({ tab, originalIndex }))
@@ -169,7 +224,7 @@ export function TabGroupInspectorModal({
         const urlMatch = (tab.url || '').toLowerCase().includes(q);
         return titleMatch || urlMatch;
       });
-  }, [group.tabs, searchQuery, activeDomainFilter]);
+  }, [group?.tabs, searchQuery, activeDomainFilter]);
 
   // Highlight matching text in search
   const highlightMatches = useCallback((text: string, query: string) => {
@@ -192,6 +247,7 @@ export function TabGroupInspectorModal({
 
   // Handle Save Title
   const handleSaveTitle = async () => {
+    if (!group) return;
     const trimmed = titleDraft.trim();
     if (trimmed && trimmed !== group.name) {
       const { renameGroup } = await import('@/lib/storage');
@@ -203,6 +259,7 @@ export function TabGroupInspectorModal({
 
   // Handle Change Group Color
   const handleSelectColor = async (colorId: TabGroupColor) => {
+    if (!group) return;
     const newColor = group.color === colorId ? undefined : colorId;
     await setGroupColor(group.id, newColor);
     onGroupUpdated();
@@ -228,21 +285,9 @@ export function TabGroupInspectorModal({
     setLastSelectedIndex(index);
   };
 
-  // Select / Deselect All Filtered
-  const handleToggleSelectAll = () => {
-    if (selectedIndices.size === filteredIndexedTabs.length && filteredIndexedTabs.length > 0) {
-      setSelectedIndices(new Set());
-    } else {
-      const allFiltered = new Set<number>();
-      for (const item of filteredIndexedTabs) {
-        allFiltered.add(item.originalIndex);
-      }
-      setSelectedIndices(allFiltered);
-    }
-  };
-
   // Trigger non-destructive undo
   const triggerUndoSnapshot = (description: string) => {
+    if (!group) return;
     setUndoSnapshot({ tabs: [...group.tabs], description });
     if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
     undoTimeoutRef.current = setTimeout(() => {
@@ -251,7 +296,7 @@ export function TabGroupInspectorModal({
   };
 
   const handleRestoreUndo = async () => {
-    if (!undoSnapshot) return;
+    if (!undoSnapshot || !group) return;
     const { saveGroups, getGroups } = await import('@/lib/storage');
     const groups = await getGroups();
     const updated = groups.map((g) => (g.id === group.id ? { ...g, tabs: undoSnapshot.tabs } : g));
@@ -262,6 +307,7 @@ export function TabGroupInspectorModal({
 
   // Delete Individual Tab
   const handleDeleteTab = async (originalIndex: number) => {
+    if (!group) return;
     triggerUndoSnapshot('Removed 1 tab');
     await deleteMultipleTabsFromGroup(group.id, [originalIndex]);
     const nextSet = new Set(selectedIndices);
@@ -272,7 +318,7 @@ export function TabGroupInspectorModal({
 
   // Batch Delete Selected Tabs
   const handleDeleteSelected = async () => {
-    if (selectedIndices.size === 0) return;
+    if (!group || selectedIndices.size === 0) return;
     const count = selectedIndices.size;
     triggerUndoSnapshot(`Removed ${count} ${count === 1 ? 'tab' : 'tabs'}`);
     await deleteMultipleTabsFromGroup(group.id, Array.from(selectedIndices));
@@ -282,6 +328,7 @@ export function TabGroupInspectorModal({
 
   // Batch Open Selected Tabs
   const handleOpenSelected = async () => {
+    if (!group) return;
     const urlsToOpen = Array.from(selectedIndices)
       .map((idx) => group.tabs[idx]?.url)
       .filter(Boolean);
@@ -295,7 +342,7 @@ export function TabGroupInspectorModal({
 
   // Batch Extract to New Group
   const handleExtractToNewGroup = async () => {
-    if (selectedIndices.size === 0) return;
+    if (!group || selectedIndices.size === 0) return;
     triggerUndoSnapshot(`Extracted ${selectedIndices.size} tabs`);
     await extractTabsToNewGroup(group.id, Array.from(selectedIndices));
     setSelectedIndices(new Set());
@@ -305,6 +352,7 @@ export function TabGroupInspectorModal({
   // Add Single Tab to Group
   const handleAddTab = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!group) return;
     let url = newTabUrl.trim();
     if (!url) return;
     if (!url.startsWith('http://') && !url.startsWith('https://') && !url.includes('://')) {
@@ -333,7 +381,7 @@ export function TabGroupInspectorModal({
   };
 
   const handleDrop = async (targetIndex: number) => {
-    if (draggedIndex === null || draggedIndex === targetIndex) {
+    if (!group || draggedIndex === null || draggedIndex === targetIndex) {
       setDraggedIndex(null);
       setDragOverIndex(null);
       return;
@@ -346,6 +394,7 @@ export function TabGroupInspectorModal({
 
   // Copy helpers
   const handleCopyMarkdown = async () => {
+    if (!group) return;
     const md = exportSingleGroupAsMarkdown(group);
     await copyToClipboardSafe(md);
     setCopyFeedback('Copied as Markdown!');
@@ -353,6 +402,7 @@ export function TabGroupInspectorModal({
   };
 
   const handleCopyPlainText = async () => {
+    if (!group) return;
     const txt = exportSingleGroupAsPlainText(group);
     await copyToClipboardSafe(txt);
     setCopyFeedback('Copied URLs!');
@@ -360,6 +410,7 @@ export function TabGroupInspectorModal({
   };
 
   const handleCopySelectedUrls = async () => {
+    if (!group) return;
     const selectedTabs = Array.from(selectedIndices)
       .map((idx) => group.tabs[idx])
       .filter(Boolean);
@@ -371,6 +422,7 @@ export function TabGroupInspectorModal({
 
   // Restore Handlers
   const handleRestoreCurrent = async () => {
+    if (!group) return;
     const { restoreTabGroup } = await import('@/lib/storage');
     await restoreTabGroup(group, {
       protectPinnedTabs: true,
@@ -381,6 +433,7 @@ export function TabGroupInspectorModal({
   };
 
   const handleRestoreNewWindow = async () => {
+    if (!group) return;
     const { restoreTabGroup } = await import('@/lib/storage');
     await restoreTabGroup(group, {
       protectPinnedTabs: true,
@@ -391,12 +444,13 @@ export function TabGroupInspectorModal({
   };
 
   const handleRestoreChromeTabGroup = async () => {
+    if (!group) return;
     await restoreTabsAsChromeGroup(group.name || 'TwoTab Group', group.tabs, group.color, 'current_window');
   };
 
   // Keyboard navigation & Shortcuts
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || animationState === 'collapsing') return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -411,7 +465,7 @@ export function TabGroupInspectorModal({
         e.preventDefault();
         searchInputRef.current?.focus();
       } else if (e.key === 'Escape') {
-        onClose();
+        handleClose();
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         setFocusedIndex((prev) => Math.min(prev + 1, filteredIndexedTabs.length - 1));
@@ -428,9 +482,6 @@ export function TabGroupInspectorModal({
         if (filteredIndexedTabs[focusedIndex]) {
           window.open(filteredIndexedTabs[focusedIndex].tab.url, '_blank');
         }
-      } else if ((e.metaKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A')) {
-        e.preventDefault();
-        handleToggleSelectAll();
       } else if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
         e.preventDefault();
         handleRestoreUndo();
@@ -447,21 +498,60 @@ export function TabGroupInspectorModal({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, focusedIndex, filteredIndexedTabs, selectedIndices, undoSnapshot]);
+  }, [isOpen, animationState, focusedIndex, filteredIndexedTabs, selectedIndices, undoSnapshot, handleClose]);
+
+  if (!isOpen && animationState === 'idle') return null;
+  if (!group) return null;
 
   const activeColorConfig = COLOR_PALETTE.find((c) => c.id === group.color);
 
+  const isExpandedOpen = animationState === 'open';
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      {/* Expanded Modal Size: Perfectly centered in viewport with fixed positioning & rich frosted glass */}
-      <DialogContent className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 flex flex-col max-w-3xl w-[92vw] h-[80vh] max-h-[680px] min-h-[420px] p-0 overflow-hidden rounded-2xl border border-border/80 bg-card/95 backdrop-blur-2xl shadow-2xl text-card-foreground gap-0 focus:outline-none">
-        {/* Ambient Top Rim Highlight */}
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent pointer-events-none z-30" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto">
+      {/* Refined Apple Floating Backdrop (Subtle 2px blur & transparent frosted dark tint) */}
+      <div
+        onClick={handleClose}
+        className={`fixed inset-0 bg-black/25 dark:bg-black/45 backdrop-blur-[2px] transition-opacity duration-300 ${
+          isExpandedOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+      />
+
+      {/* Spatial Expanding & Collapsing Modal Deck */}
+      <div
+        ref={modalContainerRef}
+        style={{
+          transform: isExpandedOpen
+            ? 'translate3d(-50%, -50%, 0) scale(1, 1)'
+            : `translate3d(calc(-50% + ${currentOrigin.deltaX}px), calc(-50% + ${currentOrigin.deltaY}px), 0) scale(${currentOrigin.scaleX}, ${currentOrigin.scaleY})`,
+          opacity: isExpandedOpen ? 1 : 0,
+          borderRadius: isExpandedOpen ? '20px' : '16px',
+          transformOrigin: 'center center',
+          transition: isExpandedOpen
+            ? 'transform 420ms cubic-bezier(0.16, 1, 0.3, 1), opacity 300ms cubic-bezier(0.16, 1, 0.3, 1), border-radius 420ms cubic-bezier(0.16, 1, 0.3, 1)'
+            : 'transform 280ms cubic-bezier(0.32, 0.72, 0, 1), opacity 200ms ease-in, border-radius 280ms ease-in',
+          boxShadow: isExpandedOpen
+            ? '0 30px 90px -20px rgba(0, 0, 0, 0.45), 0 0 0 1px hsl(var(--border) / 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
+            : 'none',
+        }}
+        className="fixed left-1/2 top-1/2 z-50 flex flex-col max-w-3xl w-[92vw] h-[82vh] max-h-[700px] min-h-[440px] p-0 overflow-hidden bg-card/90 dark:bg-card/95 backdrop-blur-2xl text-card-foreground border border-white/25 dark:border-white/10 select-none will-change-transform"
+      >
+        {/* Specular Ambient Top Rim Light */}
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 dark:via-white/20 to-transparent pointer-events-none z-30" />
+
+        {/* Close Button at top-right */}
+        <button
+          onClick={handleClose}
+          className="absolute right-3.5 top-3.5 z-40 w-7 h-7 rounded-full bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors border border-border/50 cursor-pointer shadow-xs"
+          title="Close (Esc)"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
 
         {/* Tier 1: Fixed Modal Header */}
-        <DialogHeader className="shrink-0 p-4 pb-3 border-b border-border/60 bg-muted/25 space-y-3 text-left">
-          {/* Line 1: Title & Color Picker & Metadata (pr-8 for Radix X close button clearance) */}
-          <div className="flex items-center justify-between gap-3 min-w-0 pr-8">
+        <div className="shrink-0 p-4 pb-3 border-b border-border/60 bg-muted/20 space-y-3 text-left">
+          {/* Line 1: Title & Color Picker & Metadata */}
+          <div className="flex items-center justify-between gap-3 min-w-0 pr-10">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
               {/* Color Accent Dropdown */}
               <DropdownMenu>
@@ -516,9 +606,9 @@ export function TabGroupInspectorModal({
                   onClick={() => setIsEditingTitle(true)}
                   title="Click to rename group"
                 >
-                  <DialogTitle className="text-base font-bold tracking-tight text-foreground truncate group-hover/title:text-primary transition-colors">
+                  <h2 className="text-base font-bold tracking-tight text-foreground truncate group-hover/title:text-primary transition-colors">
                     {group.name || 'Saved Group'}
-                  </DialogTitle>
+                  </h2>
                   <Edit2 className="w-3.5 h-3.5 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
                 </div>
               )}
@@ -531,10 +621,6 @@ export function TabGroupInspectorModal({
               </span>
             </div>
           </div>
-
-          <DialogDescription className="sr-only">
-            Inspect, filter, reorder, and restore tabs in this group.
-          </DialogDescription>
 
           {/* Line 2: Full-Width Search Bar & Add Link Action */}
           <div className="flex items-center gap-2 pt-0.5 w-full">
@@ -647,9 +733,9 @@ export function TabGroupInspectorModal({
               <div className="w-6 shrink-0 pointer-events-none" />
             </div>
           )}
-        </DialogHeader>
+        </div>
 
-        {/* Tier 3: Scrollable Tab List Body with Enhanced Depth & Spacing */}
+        {/* Tier 2: Scrollable Tab List Body with Enhanced Depth & Spacing */}
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-fade-bottom p-3.5 space-y-1.5 relative">
           {filteredIndexedTabs.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground space-y-2">
@@ -848,7 +934,7 @@ export function TabGroupInspectorModal({
           </div>
         )}
 
-        {/* Tier 4: Fixed Modal Footer */}
+        {/* Tier 3: Fixed Modal Footer */}
         <div className="shrink-0 p-3.5 border-t border-border/60 bg-card/90 flex items-center justify-between relative z-10">
           {/* Left Actions */}
           <div className="flex items-center gap-1.5">
@@ -891,7 +977,7 @@ export function TabGroupInspectorModal({
                 className="h-8 text-xs text-muted-foreground hover:text-foreground rounded-lg gap-1.5"
                 onClick={() => {
                   onUnarchiveGroup(group.id);
-                  onClose();
+                  handleClose();
                 }}
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -904,7 +990,7 @@ export function TabGroupInspectorModal({
                 className="h-8 text-xs text-muted-foreground hover:text-foreground rounded-lg gap-1.5"
                 onClick={() => {
                   onArchiveGroup(group.id);
-                  onClose();
+                  handleClose();
                 }}
               >
                 <Archive className="w-3.5 h-3.5" />
@@ -954,42 +1040,44 @@ export function TabGroupInspectorModal({
         </div>
 
         {/* In-Modal Delete Confirmation Nested Dialog */}
-        <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-          <DialogContent className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] max-w-sm w-[90vw] p-5 rounded-2xl border border-border bg-card shadow-2xl text-card-foreground">
-            <DialogHeader className="space-y-2 text-left">
-              <DialogTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-                <Trash2 className="w-4 h-4 text-destructive" />
-                Delete Tab Group?
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-                Are you sure you want to delete <strong className="text-foreground font-medium">"{group.name || 'Saved Group'}"</strong>? All {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} in this collection will be permanently deleted.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex items-center justify-end gap-2 pt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs font-medium"
-                onClick={() => setShowDeleteConfirm(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="h-8 text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm"
-                onClick={() => {
-                  setShowDeleteConfirm(false);
-                  onClose();
-                  onDeleteGroup(group.id, group.name || 'Saved Group');
-                }}
-              >
-                Delete Group
-              </Button>
+        {showDeleteConfirm && (
+          <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in-50 duration-200">
+            <div className="max-w-sm w-full p-5 rounded-2xl border border-border bg-card shadow-2xl text-card-foreground space-y-4 animate-in zoom-in-95 duration-200">
+              <div className="space-y-2 text-left">
+                <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                  Delete Tab Group?
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Are you sure you want to delete <strong className="text-foreground font-medium">"{group.name || 'Saved Group'}"</strong>? All {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} in this collection will be permanently deleted.
+                </p>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs font-medium"
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="h-8 text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    onDeleteGroup(group.id, group.name || 'Saved Group');
+                    handleClose();
+                  }}
+                >
+                  Delete Group
+                </Button>
+              </div>
             </div>
-          </DialogContent>
-        </Dialog>
-      </DialogContent>
-    </Dialog>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

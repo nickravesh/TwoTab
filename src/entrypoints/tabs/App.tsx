@@ -222,7 +222,7 @@ interface VirtualizedCardGridProps {
   search?: string;
   setSearch?: (val: string) => void;
   isInitialLoading?: boolean;
-  handleInspectGroup?: (group: TabGroup) => void;
+  handleInspectGroup?: (group: TabGroup, cardElement?: HTMLElement | null) => void;
 }
 
 // Smooth Horizontal Auto-Scroll Marquee Component for Long Titles
@@ -363,21 +363,25 @@ function ListCardItem({
   handleArchiveGroup: (id: number) => void;
   handleUnarchiveGroup: (id: number) => void;
   handleRestoreGroup: (group: TabGroup) => void;
-  handleInspectGroup?: (group: TabGroup) => void;
+  handleInspectGroup?: (group: TabGroup, cardElement?: HTMLElement | null) => void;
 }) {
   const [isCardHovered, setIsCardHovered] = useState(false);
 
   return (
     <Card 
+      data-group-id={group.id}
       style={{ '--stagger-index': staggerIndex } as React.CSSProperties}
       onMouseEnter={() => setIsCardHovered(true)}
       onMouseLeave={() => setIsCardHovered(false)}
-      onDoubleClick={() => handleInspectGroup && handleInspectGroup(group)}
+      onDoubleClick={(e) => handleInspectGroup && handleInspectGroup(group, e.currentTarget)}
       className="animate-card-cascade card-interactive border border-border/80 hover:border-primary/40 bg-card text-card-foreground shadow-apple-card rounded-xl overflow-hidden group/card cursor-default"
     >
       <div 
         className="p-3 bg-muted/30 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
-        onDoubleClick={() => handleInspectGroup && handleInspectGroup(group)}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          handleInspectGroup && handleInspectGroup(group, e.currentTarget.closest('[data-group-id]'));
+        }}
       >
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           {editingGroupId === group.id ? (
@@ -397,7 +401,13 @@ function ListCardItem({
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 group/title min-w-0 cursor-pointer flex-1" onClick={() => handleInspectGroup && handleInspectGroup(group)}>
+            <div 
+              className="flex items-center gap-2 group/title min-w-0 cursor-pointer flex-1" 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleInspectGroup && handleInspectGroup(group, e.currentTarget.closest('[data-group-id]'));
+              }}
+            >
               <MarqueeText
                 text={group.name || 'Saved Group'}
                 delayMs={1000}
@@ -467,7 +477,10 @@ function ListCardItem({
               variant="ghost" 
               size="sm" 
               className="btn-spring h-7 px-2 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md" 
-              onClick={() => handleInspectGroup(group)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleInspectGroup(group, e.currentTarget.closest('[data-group-id]'));
+              }}
               title="Inspect & expand group"
             >
               <Maximize2 className="h-3.5 w-3.5 mr-1" /> Expand
@@ -574,7 +587,7 @@ function GridCardItem({
   handleArchiveGroup: (id: number) => void;
   handleUnarchiveGroup: (id: number) => void;
   handleRestoreGroup: (group: TabGroup) => void;
-  handleInspectGroup?: (group: TabGroup) => void;
+  handleInspectGroup?: (group: TabGroup, cardElement?: HTMLElement | null) => void;
 }) {
   const [isCardHovered, setIsCardHovered] = useState(false);
 
@@ -593,9 +606,10 @@ function GridCardItem({
   return (
     <Card 
       key={group.id} 
+      data-group-id={group.id}
       onMouseEnter={() => setIsCardHovered(true)}
       onMouseLeave={() => setIsCardHovered(false)}
-      onDoubleClick={() => handleInspectGroup && handleInspectGroup(group)}
+      onDoubleClick={(e) => handleInspectGroup && handleInspectGroup(group, e.currentTarget)}
       style={{ 
         '--stagger-index': staggerIndex,
         height: `${currentCardHeight}px`
@@ -605,7 +619,10 @@ function GridCardItem({
       {/* Card Header (flex-shrink-0) */}
       <CardHeader 
         className={`${isCompact ? 'p-2.5 pb-1.5' : 'p-3.5 pb-2'} border-b border-border/60 bg-muted/30 flex items-center justify-between shrink-0`}
-        onDoubleClick={() => handleInspectGroup && handleInspectGroup(group)}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          handleInspectGroup && handleInspectGroup(group, e.currentTarget.closest('[data-group-id]'));
+        }}
       >
         <div className="flex items-center justify-between gap-2 min-w-0 w-full">
           {editingGroupId === group.id ? (
@@ -625,7 +642,13 @@ function GridCardItem({
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 group/title min-w-0 flex-1 cursor-pointer" onClick={() => handleInspectGroup && handleInspectGroup(group)}>
+            <div 
+              className="flex items-center gap-1.5 group/title min-w-0 flex-1 cursor-pointer" 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleInspectGroup && handleInspectGroup(group, e.currentTarget.closest('[data-group-id]'));
+              }}
+            >
               {group.color && COLOR_MAP[group.color] && (
                 <span 
                   className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs" 
@@ -758,7 +781,10 @@ function GridCardItem({
               variant="ghost" 
               size="icon" 
               className="btn-spring h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors" 
-              onClick={() => handleInspectGroup(group)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleInspectGroup(group, e.currentTarget.closest('[data-group-id]'));
+              }}
               title="Inspect & expand group"
             >
               <Maximize2 className="h-3.5 w-3.5" />
@@ -1058,7 +1084,18 @@ function AppContent() {
   const [showAdvancedAppearance, setShowAdvancedAppearance] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [inspectedGroup, setInspectedGroup] = useState<TabGroup | null>(null);
+  const [sourceRect, setSourceRect] = useState<DOMRect | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleInspectGroup = (group: TabGroup, cardElement?: HTMLElement | null) => {
+    if (cardElement) {
+      setSourceRect(cardElement.getBoundingClientRect());
+    } else {
+      const el = document.querySelector(`[data-group-id="${group.id}"]`) as HTMLElement | null;
+      setSourceRect(el ? el.getBoundingClientRect() : null);
+    }
+    setInspectedGroup(group);
+  };
 
   // Keep inspectedGroup synchronized with live storage state
   useEffect(() => {
@@ -1722,8 +1759,12 @@ function AppContent() {
       {/* Tab Group Inspector Modal */}
       <TabGroupInspectorModal
         isOpen={!!inspectedGroup}
-        onClose={() => setInspectedGroup(null)}
+        onClose={() => {
+          setInspectedGroup(null);
+          setSourceRect(null);
+        }}
         group={inspectedGroup}
+        sourceRect={sourceRect}
         onGroupUpdated={loadData}
         onDeleteGroup={async (id) => {
           if (activeTab === 'archive') {
@@ -2120,7 +2161,7 @@ function AppContent() {
             search={search}
             setSearch={setSearch}
             isInitialLoading={isInitialLoading}
-            handleInspectGroup={(g) => setInspectedGroup(g)}
+            handleInspectGroup={handleInspectGroup}
           />
         ) : (
         <>
