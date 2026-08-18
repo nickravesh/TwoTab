@@ -593,10 +593,17 @@ export function TabGroupInspectorModal({
 
           {/* Tier 2: Domain Filter Pills (rendered only when >= 2 valid domains exist) */}
           {domainStats.length >= 2 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-xs">
+            <div 
+              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 pr-8 text-xs scroll-smooth"
+              onWheel={(e) => {
+                if (e.deltaY !== 0) {
+                  e.currentTarget.scrollLeft += e.deltaY;
+                }
+              }}
+            >
               <button
                 onClick={() => setActiveDomainFilter(null)}
-                className={`px-2.5 py-0.5 rounded-full border transition-all whitespace-nowrap font-medium cursor-pointer ${
+                className={`px-2.5 py-0.5 rounded-full border transition-all whitespace-nowrap font-medium cursor-pointer shrink-0 ${
                   activeDomainFilter === null
                     ? 'bg-primary text-primary-foreground border-primary shadow-xs'
                     : 'bg-muted/50 text-muted-foreground border-border/60 hover:bg-muted hover:text-foreground'
@@ -610,7 +617,7 @@ export function TabGroupInspectorModal({
                   <button
                     key={domain}
                     onClick={() => setActiveDomainFilter(activeDomainFilter === domain ? null : domain)}
-                    className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border transition-all whitespace-nowrap font-medium cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border transition-all whitespace-nowrap font-medium cursor-pointer shrink-0 ${
                       activeDomainFilter === domain
                         ? 'bg-primary text-primary-foreground border-primary shadow-xs'
                         : 'bg-muted/50 text-muted-foreground border-border/60 hover:bg-muted hover:text-foreground'
@@ -778,6 +785,8 @@ export function TabGroupInspectorModal({
               );
             })
           )}
+          {/* Bottom spacing buffer so the last tab item never gets masked by scroll-fade-bottom */}
+          <div className="h-8 shrink-0 pointer-events-none" />
         </div>
 
         {/* Floating Batch Action Bar (Pinned Bottom Glass Pill) */}
@@ -897,8 +906,8 @@ export function TabGroupInspectorModal({
             ) : null}
           </div>
 
-          {/* Right Restore Actions — Unified Segmented Button without harsh vertical divider */}
-          <div className="inline-flex rounded-lg overflow-hidden shadow-xs border border-primary/40 bg-primary">
+          {/* Right Restore Actions — Unified Segmented Button with thin crisp divider */}
+          <div className="inline-flex rounded-lg overflow-hidden shadow-xs border border-primary/40 bg-primary items-center">
             <button
               type="button"
               className="h-8 px-3.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -907,6 +916,7 @@ export function TabGroupInspectorModal({
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Restore All</span>
             </button>
+            <div className="w-px h-4 bg-primary-foreground/25 shrink-0" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
