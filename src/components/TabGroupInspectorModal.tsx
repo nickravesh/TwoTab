@@ -455,9 +455,9 @@ export function TabGroupInspectorModal({
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent pointer-events-none z-30" />
 
         {/* Tier 1: Fixed Modal Header */}
-        <DialogHeader className="shrink-0 p-4 pb-3 border-b border-border/60 bg-muted/25 space-y-3 text-left pr-12">
-          {/* Top Line: Title & Color Picker & Metadata */}
-          <div className="flex items-center justify-between gap-3 min-w-0">
+        <DialogHeader className="shrink-0 p-4 pb-3 border-b border-border/60 bg-muted/25 space-y-3 text-left">
+          {/* Line 1: Title & Color Picker & Metadata (pr-8 for Radix X close button clearance) */}
+          <div className="flex items-center justify-between gap-3 min-w-0 pr-8">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
               {/* Color Accent Dropdown */}
               <DropdownMenu>
@@ -532,16 +532,16 @@ export function TabGroupInspectorModal({
             Inspect, filter, reorder, and restore tabs in this group.
           </DialogDescription>
 
-          {/* Search Bar & Fast Actions */}
-          <div className="flex items-center gap-2 pt-0.5">
-            <div className="relative flex-1">
+          {/* Line 2: Full-Width Search Bar & Add Link Action */}
+          <div className="flex items-center gap-2 pt-0.5 w-full">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
               <Input
                 ref={searchInputRef}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Filter tabs in this group... (⌘F)"
-                className="h-8 pl-8 pr-7 text-xs bg-background/80 border-input text-foreground focus-visible:ring-1 focus-visible:ring-primary rounded-lg"
+                className="h-8 pl-8 pr-7 text-xs bg-background/80 border-input text-foreground focus-visible:ring-1 focus-visible:ring-primary rounded-lg w-full"
               />
               {searchQuery && (
                 <button
@@ -556,7 +556,7 @@ export function TabGroupInspectorModal({
             <Button
               variant="outline"
               size="sm"
-              className={`h-8 px-2.5 text-xs gap-1.5 rounded-lg border-border/80 transition-colors ${
+              className={`h-8 px-2.5 text-xs gap-1.5 rounded-lg border-border/80 transition-colors shrink-0 ${
                 isAddingTab ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground hover:text-foreground'
               }`}
               onClick={() => setIsAddingTab(!isAddingTab)}
@@ -568,33 +568,37 @@ export function TabGroupInspectorModal({
 
           {/* Add Tab Inline Panel */}
           {isAddingTab && (
-            <form onSubmit={handleAddTab} className="flex items-center gap-2 p-2.5 rounded-xl bg-muted/40 border border-border/80 animate-in fade-in-50 slide-in-from-top-1">
+            <form onSubmit={handleAddTab} className="flex items-center gap-2 p-2.5 rounded-xl bg-muted/40 border border-border/80 animate-in fade-in-50 slide-in-from-top-1 w-full">
               <Input
                 value={newTabUrl}
                 onChange={(e) => setNewTabUrl(e.target.value)}
                 placeholder="https://example.com"
-                className="h-7 text-xs bg-background flex-1"
+                className="h-7 text-xs bg-background flex-1 min-w-0"
                 autoFocus
               />
               <Input
                 value={newTabTitle}
                 onChange={(e) => setNewTabTitle(e.target.value)}
                 placeholder="Title (optional)"
-                className="h-7 text-xs bg-background flex-1"
+                className="h-7 text-xs bg-background flex-1 min-w-0"
               />
-              <Button type="submit" size="sm" className="h-7 px-3 text-xs bg-primary text-primary-foreground">
+              <Button type="submit" size="sm" className="h-7 px-3 text-xs bg-primary text-primary-foreground shrink-0">
                 Add
               </Button>
-              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => setIsAddingTab(false)}>
+              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground shrink-0" onClick={() => setIsAddingTab(false)}>
                 <X className="w-3.5 h-3.5" />
               </Button>
             </form>
           )}
 
-          {/* Tier 2: Domain Filter Pills (rendered only when >= 2 valid domains exist) */}
+          {/* Line 3: Full-Width Domain Filter Pills with Edge Fade Mask */}
           {domainStats.length >= 2 && (
             <div 
-              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 pr-8 text-xs scroll-smooth"
+              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 w-full scroll-smooth"
+              style={{
+                WebkitMaskImage: 'linear-gradient(to right, black calc(100% - 32px), transparent 100%)',
+                maskImage: 'linear-gradient(to right, black calc(100% - 32px), transparent 100%)',
+              }}
               onWheel={(e) => {
                 if (e.deltaY !== 0) {
                   e.currentTarget.scrollLeft += e.deltaY;
@@ -635,6 +639,8 @@ export function TabGroupInspectorModal({
                     <span className="text-[10px] opacity-75">({count})</span>
                   </button>
                 ))}
+              {/* Spacer so the last chip can scroll past the fade mask */}
+              <div className="w-6 shrink-0 pointer-events-none" />
             </div>
           )}
         </DialogHeader>
