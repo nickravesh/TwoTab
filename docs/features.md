@@ -1,135 +1,92 @@
 # TwoTab Features & User Guide
 
-This document describes the user-facing features of **TwoTab** and explains how they are implemented under the hood.
+This document describes the complete feature suite of **TwoTab** (v1.10.0+) and explains how operations are designed and executed.
 
 ---
 
-## 1. Save Current Tabs
-- **Description**: Captures all open, non-pinned, non-extension tabs in the current window, saves them as a group, opens a new tab page, and closes the saved tabs.
-- **UI Element**:
-  - Popup: `Save Tabs` button (`#saveTabs` in [popup.html](file:///Users/ali/Documents/Programming/MyGitHub/TwoTab/popup.html))
-  - Full Page: `Save Current Tabs` button (`#saveTabs` in [tabs.html](file:///Users/ali/Documents/Programming/MyGitHub/TwoTab/tabs.html))
+## 1. 1-Click Window & Tab Capture
+- **Description**: Instantly captures open browser tabs into clean, organized collections while saving up to 95% of system memory.
+- **Capture Modes**:
+  - **Save Window** (`⌘S` / `Ctrl+S`): Saves all active tabs in the current window.
+  - **Save All Windows** (`⌘⇧S` / `Ctrl+Shift+S`): Captures tabs across every open browser window into separate collections.
+  - **Save Active Tab Only** (`⌘⌥S` / `Ctrl+Alt+S`): Stashes just the current tab into a saved collection.
 - **Implementation**:
-  - Calls `saveTabs()` in UI script, which sends `{ action: 'saveTabs' }` to [background.js](file:///Users/ali/Documents/Programming/MyGitHub/TwoTab/background.js).
-  - Background queries current window tabs, filters out pinned tabs and pages starting with `chrome-extension://`.
-  - Appends to `tabGroups` in local storage.
-  - Displays a transient glassmorphic toast notification with an **Undo Save** button that stays visible for 6 seconds. Clicking Undo restores all tabs and deletes the newly created group.
-  - Opens `chrome://newtab` in the window and closes the original non-pinned tabs.
+  - Background service worker filters out pinned tabs (if protected in Settings), internal chrome extensions, and blank pages.
+  - Saves groups atomically to Chrome's local storage engine with automatic mutex queuing.
 
 ---
 
-## 2. View Saved Groups & Search
-- **Description**: Displays saved tab groups in descending chronological order. Users can search for specific tabs by typing in the search bar.
-- **UI Element**:
-  - Popup: Lists up to 10 most recent groups in a scrollable container (`#groups`). Search input (`#search`).
-  - Full Page: Lists all groups in a large list. Search input (`#search`).
-- **Implementation**:
-  - Handled by `loadGroups()` in [popup.js](file:///Users/ali/Documents/Programming/MyGitHub/TwoTab/popup.js) and [tabs.js](file:///Users/ali/Documents/Programming/MyGitHub/TwoTab/tabs.js).
-  - Filter logic checks if the search string is present in either the tab's `title` or `url` (case-insensitive).
-  - Rendered using DaisyUI collapsible elements.
+## 2. Tab Group Inspector & Modal Workspace
+- **Description**: A full-featured workspace for inspecting, organizing, and modifying specific tab collections with Apple-grade spatial FLIP animations.
+- **Capabilities**:
+  - **Spatial FLIP Morphing**: Cards seamlessly expand into centered modal workspaces directly from their bounding boxes on the dashboard grid.
+  - **Domain Filter Pills**: Scrollable domain chips with edge-dissolve masks and live counters isolate tabs belonging to specific websites (e.g. `github.com`, `youtube.com`).
+  - **Tab Drag & Drop Reordering**: Reorder tabs smoothly within the group.
+  - **Inline URL Adding**: Add new links directly to a collection without leaving the modal.
+  - **Batch Selection & Extraction**: Use checkboxes to select multiple tabs for bulk deletion or atomic extraction into a brand-new tab group.
+  - **Single-Group Exporters**: Export specific collections as formatted Markdown outlines or OneTab plain text.
+  - **In-Modal Confirmation Dialogs**: Nested deletion dialogues prevent abrupt modal dismissals.
 
 ---
 
-## 3. Rename Group
-- **Description**: Allows naming a tab group to make it easier to find and organize.
-- **UI Element**:
-  - Full Page: "Rename" button on the collapsible title bar which opens a DaisyUI modal (`#rename-modal`).
-- **Implementation**:
-  - Handled in [tabs.js](file:///Users/ali/Documents/Programming/MyGitHub/TwoTab/tabs.js) (lines 93–108). Clicking the button sets the group ID on the modal dataset (`renameModal.dataset.groupId = group.id`) and opens the modal via `renameModal.showModal()`.
-  - Clicking "Save" in the modal updates the `name` field of the group in `chrome.storage.local` and reloads.
-- **Note**: The Popup UI does not currently support renaming groups, but displays custom names if they have been set on the Full Page.
+## 3. Color Tagging & Multi-Filter Engine
+- **Description**: Tag collections with distinct color accents and filter collections dynamically.
+- **Color Hues**: Slate (`grey`), Blue, Purple, Pink, Red, Orange, Amber (`yellow`), Emerald (`green`), Cyan, and Untagged (`none`).
+- **Dashboard Multi-Filter**:
+  - Multi-select dropdown in the top bar action cluster allowing users to check one or multiple color tags simultaneously.
+  - Live collection count badges for each color tag.
+  - Quick "Clear all" filter shortcut.
 
 ---
 
-## 4. Restore Group
-- **Description**: Opens all tabs in a group in the background.
-- **UI Element**:
-  - Popup & Full Page: "Restore" / "Restore All" button inside each group's collapsed container.
-- **Implementation**:
-  - Iterates through the group's tabs array:
-    ```javascript
-    group.tabs.forEach(tab => chrome.tabs.create({ url: tab.url, active: false }));
-    ```
+## 4. 7-Mode Sorting Suite
+- **Description**: Sort collections across multiple dimensions right from the top bar:
+  1. **Newest First** (`date-desc`) [Default]
+  2. **Oldest First** (`date-asc`)
+  3. **Most Tabs** (`tabs-desc`)
+  4. **Fewest Tabs** (`tabs-asc`)
+  5. **Alphabetical Name (A → Z)** (`title-asc`)
+  6. **Reverse Alphabetical Name (Z → A)** (`title-desc`)
+  7. **Color Tag Spectrum Order** (`color`)
+- **Typography**: High-contrast, dynamic hover and focus styling compliant with WCAG accessibility guidelines.
 
 ---
 
-## 5. Delete Group
-- **Description**: Deletes a specific tab group from local storage.
-- **UI Element**:
-  - Popup & Full Page: "Delete" button inside each group's collapsed container.
-- **Implementation**:
-  - Handled by `deleteGroup(id)` in UI scripts.
-  - Filters out the group with matching `id` from the array and updates local storage.
-  - On the Full Page, a native confirmation prompt (`confirm(...)`) is displayed to prevent accidental deletion.
+## 5. Native Chrome Tab Group Restoration
+- **Description**: Reopen saved collections directly as native colored Chrome Tab Groups.
+- **Usage**:
+  - Click the dropdown arrow next to **Restore** on any card or inspector workspace, and choose **"Restore as Chrome Tab Group"**.
+  - Chrome will automatically recreate the tab strip group with your custom group title and color tag.
 
 ---
 
-## 6. Import Tabs
-- **Description**: Imports tab groups from a local `.txt` or `.csv` backup file.
-- **UI Element**:
-  - Popup & Full Page: "Import" button.
-- **Implementation**:
-  - Opens options page `tabs.html` (if clicked from popup) and allows selecting a file.
-  - Uses `FileReader` to read the text contents.
-  - Parses the file based on its extension (`.txt` or `.csv`).
-  - Prompts the user for a group name, then pushes the new group to `chrome.storage.local` and updates the UI.
+## 6. Multi-Format Data Hub (Export & Import)
+- **Exporters**:
+  - **JSON Backup**: Complete full-fidelity backup of groups, archives, recently closed tabs, and settings.
+  - **Markdown Outline (`.md`)**: Structured hierarchical outlines with clickable links for Obsidian, Notion, and Bear.
+  - **HTML Bookmarks (`.html`)**: Standard Netscape bookmark file format importable into Chrome, Firefox, Safari, and Edge.
+  - **CSV Spreadsheet (`.csv`)**: Tabular exports for Excel, Google Sheets, or data analytics.
+  - **OneTab Plain Text (`.txt`)**: URL | Title list compatible with OneTab.
+- **Importers**:
+  - Smart JSON file importer with automatic schema migration and duplicate group ID deduplication.
+  - OneTab text parser supporting both **Merge** and **Replace** modes with markdown link parsing.
 
 ---
 
-## 7. Export All Tabs
-- **Description**: Downloads a `.csv` backup of all currently saved groups.
-- **UI Element**:
-  - Popup & Full Page: "Export" / "Export All" button.
-- **Implementation**:
-  - Opens options page `tabs.html` (if clicked from popup).
-  - Collects all tab groups from local storage and formats them into a single CSV string with fields: `Group ID,Group Name,Date,Title,URL`.
-  - Triggers a file download with naming format `twotab_export_YYYY-MM-DD.csv`.
+## 7. Automated Rolling Backups & Emergency Safeguards
+- **6-Hour Snapshot Alarm**: Background alarm automatically captures rolling snapshots every 6 hours (retaining the 5 most recent unique snapshots).
+- **Emergency Wipe Snapshot**: Right before executing "Clear All Data", TwoTab automatically captures an internal emergency snapshot so accidental data wipes can always be recovered.
 
 ---
 
-## 8. Clear All Saved Tabs
-- **Description**: Deletes all saved groups from local storage.
-- **UI Element**:
-  - Popup & Full Page: "Clear All" button.
-- **Implementation**:
-  - Asks for user confirmation via the custom glassmorphic confirm modal.
-  - Sets the storage key `tabGroups` to an empty array `[]` and refreshes the view.
+## 8. Curated Theme System & View Transitions
+- **7 Hand-Tuned Themes**:
+  - Dark: Studio Indigo, Midnight Obsidian, Cyber Emerald.
+  - Light: Paper Linen, Glacier Frost, Porcelain Rosé, Sunset Amber.
+- **Circular Ripple View Transitions**: Smooth circular clip-path wave reveals when switching palettes, tuned with balanced easing curves and storage event guarding.
 
 ---
 
-## 9. Archive Groups
-- **Description**: Moves tab groups from the active dashboard to a dedicated Archive tab to reduce visual clutter while retaining the groups long-term.
-- **UI Element**:
-  - Action Menu: "Archive Group" inside active cards.
-  - Sidebar: "Archive" navigation button to view all archived groups.
-- **Implementation**:
-  - Moves the TabGroup object from the `tabGroups` array to the `archivedGroups` array in `chrome.storage.local`.
-
----
-
-## 10. Recently Closed (Recycle Bin)
-- **Description**: A recycle bin safety net that preserves deleted or restored groups for up to 15 items, allowing users to restore them or delete them permanently.
-- **UI Element**:
-  - Sidebar: "Recently Closed" navigation button.
-  - Action Menu: "Delete Forever" or "Restore" inside closed group cards.
-- **Implementation**:
-  - Deleting groups moves them to the `recentlyClosed` storage array, capped at 15 items.
-
----
-
-## 11. Custom Modals & Toasts
-- **Description**: Custom UI dialogues matching the premium dark glassmorphic theme that replace standard blocking browser prompts.
-- **UI Element**:
-  - Modals: `#confirm-modal` and `#alert-modal` rendered inside UI contexts.
-  - Toasts: Sleek sliding and fading toast alerts for active action feedback.
-- **Implementation**:
-  - Replaces `window.alert`, `window.confirm`, and `window.prompt` with promise-based modal controllers using `<dialog>` and backdrop blur filters.
-
----
-
-## 12. Capped Favicon Card Preview
-- **Description**: Prevents cards with many tabs from stretching vertically and cluttering the grid layout.
-- **UI Element**:
-  - Group Cards: Limits favicons to 8 blocks. The 8th block is rendered as a custom `+X more` tile that opens the details modal.
-- **Implementation**:
-  - Slices the tabs array when generating grid items, adding a conditional `.more-tile` if `tabs.length > 8`.
+## 9. 100% Offline Local Privacy
+- Operates entirely within your local browser storage (`chrome.storage.local`).
+- Zero external network requests, zero telemetry, zero trackers, and zero cloud dependencies.

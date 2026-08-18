@@ -3386,22 +3386,22 @@ function AppContent() {
                       <div className="flex items-center gap-2">
                         <h3 className="text-2xl font-bold text-foreground">TwoTab Knowledge Center</h3>
                         <Badge variant="outline" className="text-xs text-primary border-primary/30 bg-primary/10 font-semibold">
-                          v{typeof chrome !== 'undefined' && chrome?.runtime?.getManifest?.()?.version ? chrome.runtime.getManifest().version : '1.9.0'}
+                          v{typeof chrome !== 'undefined' && chrome?.runtime?.getManifest?.()?.version ? chrome.runtime.getManifest().version : '1.10.0'}
                         </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">The complete manual for tabs management, keyboard shortcuts, context menus, and local privacy.</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">The complete manual for tabs management, group inspection, color tagging, keyboard shortcuts, context menus, and offline privacy.</p>
                     </div>
                   </div>
                 </div>
               </Card>
 
-              {/* 1. Quick-Start Essentials (4 Cards Grid) */}
+              {/* 1. Quick-Start Essentials (6 Cards Grid) */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 px-1">
                   <Zap className="w-4 h-4 text-primary" />
                   <h4 className="text-sm font-bold uppercase tracking-wider text-foreground">Quick-Start Essentials</h4>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                   <Card style={{ '--stagger-index': 1 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
                     <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
                       <Plus className="w-5 h-5" />
@@ -3409,24 +3409,60 @@ function AppContent() {
                     <div className="space-y-1">
                       <h5 className="text-xs font-bold text-foreground">1-Click Window Capture</h5>
                       <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        Click <strong>"Save Window"</strong> (or press <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">⌘S</kbd>) in the header or popup to stash all active tabs into a clean collection. Use the split dropdown for <strong>"Save All Windows"</strong>.
+                        Click <strong>"Save Window"</strong> (or press <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">⌘S</kbd>) to stash all active tabs into a clean collection. Use the split dropdown for <strong>"Save All Windows"</strong>.
                       </p>
                     </div>
                   </Card>
 
                   <Card style={{ '--stagger-index': 2 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
                     <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                      <RotateCcw className="w-5 h-5" />
+                      <Maximize2 className="w-5 h-5" />
                     </div>
                     <div className="space-y-1">
-                      <h5 className="text-xs font-bold text-foreground">Instant Tab Restoration</h5>
+                      <h5 className="text-xs font-bold text-foreground">Tab Group Inspector</h5>
                       <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        Click <strong>"Restore Group"</strong> on any card to reopen all tabs in a dedicated window, or click individual tab links to launch specific pages independently.
+                        Double-click any card or click the <strong>Expand</strong> icon to open the modal workspace for domain filtering, tab reordering, direct link additions, and sub-group extraction.
                       </p>
                     </div>
                   </Card>
 
                   <Card style={{ '--stagger-index': 3 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                      <Tag className="w-5 h-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-foreground">Color Tags & Multi-Filter</h5>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Assign color accents (Slate, Blue, Purple, Pink, Red, Orange, Amber, Emerald, Cyan) to collections and multi-filter collections right from the dashboard top bar.
+                      </p>
+                    </div>
+                  </Card>
+
+                  <Card style={{ '--stagger-index': 4 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                      <ArrowUpDown className="w-5 h-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-foreground">7-Mode Sorting Suite</h5>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Sort tab collections seamlessly by creation date (Newest / Oldest), tab count (Most / Fewest), alphabetical title (A → Z / Z → A), or assigned color tag.
+                      </p>
+                    </div>
+                  </Card>
+
+                  <Card style={{ '--stagger-index': 5 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                      <Layers className="w-5 h-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-foreground">Chrome Tab Groups</h5>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Restore any collection directly into native colored Chrome Tab Groups via the Restore split dropdown in the card view or inspector workspace.
+                      </p>
+                    </div>
+                  </Card>
+
+                  <Card style={{ '--stagger-index': 6 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
                     <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
                       <MousePointerClick className="w-5 h-5" />
                     </div>
@@ -3437,28 +3473,59 @@ function AppContent() {
                       </p>
                     </div>
                   </Card>
-
-                  <Card style={{ '--stagger-index': 4 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs flex items-start gap-3.5">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                      <Search className="w-5 h-5" />
-                    </div>
-                    <div className="space-y-1">
-                      <h5 className="text-xs font-bold text-foreground">Smart Search & Rename</h5>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        Filter collections instantly by title or domain. Click any group's title directly on its card to customize its name (e.g. <em>"Research Sprint"</em> or <em>"Design Inspiration"</em>).
-                      </p>
-                    </div>
-                  </Card>
                 </div>
               </div>
 
-              {/* 2. Keyboard Shortcuts Cheatsheet */}
+              {/* 2. Tab Group Inspector Deep Dive */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-foreground">Tab Group Inspector Workspace</h4>
+                </div>
+                <Card style={{ '--stagger-index': 7 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-xs p-5 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 text-xs font-bold">1</div>
+                      <div className="space-y-0.5">
+                        <h6 className="text-xs font-bold text-foreground">Domain Breakdown Chips</h6>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">Scrollable domain pills with live tab counters let you quickly filter large collections down to specific hostnames.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 text-xs font-bold">2</div>
+                      <div className="space-y-0.5">
+                        <h6 className="text-xs font-bold text-foreground">Tab Reordering & URL Addition</h6>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">Drag tabs to customize their order or add custom links directly to the collection without leaving the modal.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 text-xs font-bold">3</div>
+                      <div className="space-y-0.5">
+                        <h6 className="text-xs font-bold text-foreground">Batch Selection & Extraction</h6>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">Use checkboxes to select multiple tabs to delete in bulk or extract atomically into a brand-new tab group.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 text-xs font-bold">4</div>
+                      <div className="space-y-0.5">
+                        <h6 className="text-xs font-bold text-foreground">Single Collection Exporters</h6>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">Export the specific group as a formatted Markdown outline or OneTab plain-text list directly from the modal footer.</p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
+              {/* 3. Keyboard Shortcuts Cheatsheet */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 px-1">
                   <Keyboard className="w-4 h-4 text-primary" />
                   <h4 className="text-sm font-bold uppercase tracking-wider text-foreground">Keyboard Shortcuts</h4>
                 </div>
-                <Card style={{ '--stagger-index': 5 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-xs overflow-hidden">
+                <Card style={{ '--stagger-index': 8 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-xs overflow-hidden">
                   <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-border">
                     <div className="p-4 space-y-3">
                       <div className="flex items-center justify-between text-xs">
@@ -3473,10 +3540,18 @@ function AppContent() {
                         <span className="text-muted-foreground">Save Active Tab Only</span>
                         <kbd className="px-2 py-1 rounded-md bg-muted text-foreground font-mono font-semibold text-xs border border-border shadow-2xs">⌘⌥S / Ctrl+Alt+S</kbd>
                       </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Focus Global Search</span>
+                        <kbd className="px-2 py-1 rounded-md bg-muted text-foreground font-mono font-semibold text-xs border border-border shadow-2xs">⌘K / Ctrl+K</kbd>
+                      </div>
                     </div>
                     <div className="p-4 space-y-3">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Clear Search / Dismiss Dialog</span>
+                        <span className="text-muted-foreground">Inspect Tab Collection</span>
+                        <kbd className="px-2 py-1 rounded-md bg-muted text-foreground font-mono font-semibold text-xs border border-border shadow-2xs">Double-Click Card</kbd>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Close Modal / Dismiss Dialog</span>
                         <kbd className="px-2 py-1 rounded-md bg-muted text-foreground font-mono font-semibold text-xs border border-border shadow-2xs">Esc</kbd>
                       </div>
                       <div className="flex items-center justify-between text-xs">
@@ -3492,14 +3567,14 @@ function AppContent() {
                 </Card>
               </div>
 
-              {/* 3. Power Features & Privacy Pillars */}
+              {/* 4. Power Features & Privacy Pillars */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 px-1">
                   <Cpu className="w-4 h-4 text-primary" />
                   <h4 className="text-sm font-bold uppercase tracking-wider text-foreground">Power Features & Architecture</h4>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <Card style={{ '--stagger-index': 6 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs space-y-1.5">
+                  <Card style={{ '--stagger-index': 9 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs space-y-1.5">
                     <div className="flex items-center gap-2 text-xs font-bold text-foreground">
                       <Lock className="w-4 h-4 text-primary" />
                       100% Local-First Offline Privacy
@@ -3509,7 +3584,7 @@ function AppContent() {
                     </p>
                   </Card>
 
-                  <Card style={{ '--stagger-index': 7 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs space-y-1.5">
+                  <Card style={{ '--stagger-index': 10 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs space-y-1.5">
                     <div className="flex items-center gap-2 text-xs font-bold text-foreground">
                       <RefreshCw className="w-4 h-4 text-primary" />
                       Automatic Rolling Backups
@@ -3519,7 +3594,7 @@ function AppContent() {
                     </p>
                   </Card>
 
-                  <Card style={{ '--stagger-index': 8 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs space-y-1.5">
+                  <Card style={{ '--stagger-index': 11 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs space-y-1.5">
                     <div className="flex items-center gap-2 text-xs font-bold text-foreground">
                       <FileText className="w-4 h-4 text-primary" />
                       Multi-Format Export & OneTab Import
@@ -3529,7 +3604,7 @@ function AppContent() {
                     </p>
                   </Card>
 
-                  <Card style={{ '--stagger-index': 9 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs space-y-1.5">
+                  <Card style={{ '--stagger-index': 12 } as React.CSSProperties} className="animate-card-cascade card-interactive p-4 border-border bg-card shadow-xs space-y-1.5">
                     <div className="flex items-center gap-2 text-xs font-bold text-foreground">
                       <Palette className="w-4 h-4 text-primary" />
                       Curated Themes & View Transitions
@@ -3541,20 +3616,47 @@ function AppContent() {
                 </div>
               </div>
 
-              {/* 4. Comprehensive FAQ Accordion */}
+              {/* 5. Comprehensive FAQ Accordion */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 px-1">
                   <HelpCircle className="w-4 h-4 text-primary" />
                   <h4 className="text-sm font-bold uppercase tracking-wider text-foreground">Frequently Asked Questions</h4>
                 </div>
-                <Card style={{ '--stagger-index': 10 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-lg p-6">
+                <Card style={{ '--stagger-index': 13 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-lg p-6">
                   <Accordion type="single" collapsible className="w-full space-y-2">
                     <AccordionItem value="faq-1" className="border-border">
                       <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-sm text-left">
                         How is TwoTab different from OneTab?
                       </AccordionTrigger>
                       <AccordionContent className="text-muted-foreground leading-relaxed text-xs">
-                        TwoTab is built on Manifest V3 with a modern design system, virtualized grid rendering, multi-window support, tab group archiving, configurable recently closed history, multi-format exports (Markdown, HTML Bookmarks, CSV, OneTab Text), and 100% offline local data security.
+                        TwoTab is built on Manifest V3 with a modern design system, virtualized grid rendering, Tab Group Inspector modal, color tagging, 7-mode sorting, multi-window support, tab group archiving, configurable recently closed history, multi-format exports (Markdown, HTML Bookmarks, CSV, OneTab Text), and 100% offline local data security.
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="faq-inspector" className="border-border">
+                      <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-sm text-left">
+                        How do I inspect, reorder, or extract tabs from a saved collection?
+                      </AccordionTrigger>
+                      <AccordionContent className="text-muted-foreground leading-relaxed text-xs">
+                        Double-click any collection card (or click the <strong>Expand</strong> icon) to open the Tab Group Inspector. From there, you can drag tabs to reorder them, use checkboxes to select tabs for batch deletion or extraction into a new group, filter by domain chips, or add links directly.
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="faq-chrome-groups" className="border-border">
+                      <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-sm text-left">
+                        Can I restore tabs directly as a native Chrome Tab Group?
+                      </AccordionTrigger>
+                      <AccordionContent className="text-muted-foreground leading-relaxed text-xs">
+                        Yes! On any card or inside the Tab Group Inspector, click the dropdown arrow next to <strong>Restore</strong> and select <strong>"Restore as Chrome Tab Group"</strong>. TwoTab will reopen the tabs and automatically group them in Chrome with your assigned group name and color accent.
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="faq-tags-sorting" className="border-border">
+                      <AccordionTrigger className="text-foreground font-semibold hover:text-primary transition-colors text-sm text-left">
+                        How do color tags and dashboard filters work?
+                      </AccordionTrigger>
+                      <AccordionContent className="text-muted-foreground leading-relaxed text-xs">
+                        You can assign any of the 9 curated color tags (or Untagged) to a tab collection. In the dashboard top bar, click <strong>"Color"</strong> to select one or multiple tags to filter by. You can also sort collections anytime by clicking <strong>"Sort"</strong> to choose from 7 sorting dimensions.
                       </AccordionContent>
                     </AccordionItem>
 
