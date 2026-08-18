@@ -1,6 +1,6 @@
 # TwoTab Features & User Guide
 
-This document describes the complete feature suite of **TwoTab** (v1.10.0+) and explains how operations are designed and executed.
+This document describes the complete feature suite of **TwoTab** (v1.11.0+) and explains how operations are designed and executed.
 
 ---
 

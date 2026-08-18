@@ -3386,7 +3386,7 @@ function AppContent() {
                       <div className="flex items-center gap-2">
                         <h3 className="text-2xl font-bold text-foreground">TwoTab Knowledge Center</h3>
                         <Badge variant="outline" className="text-xs text-primary border-primary/30 bg-primary/10 font-semibold">
-                          v{typeof chrome !== 'undefined' && chrome?.runtime?.getManifest?.()?.version ? chrome.runtime.getManifest().version : '1.10.0'}
+                          v{typeof chrome !== 'undefined' && chrome?.runtime?.getManifest?.()?.version ? chrome.runtime.getManifest().version : '1.11.0'}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">The complete manual for tabs management, group inspection, color tagging, keyboard shortcuts, context menus, and offline privacy.</p>
