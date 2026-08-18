@@ -397,7 +397,7 @@ function ListCardItem({
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 group/title min-w-0 cursor-pointer flex-1" onClick={() => handleStartRename(group)}>
+            <div className="flex items-center gap-2 group/title min-w-0 cursor-pointer flex-1" onClick={() => handleInspectGroup && handleInspectGroup(group)}>
               <MarqueeText
                 text={group.name || 'Saved Group'}
                 delayMs={1000}
@@ -405,7 +405,17 @@ function ListCardItem({
                 speedPxPerSec={40}
                 className="font-semibold text-sm text-foreground group-hover/title:text-primary transition-colors flex-1"
               />
-              <Edit2 className="w-3 h-3 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStartRename(group);
+                }}
+                className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0 cursor-pointer"
+                title="Rename group"
+              >
+                <Edit2 className="w-3 h-3" />
+              </button>
             </div>
           )}
           <Badge variant="outline" className="text-[11px] font-medium border-border/70 bg-background/80 text-muted-foreground shrink-0 whitespace-nowrap">
@@ -568,16 +578,16 @@ function GridCardItem({
 }) {
   const [isCardHovered, setIsCardHovered] = useState(false);
 
-  const groupColorMap: Record<string, string> = {
-    grey: 'bg-zinc-400 dark:bg-zinc-500',
-    blue: 'bg-blue-500',
-    purple: 'bg-purple-500',
-    pink: 'bg-pink-500',
-    red: 'bg-red-500',
-    orange: 'bg-orange-500',
-    yellow: 'bg-amber-400',
-    green: 'bg-emerald-500',
-    cyan: 'bg-cyan-500',
+  const COLOR_MAP: Record<string, string> = {
+    grey: 'hsl(220 10% 55%)',
+    blue: 'hsl(217 91% 60%)',
+    purple: 'hsl(271 91% 65%)',
+    pink: 'hsl(330 85% 65%)',
+    red: 'hsl(0 84% 60%)',
+    orange: 'hsl(25 95% 53%)',
+    yellow: 'hsl(45 93% 47%)',
+    green: 'hsl(152 76% 40%)',
+    cyan: 'hsl(188 86% 45%)',
   };
 
   return (
@@ -615,9 +625,12 @@ function GridCardItem({
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 group/title min-w-0 flex-1 cursor-pointer" onClick={() => handleStartRename(group)}>
-              {group.color && groupColorMap[group.color] && (
-                <span className={`w-2 h-2 rounded-full shrink-0 ${groupColorMap[group.color]}`} />
+            <div className="flex items-center gap-1.5 group/title min-w-0 flex-1 cursor-pointer" onClick={() => handleInspectGroup && handleInspectGroup(group)}>
+              {group.color && COLOR_MAP[group.color] && (
+                <span 
+                  className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs" 
+                  style={{ backgroundColor: COLOR_MAP[group.color] }} 
+                />
               )}
               <MarqueeText
                 text={group.name || 'Saved Group'}
@@ -626,7 +639,17 @@ function GridCardItem({
                 speedPxPerSec={40}
                 className="font-semibold text-sm text-foreground group-hover/title:text-primary transition-colors flex-1"
               />
-              <Edit2 className="w-3 h-3 opacity-0 group-hover/title:opacity-70 transition-opacity text-muted-foreground shrink-0" />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStartRename(group);
+                }}
+                className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0 cursor-pointer"
+                title="Rename group"
+              >
+                <Edit2 className="w-3 h-3" />
+              </button>
             </div>
           )}
           <span className="shrink-0 text-xs bg-muted/70 text-muted-foreground border border-border/60 px-2 py-0.5 rounded-full font-normal whitespace-nowrap">
