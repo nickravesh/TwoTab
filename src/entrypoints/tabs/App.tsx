@@ -2200,15 +2200,21 @@ function AppContent() {
                     <DropdownMenuItem
                       key={opt.id}
                       onClick={() => setSortOption(opt.id)}
-                      className={`cursor-pointer text-xs py-1.5 px-2 rounded-lg flex items-center justify-between ${
-                        sortOption === opt.id ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-muted'
+                      className={`cursor-pointer text-xs py-2 px-2.5 rounded-lg flex items-center justify-between group/sort hover:bg-muted focus:bg-muted ${
+                        sortOption === opt.id ? 'bg-primary/10 text-primary font-semibold' : ''
                       }`}
                     >
                       <div className="flex flex-col text-left">
-                        <span>{opt.label}</span>
-                        <span className="text-[10px] text-muted-foreground font-normal">{opt.description}</span>
+                        <span className={`font-medium ${sortOption === opt.id ? 'text-primary' : 'text-foreground group-hover/sort:text-primary group-focus/sort:text-primary transition-colors'}`}>
+                          {opt.label}
+                        </span>
+                        <span className={`text-[10px] font-normal transition-colors ${
+                          sortOption === opt.id ? 'text-primary/80' : 'text-muted-foreground group-hover/sort:text-foreground/90 group-focus/sort:text-foreground/90'
+                        }`}>
+                          {opt.description}
+                        </span>
                       </div>
-                      {sortOption === opt.id && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                      {sortOption === opt.id && <Check className="w-3.5 h-3.5 text-primary shrink-0 ml-2" />}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -2263,7 +2269,7 @@ function AppContent() {
                   <DropdownMenuItem
                     key={palette.id}
                     onClick={(e) => setThemeMode(palette.id, e)}
-                    className={`cursor-pointer text-xs font-medium py-1.5 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted ${
+                    className={`cursor-pointer text-xs font-medium py-1.5 px-2.5 rounded-lg flex items-center justify-between group/theme hover:bg-muted focus:bg-muted ${
                       themeMode === palette.id ? 'text-primary font-semibold bg-primary/10' : ''
                     }`}
                   >
@@ -2275,8 +2281,8 @@ function AppContent() {
                         <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: palette.accentHex }} />
                       </div>
                       <div className="flex flex-col min-w-0 text-left">
-                        <span className="truncate">{palette.name}</span>
-                        <span className="text-[10px] text-muted-foreground font-normal truncate">{palette.description}</span>
+                        <span className="truncate font-medium text-foreground group-hover/theme:text-primary transition-colors">{palette.name}</span>
+                        <span className="text-[10px] text-muted-foreground group-hover/theme:text-foreground/90 transition-colors font-normal truncate">{palette.description}</span>
                       </div>
                     </div>
                     {themeMode === palette.id && <span className="text-xs text-primary shrink-0 ml-1">✓</span>}
@@ -2292,7 +2298,7 @@ function AppContent() {
                   <DropdownMenuItem
                     key={palette.id}
                     onClick={(e) => setThemeMode(palette.id, e)}
-                    className={`cursor-pointer text-xs font-medium py-1.5 px-2.5 rounded-lg flex items-center justify-between hover:bg-muted focus:bg-muted ${
+                    className={`cursor-pointer text-xs font-medium py-1.5 px-2.5 rounded-lg flex items-center justify-between group/theme hover:bg-muted focus:bg-muted ${
                       themeMode === palette.id ? 'text-primary font-semibold bg-primary/10' : ''
                     }`}
                   >
@@ -2304,8 +2310,8 @@ function AppContent() {
                         <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: palette.accentHex }} />
                       </div>
                       <div className="flex flex-col min-w-0 text-left">
-                        <span className="truncate">{palette.name}</span>
-                        <span className="text-[10px] text-muted-foreground font-normal truncate">{palette.description}</span>
+                        <span className="truncate font-medium text-foreground group-hover/theme:text-primary transition-colors">{palette.name}</span>
+                        <span className="text-[10px] text-muted-foreground group-hover/theme:text-foreground/90 transition-colors font-normal truncate">{palette.description}</span>
                       </div>
                     </div>
                     {themeMode === palette.id && <span className="text-xs text-primary shrink-0 ml-1">✓</span>}
