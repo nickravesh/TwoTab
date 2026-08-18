@@ -329,6 +329,7 @@ html[data-ui-scale="large"] {
 /* Custom sleek scrollbar for card containers */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
+  height: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
@@ -339,6 +340,15 @@ html[data-ui-scale="large"] {
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.4);
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Smooth bottom gradient fade for scrollable containers */

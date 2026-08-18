@@ -449,8 +449,8 @@ export function TabGroupInspectorModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      {/* Expanded Modal Size: max-w-3xl (768px width) with rich frosted glass backdrop & specular top rim */}
-      <DialogContent className="max-w-3xl w-[94vw] h-[86vh] max-h-[760px] flex flex-col p-0 overflow-hidden rounded-2xl border border-border/80 bg-card/95 backdrop-blur-2xl shadow-2xl text-card-foreground gap-0 focus:outline-none relative">
+      {/* Expanded Modal Size: Perfectly centered in viewport with fixed positioning & rich frosted glass */}
+      <DialogContent className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 flex flex-col max-w-3xl w-[92vw] h-[80vh] max-h-[680px] min-h-[420px] p-0 overflow-hidden rounded-2xl border border-border/80 bg-card/95 backdrop-blur-2xl shadow-2xl text-card-foreground gap-0 focus:outline-none">
         {/* Ambient Top Rim Highlight */}
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent pointer-events-none z-30" />
 
@@ -593,7 +593,7 @@ export function TabGroupInspectorModal({
 
           {/* Tier 2: Domain Filter Pills (rendered only when >= 2 valid domains exist) */}
           {domainStats.length >= 2 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 text-xs">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-xs">
               <button
                 onClick={() => setActiveDomainFilter(null)}
                 className={`px-2.5 py-0.5 rounded-full border transition-all whitespace-nowrap font-medium cursor-pointer ${
