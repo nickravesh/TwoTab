@@ -11,3 +11,6 @@ node_modules/
 
 # Design & Icon ideas
 icon_ideas/
+
+# Test coverage
+coverage/

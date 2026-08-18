@@ -1209,5 +1209,91 @@ https://site3.com | Site Three
         collapsed: true,
       });
     });
+
+    it('Restoration: filters out system and internal protocol URLs safely', async () => {
+      const tabs = [
+        { title: 'Valid', url: 'https://valid.com' },
+        { title: 'Chrome Internal', url: 'chrome://settings' },
+        { title: 'About Blank', url: 'about:blank' },
+        { title: 'Extension Page', url: 'chrome-extension://twotab/tabs.html' },
+        { title: 'Edge Page', url: 'edge://flags' },
+        { title: 'Data URI', url: 'data:text/html,<h1>Hello</h1>' },
+      ];
+
+      const group: TabGroup = {
+        id: 991,
+        date: '2026-08-18',
+        name: 'Protocol Filter Test',
+        tabs,
+      };
+
+      const result = await restoreTabGroup(group, {
+        protectPinnedTabs: true,
+        restoreDestination: 'current_window',
+        restoreBehavior: 'keep',
+        recentlyClosedLimit: 50,
+        lazyLoadRestoration: 'never',
+      });
+
+      expect(result.count).toBe(1);
+      expect(mockChrome.tabs.create).toHaveBeenCalledTimes(1);
+      expect(mockChrome.tabs.create).toHaveBeenCalledWith({
+        url: 'https://valid.com',
+        active: false,
+      });
+    });
+
+    it('Restoration: restoreAllTabGroups restores multiple groups and cleans storage when remove is configured', async () => {
+      mockStorageStore.tabGroups = [
+        { id: 1, date: '2026-08-18', name: 'G1', tabs: [{ title: 'T1', url: 'https://1.com' }] },
+        { id: 2, date: '2026-08-18', name: 'G2', tabs: [{ title: 'T2', url: 'https://2.com' }] },
+      ];
+
+      const groups: TabGroup[] = mockStorageStore.tabGroups;
+
+      const result = await restoreAllTabGroups(groups, {
+        protectPinnedTabs: true,
+        restoreDestination: 'new_window',
+        restoreBehavior: 'remove',
+        recentlyClosedLimit: 50,
+        lazyLoadRestoration: 'never',
+      });
+
+      expect(result.count).toBe(2);
+      expect(result.groupsCount).toBe(2);
+      expect(result.removed).toBe(true);
+      expect(mockChrome.windows.create).toHaveBeenCalledWith({
+        url: ['https://1.com', 'https://2.com'],
+        focused: true,
+      });
+      expect(mockStorageStore.tabGroups).toEqual([]);
+    });
+
+    it('copyToClipboardSafe: handles empty text and invalid inputs safely', async () => {
+      expect(await copyToClipboardSafe('')).toBe(false);
+      expect(await copyToClipboardSafe(null as any)).toBe(false);
+      expect(await copyToClipboardSafe(undefined as any)).toBe(false);
+    });
+
+    it('getRelativeTime: handles timestamps, unix numbers, and distant date intervals', () => {
+      const now = Date.now();
+      // Seconds
+      expect(getRelativeTime(now)).toBe('just now');
+      // Minutes
+      expect(getRelativeTime(now - 5 * 60 * 1000)).toBe('5m ago');
+      // Hours
+      expect(getRelativeTime(now - 3 * 3600 * 1000)).toBe('3h ago');
+      // Yesterday
+      expect(getRelativeTime(now - 25 * 3600 * 1000)).toBe('yesterday');
+      // Days (3 days ago)
+      expect(getRelativeTime(now - 3 * 86400 * 1000)).toBe('3d ago');
+      // Distant date (> 10 days ago)
+      const distant = new Date(now - 15 * 86400 * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      expect(getRelativeTime(now - 15 * 86400 * 1000)).toBe(distant);
+      // Unix timestamp in seconds (10 digits)
+      expect(getRelativeTime(Math.floor(now / 1000))).toBe('just now');
+      // Number as string
+      expect(getRelativeTime(String(now))).toBe('just now');
+    });
   });
 });
