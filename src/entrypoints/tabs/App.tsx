@@ -66,6 +66,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { TabGroupInspectorModal } from '@/components/TabGroupInspectorModal';
+import { LinkHealthModal } from '@/components/LinkHealthModal';
 import {
   Accordion,
   AccordionContent,
@@ -1113,6 +1114,7 @@ function AppContent() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [inspectedGroup, setInspectedGroup] = useState<TabGroup | null>(null);
   const [sourceRect, setSourceRect] = useState<DOMRect | null>(null);
+  const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleInspectGroup = (group: TabGroup, cardElement?: HTMLElement | null) => {
@@ -1809,6 +1811,14 @@ function AppContent() {
         faviconStyle={userPreferences.faviconStyle}
       />
 
+      {/* Link Health & Dead Link Inspector Modal */}
+      <LinkHealthModal
+        isOpen={isHealthModalOpen}
+        onClose={() => setIsHealthModalOpen(false)}
+        tabGroups={groups}
+        onDataMutated={loadData}
+      />
+
       {/* Sidebar (Floating Glass Pane) */}
       <aside className="w-64 h-full rounded-2xl glass-macos-sidebar p-5 flex flex-col justify-between z-20 shrink-0 relative overflow-hidden">
         {/* Top-Left Sidebar Ambient Glow */}
@@ -2141,7 +2151,21 @@ function AppContent() {
               </DropdownMenu>
             )}
 
-            {/* 4. Restore All Action */}
+            {/* 4. Link Health Inspector Action */}
+            {(activeTab === 'dashboard' || activeTab === 'archive') && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsHealthModalOpen(true)} 
+                className="btn-spring h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border/80 bg-background/80 dark:bg-background/60 hover:bg-background shadow-2xs rounded-lg font-medium"
+                title="Evaluate link health, detect 404 broken links, and update redirects"
+              >
+                <Activity className="w-3.5 h-3.5 text-primary" />
+                <span className="hidden sm:inline">Link Health</span>
+              </Button>
+            )}
+
+            {/* 5. Restore All Action */}
             {activeTab === 'dashboard' && groups.length > 0 && (
               <Button 
                 variant="outline" 
@@ -3310,7 +3334,16 @@ function AppContent() {
                     </div>
                   )}
 
-                  <div className="flex justify-end pt-1">
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsHealthModalOpen(true)}
+                      className="btn-spring text-xs font-semibold border-border gap-1.5"
+                    >
+                      <Activity className="w-3.5 h-3.5 text-primary" />
+                      Inspect Link Health
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -3319,7 +3352,7 @@ function AppContent() {
                       className="btn-spring text-xs font-semibold border-border gap-1.5"
                     >
                       <RotateCcw className={`w-3.5 h-3.5 ${isRunningHealthCheck ? 'animate-spin' : ''}`} />
-                      {isRunningHealthCheck ? 'Checking Storage...' : 'Run Diagnostic Check'}
+                      {isRunningHealthCheck ? 'Checking Storage...' : 'Run Storage Diagnostic'}
                     </Button>
                   </div>
                 </CardContent>
