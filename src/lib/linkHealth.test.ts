@@ -9,6 +9,8 @@ import {
   getLinkHealthScanState,
   saveLinkHealthScanState,
   DEFAULT_LINK_HEALTH_SCAN_STATE,
+  checkInternetConnectivity,
+  NetworkOfflineError,
   DomainRateLimiter,
   HealthScanController,
   applyBatchRedirects,
@@ -278,6 +280,49 @@ describe('Link Health & Dead Link Inspector Engine', () => {
       expect(executionOrder).toContain('start-github-1');
       expect(executionOrder).toContain('start-google-1');
       expect(executionOrder.indexOf('start-github-2')).toBeGreaterThan(executionOrder.indexOf('end-github-1'));
+    });
+
+    it('pause and resume: halts task dispatching immediately and resumes when triggered', async () => {
+      const limiter = new DomainRateLimiter(2, 2, 5);
+      const executed: string[] = [];
+
+      const makeTask = (name: string) => () =>
+        limiter.enqueue(`https://${name}.com`, async () => {
+          executed.push(name);
+          return {
+            url: `https://${name}.com`,
+            status: 'healthy',
+            statusCode: 200,
+            checkedAt: new Date().toISOString(),
+          };
+        });
+
+      limiter.pause();
+      const p1 = makeTask('task-1')();
+      const p2 = makeTask('task-2')();
+
+      await new Promise((r) => setTimeout(r, 20));
+      // Should NOT have executed because limiter is paused
+      expect(executed).toEqual([]);
+
+      limiter.resume();
+      await Promise.all([p1, p2]);
+      expect(executed).toContain('task-1');
+      expect(executed).toContain('task-2');
+    });
+
+    it('checkInternetConnectivity: detects online and offline states', async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 204 });
+
+      const isOnline = await checkInternetConnectivity(1000);
+      expect(isOnline).toBe(true);
+
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+      const isOffline = await checkInternetConnectivity(1000);
+      expect(isOffline).toBe(false);
+
+      globalThis.fetch = originalFetch;
     });
   });
 

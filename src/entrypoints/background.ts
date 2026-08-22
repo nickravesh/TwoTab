@@ -13,6 +13,7 @@ import {
   saveLinkHealthScanState,
   getLinkHealthScanState,
   isCheckableUrl,
+  checkInternetConnectivity,
   type LinkHealthScanState,
 } from '@/lib/linkHealth';
 
@@ -328,6 +329,16 @@ export default defineBackground(() => {
     if (request.action === 'startLinkHealthScan') {
       (async () => {
         try {
+          // Pre-flight internet connectivity check
+          const isOnline = await checkInternetConnectivity(2500);
+          if (!isOnline) {
+            sendResponse({
+              status: 'offline',
+              message: 'No internet connection detected. Please check your network connection.',
+            });
+            return;
+          }
+
           if (activeHealthScanController) {
             activeHealthScanController.cancel();
             activeHealthScanController = null;
@@ -360,6 +371,7 @@ export default defineBackground(() => {
               const scanState: LinkHealthScanState = {
                 isScanning: progress.isScanning,
                 isPaused: progress.isPaused,
+                isWaitingForNetwork: progress.isWaitingForNetwork,
                 total: progress.total,
                 checked: progress.checked,
                 healthy: progress.healthy,
@@ -394,6 +406,7 @@ export default defineBackground(() => {
             const finalState: LinkHealthScanState = {
               isScanning: false,
               isPaused: false,
+              isWaitingForNetwork: false,
               total: checkableTabs.length,
               checked: Object.keys(finalResults).length,
               healthy: Object.values(finalResults).filter((r) => r.status === 'healthy').length,

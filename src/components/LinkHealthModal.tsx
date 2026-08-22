@@ -48,6 +48,8 @@ import {
   Loader2,
   History,
   Zap,
+  WifiOff,
+  Wifi,
 } from 'lucide-react';
 
 interface LinkHealthModalProps {
@@ -75,10 +77,12 @@ export function LinkHealthModal({
     unreachable: 0,
     isScanning: false,
     isPaused: false,
+    isWaitingForNetwork: false,
     velocity: 0,
   });
 
   const [isLoadingInitialState, setIsLoadingInitialState] = useState(true);
+  const [offlineAlert, setOfflineAlert] = useState<string | null>(null);
 
   // Filters & Search
   const [activeFilter, setActiveFilter] = useState<'all' | LinkHealthStatus>('all');
@@ -146,6 +150,7 @@ export function LinkHealthModal({
         unreachable,
         isScanning: scanState.isScanning,
         isPaused: scanState.isPaused,
+        isWaitingForNetwork: scanState.isWaitingForNetwork || false,
         velocity: scanState.velocity || 0,
       });
     } catch (e) {
@@ -158,6 +163,7 @@ export function LinkHealthModal({
   useEffect(() => {
     if (isOpen) {
       loadStoredState();
+      setOfflineAlert(null);
 
       // Listen to live background progress events
       const handleMessage = (msg: any) => {
@@ -183,6 +189,7 @@ export function LinkHealthModal({
               ...prev,
               ...msg.progress,
               isScanning: false,
+              isWaitingForNetwork: false,
             }));
           }
           if (msg.results) {
@@ -218,19 +225,26 @@ export function LinkHealthModal({
     } else {
       setConfirmAction(null);
       setActionSuccessMessage(null);
+      setOfflineAlert(null);
     }
   }, [isOpen, allLibraryTabs.length]);
 
   // Background Control Actions via Service Worker
   const handleStartScan = (forceRefresh = false) => {
+    setOfflineAlert(null);
     chrome.runtime.sendMessage(
       { action: 'startLinkHealthScan', forceRefresh },
       (response) => {
+        if (response && response.status === 'offline') {
+          setOfflineAlert(response.message || 'No internet connection detected. Please check your network.');
+          return;
+        }
         if (response && response.status === 'started') {
           setProgress((prev) => ({
             ...prev,
             isScanning: true,
             isPaused: false,
+            isWaitingForNetwork: false,
             total: response.total || allLibraryTabs.length,
           }));
         }
@@ -243,13 +257,15 @@ export function LinkHealthModal({
     chrome.runtime.sendMessage({ action }, (response) => {
       if (response && response.state) {
         setProgress((prev) => ({ ...prev, isPaused: response.state.isPaused }));
+      } else {
+        setProgress((prev) => ({ ...prev, isPaused: !prev.isPaused }));
       }
     });
   };
 
   const handleStopScan = () => {
     chrome.runtime.sendMessage({ action: 'stopLinkHealthScan' }, () => {
-      setProgress((prev) => ({ ...prev, isScanning: false, isPaused: false }));
+      setProgress((prev) => ({ ...prev, isScanning: false, isPaused: false, isWaitingForNetwork: false }));
     });
   };
 
@@ -390,7 +406,7 @@ export function LinkHealthModal({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shadow-sm">
-                <Activity className={`w-5 h-5 ${progress.isScanning && !progress.isPaused ? 'animate-pulse' : ''}`} />
+                <Activity className={`w-5 h-5 ${progress.isScanning && !progress.isPaused && !progress.isWaitingForNetwork ? 'animate-pulse' : ''}`} />
               </div>
               <div>
                 <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
@@ -438,12 +454,40 @@ export function LinkHealthModal({
             </div>
           </div>
 
+          {/* Offline Warning Banner if Pre-flight fails */}
+          {offlineAlert && (
+            <div className="p-3 bg-amber-500/15 border border-amber-500/30 rounded-xl text-xs text-amber-300 flex items-center justify-between">
+              <span className="flex items-center gap-2 font-medium">
+                <WifiOff className="w-4 h-4 text-amber-400 shrink-0" />
+                {offlineAlert}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleStartScan(false)}
+                className="h-6 text-[11px] border-amber-500/40 text-amber-300 hover:bg-amber-500/20"
+              >
+                Retry Connection
+              </Button>
+            </div>
+          )}
+
           {/* Progress Bar & Velocity Controller */}
           <div className="space-y-2 bg-background/60 p-3.5 rounded-xl border border-border/70">
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2 font-medium">
-                {progress.isScanning ? (
-                  <span className="flex items-center gap-1.5 text-primary">
+                {progress.isWaitingForNetwork ? (
+                  <span className="flex items-center gap-1.5 text-amber-400 font-semibold animate-pulse">
+                    <WifiOff className="w-3.5 h-3.5" />
+                    Network interrupted. Waiting for internet connection to auto-resume...
+                  </span>
+                ) : progress.isPaused ? (
+                  <span className="flex items-center gap-1.5 text-amber-400 font-semibold">
+                    <Pause className="w-3.5 h-3.5 fill-amber-400" />
+                    Scan paused at {progress.checked} of {progress.total} links ({percentComplete}%)
+                  </span>
+                ) : progress.isScanning ? (
+                  <span className="flex items-center gap-1.5 text-primary font-medium">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     Background scanning {progress.checked} of {progress.total} unique links ({percentComplete}%)
                   </span>
@@ -463,7 +507,8 @@ export function LinkHealthModal({
                     Ready to scan {allLibraryTabs.length} unique links in the background
                   </span>
                 )}
-                {progress.velocity > 0 && progress.isScanning && (
+
+                {progress.velocity > 0 && progress.isScanning && !progress.isPaused && !progress.isWaitingForNetwork && (
                   <span className="text-muted-foreground text-[11px]">
                     • {progress.velocity} links/sec
                   </span>
@@ -504,7 +549,9 @@ export function LinkHealthModal({
             {/* Visual Progress Bar */}
             <div className="w-full bg-muted/60 rounded-full h-2 overflow-hidden border border-border/30">
               <div
-                className="bg-primary h-full transition-all duration-300 ease-out"
+                className={`h-full transition-all duration-300 ease-out ${
+                  progress.isWaitingForNetwork ? 'bg-amber-400 animate-pulse' : 'bg-primary'
+                }`}
                 style={{ width: `${percentComplete}%` }}
               />
             </div>

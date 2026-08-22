@@ -36,6 +36,7 @@ export interface HealthScanProgress {
   unreachable: number;
   isScanning: boolean;
   isPaused: boolean;
+  isWaitingForNetwork: boolean;
   velocity: number; // links per second
 }
 
@@ -46,6 +47,7 @@ export const LINK_HEALTH_SCAN_STATE_KEY = 'twotab_link_health_scan_state';
 export interface LinkHealthScanState {
   isScanning: boolean;
   isPaused: boolean;
+  isWaitingForNetwork: boolean;
   total: number;
   checked: number;
   healthy: number;
@@ -60,6 +62,7 @@ export interface LinkHealthScanState {
 export const DEFAULT_LINK_HEALTH_SCAN_STATE: LinkHealthScanState = {
   isScanning: false,
   isPaused: false,
+  isWaitingForNetwork: false,
   total: 0,
   checked: 0,
   healthy: 0,
@@ -141,6 +144,62 @@ export async function clearLinkHealthCache(): Promise<void> {
 }
 
 // =============================================================================
+// Internet Connectivity Guardian
+// =============================================================================
+
+export class NetworkOfflineError extends Error {
+  constructor(message = 'Internet connection offline') {
+    super(message);
+    this.name = 'NetworkOfflineError';
+  }
+}
+
+/**
+ * Verifies if the browser has genuine internet connectivity.
+ */
+export async function checkInternetConnectivity(timeoutMs = 3000): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return false;
+  }
+  if (typeof fetch === 'undefined') return true;
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    // Fast probe to Google generate_204 endpoint
+    await fetch('https://www.google.com/generate_204', {
+      method: 'HEAD',
+      mode: 'no-cors',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+
+    clearTimeout(timer);
+    return true;
+  } catch (_) {
+    // If google probe fails, check Cloudflare DNS probe as secondary verification
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return false;
+    }
+    try {
+      const controller2 = new AbortController();
+      const timer2 = setTimeout(() => controller2.abort(), 2000);
+      await fetch('https://1.1.1.1/cdn-cgi/trace', {
+        method: 'HEAD',
+        mode: 'no-cors',
+        cache: 'no-store',
+        signal: controller2.signal,
+      });
+      clearTimeout(timer2);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+}
+
+// =============================================================================
 // URL Validation & Normalization
 // =============================================================================
 
@@ -199,6 +258,11 @@ export async function checkSingleUrl(
       error: 'Non-HTTP protocol',
       checkedAt: new Date().toISOString(),
     };
+  }
+
+  // Pre-check offline status
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new NetworkOfflineError();
   }
 
   const checkedAt = new Date().toISOString();
@@ -261,6 +325,10 @@ export async function checkSingleUrl(
 
     return evaluateResponse(url, response, finalUrl, checkedAt);
   } catch (err: any) {
+    // If error is network drop / offline, throw NetworkOfflineError to prevent marking link as dead
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      throw new NetworkOfflineError();
+    }
     return evaluateError(url, err, checkedAt);
   }
 }
@@ -351,7 +419,7 @@ function evaluateError(url: string, err: any, checkedAt: string): LinkHealthResu
 }
 
 // =============================================================================
-// Domain Rate Limiter & Concurrency Scheduler (Leaky Bucket)
+// Domain Rate Limiter & Concurrency Scheduler (Leaky Bucket with Pause Guard)
 // =============================================================================
 
 export class DomainRateLimiter {
@@ -371,6 +439,8 @@ export class DomainRateLimiter {
   }> = [];
 
   private isRunning = false;
+  private isPaused = false;
+  private pauseResolvers: Array<() => void> = [];
 
   constructor(maxGlobal = 6, maxPerDomain = 2, domainDelayMs = 40) {
     this.maxGlobal = maxGlobal;
@@ -386,6 +456,20 @@ export class DomainRateLimiter {
     });
   }
 
+  public pause(): void {
+    this.isPaused = true;
+  }
+
+  public resume(): void {
+    if (this.isPaused) {
+      this.isPaused = false;
+      const resolvers = [...this.pauseResolvers];
+      this.pauseResolvers = [];
+      resolvers.forEach((r) => r());
+      this.pump();
+    }
+  }
+
   public clearQueue(): void {
     this.queue = [];
   }
@@ -394,12 +478,24 @@ export class DomainRateLimiter {
     return this.queue.length;
   }
 
+  public get activeCount(): number {
+    return this.activeGlobal;
+  }
+
   private async pump(): Promise<void> {
     if (this.isRunning) return;
     this.isRunning = true;
 
     try {
       while (this.activeGlobal < this.maxGlobal && this.queue.length > 0) {
+        if (this.isPaused) {
+          // Pause execution
+          await new Promise<void>((resolve) => {
+            this.pauseResolvers.push(resolve);
+          });
+          if (this.isPaused) break;
+        }
+
         // Find next item whose domain isn't exceeding per-domain limit
         const index = this.queue.findIndex((item) => {
           const count = this.activeDomains.get(item.domain) || 0;
@@ -451,7 +547,7 @@ export class DomainRateLimiter {
 }
 
 // =============================================================================
-// Library Scanner Controller
+// Library Scanner Controller with Pause & Network Guardian
 // =============================================================================
 
 export interface ScanOptions {
@@ -465,8 +561,10 @@ export class HealthScanController {
   private limiter: DomainRateLimiter;
   private isCancelled = false;
   private isPaused = false;
-  private activeScanPromise: Promise<Record<string, LinkHealthResult>> | null = null;
-  private pauseResolver: (() => void) | null = null;
+  private isWaitingForNetwork = false;
+  private pauseResolvers: Array<() => void> = [];
+  private networkResolvers: Array<() => void> = [];
+  private networkCheckInterval: any = null;
 
   constructor(options?: ScanOptions) {
     this.limiter = new DomainRateLimiter(
@@ -478,21 +576,25 @@ export class HealthScanController {
 
   public pause(): void {
     this.isPaused = true;
+    this.limiter.pause();
   }
 
   public resume(): void {
-    if (this.isPaused) {
-      this.isPaused = false;
-      if (this.pauseResolver) {
-        this.pauseResolver();
-        this.pauseResolver = null;
-      }
-    }
+    this.isPaused = false;
+    this.isWaitingForNetwork = false;
+    this.limiter.resume();
+    const resolvers = [...this.pauseResolvers];
+    this.pauseResolvers = [];
+    resolvers.forEach((r) => r());
   }
 
   public cancel(): void {
     this.isCancelled = true;
     this.limiter.clearQueue();
+    if (this.networkCheckInterval) {
+      clearInterval(this.networkCheckInterval);
+      this.networkCheckInterval = null;
+    }
     this.resume();
   }
 
@@ -500,8 +602,26 @@ export class HealthScanController {
     return this.isPaused;
   }
 
+  public get waitingForNetwork(): boolean {
+    return this.isWaitingForNetwork;
+  }
+
   public get cancelled(): boolean {
     return this.isCancelled;
+  }
+
+  private async waitForResume(): Promise<void> {
+    if (!this.isPaused) return;
+    await new Promise<void>((resolve) => {
+      this.pauseResolvers.push(resolve);
+    });
+  }
+
+  private async waitForNetwork(): Promise<void> {
+    if (!this.isWaitingForNetwork) return;
+    await new Promise<void>((resolve) => {
+      this.networkResolvers.push(resolve);
+    });
   }
 
   public async scan(
@@ -511,6 +631,7 @@ export class HealthScanController {
   ): Promise<Record<string, LinkHealthResult>> {
     this.isCancelled = false;
     this.isPaused = false;
+    this.isWaitingForNetwork = false;
 
     const checkableUrls: string[] = [];
     const seen = new Set<string>();
@@ -527,13 +648,13 @@ export class HealthScanController {
 
     // 1. Pre-fill from cache if not forcing refresh
     const cache = options?.forceRefresh ? {} : await getLinkHealthCache();
-    const urlsToFetch: string[] = [];
+    const pendingUrls: string[] = [];
 
     for (const url of checkableUrls) {
       if (cache[url] && !options?.forceRefresh) {
         results[url] = cache[url];
       } else {
-        urlsToFetch.push(url);
+        pendingUrls.push(url);
       }
     }
 
@@ -573,6 +694,7 @@ export class HealthScanController {
           unreachable: unreachableCount,
           isScanning: checked < total && !this.isCancelled,
           isPaused: this.isPaused,
+          isWaitingForNetwork: this.isWaitingForNetwork,
           velocity,
         },
         currentRes,
@@ -585,45 +707,131 @@ export class HealthScanController {
       reportProgress(Object.values(results)[0]);
     }
 
+    let consecutiveNetworkErrors = 0;
     let saveCounter = 0;
 
-    // Scan remaining URLs through limiter
-    const promises = urlsToFetch.map(async (url) => {
-      if (this.isCancelled) return;
+    // Worker queue pipeline (Worker Pool)
+    const workerCount = Math.min(options?.maxGlobalConcurrency || 6, Math.max(1, pendingUrls.length));
 
-      // Handle pause
-      if (this.isPaused) {
-        await new Promise<void>((r) => {
-          this.pauseResolver = r;
-        });
+    const runWorker = async () => {
+      while (pendingUrls.length > 0 && !this.isCancelled) {
+        // 1. Pause Gate
+        if (this.isPaused) {
+          await this.waitForResume();
+        }
+        if (this.isCancelled) break;
+
+        // 2. Network Offline Gate
+        if (this.isWaitingForNetwork) {
+          await this.waitForNetwork();
+        }
+        if (this.isCancelled) break;
+
+        const url = pendingUrls.shift();
+        if (!url) break;
+
+        try {
+          const res = await this.limiter.enqueue(url, () =>
+            checkSingleUrl(url, options?.timeoutMs || 8000)
+          );
+
+          if (this.isCancelled) break;
+
+          consecutiveNetworkErrors = 0;
+          results[url] = res;
+          checked++;
+          countStatus(res.status);
+          reportProgress(res);
+
+          saveCounter++;
+          if (saveCounter % 20 === 0) {
+            saveLinkHealthCache(results).catch(() => {});
+          }
+        } catch (err: any) {
+          if (this.isCancelled) break;
+
+          if (err instanceof NetworkOfflineError || err.name === 'NetworkOfflineError') {
+            // General network disconnection: Put URL back into queue!
+            pendingUrls.unshift(url);
+            consecutiveNetworkErrors++;
+
+            if (!this.isWaitingForNetwork) {
+              this.isWaitingForNetwork = true;
+              this.limiter.pause();
+
+              reportProgress({
+                url,
+                status: 'unreachable',
+                error: 'Waiting for internet connection...',
+                checkedAt: new Date().toISOString(),
+              });
+
+              // Start auto-recovery watcher
+              this.startNetworkRecoveryWatcher(() => {
+                const resolvers = [...this.networkResolvers];
+                this.networkResolvers = [];
+                resolvers.forEach((r) => r());
+              });
+            }
+
+            await this.waitForNetwork();
+          } else {
+            // Standard individual URL error
+            results[url] = {
+              url,
+              status: 'unreachable',
+              error: err.message || 'Request failed',
+              checkedAt: new Date().toISOString(),
+            };
+            checked++;
+            unreachableCount++;
+            reportProgress(results[url]);
+          }
+        }
       }
+    };
 
-      if (this.isCancelled) return;
-
-      const res = await this.limiter.enqueue(url, () =>
-        checkSingleUrl(url, options?.timeoutMs || 8000)
-      );
-
-      if (this.isCancelled) return;
-
-      results[url] = res;
-      checked++;
-      countStatus(res.status);
-      reportProgress(res);
-
-      saveCounter++;
-      // Batch save cache every 20 items to avoid storage IPC churn
-      if (saveCounter % 20 === 0) {
-        saveLinkHealthCache(results).catch(() => {});
-      }
-    });
-
-    await Promise.all(promises);
+    const workers = Array.from({ length: workerCount }, () => runWorker());
+    await Promise.all(workers);
 
     // Final cache persistence
     await saveLinkHealthCache(results);
 
     return results;
+  }
+
+  private startNetworkRecoveryWatcher(onRecovered: () => void): void {
+    if (this.networkCheckInterval) clearInterval(this.networkCheckInterval);
+
+    const startedWaitingAt = Date.now();
+    const TEN_MINUTES_MS = 10 * 60 * 1000;
+
+    this.networkCheckInterval = setInterval(async () => {
+      if (this.isCancelled) {
+        clearInterval(this.networkCheckInterval);
+        this.networkCheckInterval = null;
+        return;
+      }
+
+      // Check if 10-minute timeout exceeded
+      if (Date.now() - startedWaitingAt > TEN_MINUTES_MS) {
+        clearInterval(this.networkCheckInterval);
+        this.networkCheckInterval = null;
+        this.isWaitingForNetwork = false;
+        this.pause(); // Convert to standard pause
+        return;
+      }
+
+      // Probe connectivity
+      const online = await checkInternetConnectivity(2000);
+      if (online) {
+        clearInterval(this.networkCheckInterval);
+        this.networkCheckInterval = null;
+        this.isWaitingForNetwork = false;
+        this.limiter.resume();
+        onRecovered();
+      }
+    }, 3000);
   }
 }
 
