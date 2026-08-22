@@ -256,7 +256,7 @@ export async function safeStorageSet(data: Record<string, any>): Promise<void> {
 
 export async function migrateIfNeeded(): Promise<void> {
   const data = await chrome.storage.local.get('_schemaVersion');
-  const version = data._schemaVersion || 0;
+  const version = (data._schemaVersion as number) || 0;
 
   if (version < CURRENT_SCHEMA_VERSION) {
     // Migration v0 → v1: Tag existing data with schema version
@@ -322,7 +322,7 @@ export async function runHealthCheck(): Promise<HealthCheckResult> {
 
 export async function getRecentlyClosedItems(): Promise<ClosedTabItem[]> {
   const data = await chrome.storage.local.get('recentlyClosed');
-  return data.recentlyClosed || [];
+  return (data.recentlyClosed as ClosedTabItem[]) || [];
 }
 
 export async function saveRecentlyClosedItems(items: ClosedTabItem[]): Promise<void> {
@@ -355,7 +355,7 @@ export async function clearRecentlyClosedItems(): Promise<void> {
 
 export async function getGroups(): Promise<TabGroup[]> {
   const data = await chrome.storage.local.get('tabGroups');
-  return data.tabGroups || [];
+  return (data.tabGroups as TabGroup[]) || [];
 }
 
 export async function saveGroups(groups: TabGroup[]): Promise<void> {
@@ -577,28 +577,32 @@ export async function restoreTabsAsChromeGroup(
   if (destination === 'new_window' && chrome.windows) {
     if (shouldLazyLoad) {
       const win = await chrome.windows.create({ url: validTabs[0].url, focused: true });
-      if (win.tabs && win.tabs[0]?.id) {
-        createdTabIds.push(win.tabs[0].id);
-      }
-      const winId = win.id;
-      for (let i = 1; i < validTabs.length; i++) {
-        const dormantUrl = getDormantUrl(validTabs[i].url, validTabs[i].title);
-        const tab = await chrome.tabs.create({ url: dormantUrl, windowId: winId, active: false });
-        if (tab.id) createdTabIds.push(tab.id);
-        if (i % 5 === 0 && validTabs.length > 15) {
-          await new Promise((r) => setTimeout(r, 15));
+      if (win) {
+        if (win.tabs && win.tabs[0]?.id) {
+          createdTabIds.push(win.tabs[0].id);
+        }
+        const winId = win.id;
+        for (let i = 1; i < validTabs.length; i++) {
+          const dormantUrl = getDormantUrl(validTabs[i].url, validTabs[i].title);
+          const tab = await chrome.tabs.create({ url: dormantUrl, windowId: winId, active: false });
+          if (tab.id) createdTabIds.push(tab.id);
+          if (i % 5 === 0 && validTabs.length > 15) {
+            await new Promise((r) => setTimeout(r, 15));
+          }
         }
       }
     } else {
       const win = await chrome.windows.create({ url: validTabs.map((t) => t.url), focused: true });
-      if (win.tabs && win.tabs.length > 0) {
-        for (const t of win.tabs) {
-          if (t.id) createdTabIds.push(t.id);
-        }
-      } else if (win.id && chrome.tabs.query) {
-        const windowTabs = await chrome.tabs.query({ windowId: win.id });
-        for (const t of windowTabs) {
-          if (t.id) createdTabIds.push(t.id);
+      if (win) {
+        if (win.tabs && win.tabs.length > 0) {
+          for (const t of win.tabs) {
+            if (t.id) createdTabIds.push(t.id);
+          }
+        } else if (win.id && chrome.tabs.query) {
+          const windowTabs = await chrome.tabs.query({ windowId: win.id });
+          for (const t of windowTabs) {
+            if (t.id) createdTabIds.push(t.id);
+          }
         }
       }
     }
@@ -617,18 +621,18 @@ export async function restoreTabsAsChromeGroup(
 
   if (createdTabIds.length > 0 && chrome.tabs.group) {
     try {
-      const groupId = await chrome.tabs.group({ tabIds: createdTabIds });
+      const groupId = await chrome.tabs.group({ tabIds: createdTabIds as [number, ...number[]] });
       if (chrome.tabGroups && chrome.tabGroups.update) {
         const updateProps: chrome.tabGroups.UpdateProperties = {
           title: groupName || 'TwoTab Group',
         };
         if (groupColor) {
-          updateProps.color = groupColor as chrome.tabGroups.ColorEnum;
+          updateProps.color = groupColor as any;
         }
         if (validTabs.length >= 20) {
           updateProps.collapsed = true;
         }
-        await chrome.tabGroups.update(groupId, updateProps);
+        await chrome.tabGroups.update(groupId as number, updateProps);
       }
     } catch (err) {
       console.warn('[TwoTab] Failed to create native chrome tab group:', err);
@@ -669,12 +673,14 @@ export async function restoreTabGroup(
     if (userPrefs.restoreDestination === 'new_window' && chrome.windows) {
       if (shouldLazyLoad) {
         const win = await chrome.windows.create({ url: validTabs[0].url, focused: true });
-        const winId = win.id;
-        for (let i = 1; i < validTabs.length; i++) {
-          const dormantUrl = getDormantUrl(validTabs[i].url, validTabs[i].title);
-          await chrome.tabs.create({ url: dormantUrl, windowId: winId, active: false });
-          if (i % 5 === 0 && validTabs.length > 15) {
-            await new Promise((r) => setTimeout(r, 15));
+        if (win) {
+          const winId = win.id;
+          for (let i = 1; i < validTabs.length; i++) {
+            const dormantUrl = getDormantUrl(validTabs[i].url, validTabs[i].title);
+            await chrome.tabs.create({ url: dormantUrl, windowId: winId, active: false });
+            if (i % 5 === 0 && validTabs.length > 15) {
+              await new Promise((r) => setTimeout(r, 15));
+            }
           }
         }
       } else {
@@ -736,12 +742,14 @@ export async function restoreAllTabGroups(
     if (userPrefs.restoreDestination === 'new_window' && chrome.windows) {
       if (shouldLazyLoad) {
         const win = await chrome.windows.create({ url: allTabs[0].url, focused: true });
-        const winId = win.id;
-        for (let i = 1; i < allTabs.length; i++) {
-          const dormantUrl = getDormantUrl(allTabs[i].url, allTabs[i].title);
-          await chrome.tabs.create({ url: dormantUrl, windowId: winId, active: false });
-          if (i % 5 === 0 && allTabs.length > 15) {
-            await new Promise((r) => setTimeout(r, 15));
+        if (win) {
+          const winId = win.id;
+          for (let i = 1; i < allTabs.length; i++) {
+            const dormantUrl = getDormantUrl(allTabs[i].url, allTabs[i].title);
+            await chrome.tabs.create({ url: dormantUrl, windowId: winId, active: false });
+            if (i % 5 === 0 && allTabs.length > 15) {
+              await new Promise((r) => setTimeout(r, 15));
+            }
           }
         }
       } else {
@@ -775,7 +783,7 @@ export async function restoreAllTabGroups(
 
 export async function getArchivedGroups(): Promise<TabGroup[]> {
   const data = await chrome.storage.local.get('archivedGroups');
-  return data.archivedGroups || [];
+  return (data.archivedGroups as TabGroup[]) || [];
 }
 
 export async function saveArchivedGroups(groups: TabGroup[]): Promise<void> {
@@ -881,8 +889,8 @@ export interface ExportMetadata {
 
 export async function exportAsJson(): Promise<string> {
   const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups']);
-  const tabGroups: TabGroup[] = data.tabGroups || [];
-  const archivedGroups: TabGroup[] = data.archivedGroups || [];
+  const tabGroups: TabGroup[] = (data.tabGroups as TabGroup[]) || [];
+  const archivedGroups: TabGroup[] = (data.archivedGroups as TabGroup[]) || [];
 
   const totalTabs = [...tabGroups, ...archivedGroups].reduce((sum, g) => sum + (g.tabs?.length || 0), 0);
 
@@ -906,8 +914,8 @@ export async function exportData(): Promise<string> {
 
 export async function exportAsMarkdown(): Promise<string> {
   const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups']);
-  const tabGroups: TabGroup[] = data.tabGroups || [];
-  const archivedGroups: TabGroup[] = data.archivedGroups || [];
+  const tabGroups: TabGroup[] = (data.tabGroups as TabGroup[]) || [];
+  const archivedGroups: TabGroup[] = (data.archivedGroups as TabGroup[]) || [];
 
   let md = `# TwoTab Saved Collections\n\n*Exported on ${new Date().toLocaleString()}*\n\n`;
 
@@ -944,18 +952,20 @@ export async function exportAsMarkdown(): Promise<string> {
 
 export async function exportAsPlainText(): Promise<string> {
   const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups']);
-  const tabGroups: TabGroup[] = data.tabGroups || [];
-  const archivedGroups: TabGroup[] = data.archivedGroups || [];
+  const tabGroups: TabGroup[] = (data.tabGroups as TabGroup[]) || [];
+  const archivedGroups: TabGroup[] = (data.archivedGroups as TabGroup[]) || [];
   const allGroups = [...tabGroups, ...archivedGroups];
 
   const lines: string[] = [];
   for (let i = 0; i < allGroups.length; i++) {
     const g = allGroups[i];
-    for (const t of g.tabs) {
-      lines.push(`${t.url} | ${t.title || t.url}`);
-    }
-    if (i < allGroups.length - 1) {
-      lines.push(''); // Blank line separates groups
+    if (g && g.tabs) {
+      for (const t of g.tabs) {
+        lines.push(`${t.url} | ${t.title || t.url}`);
+      }
+      if (i < allGroups.length - 1) {
+        lines.push(''); // Blank line separates groups
+      }
     }
   }
   return lines.join('\n');
@@ -972,8 +982,8 @@ function escapeHtml(str: string): string {
 
 export async function exportAsHtmlBookmarks(): Promise<string> {
   const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups']);
-  const tabGroups: TabGroup[] = data.tabGroups || [];
-  const archivedGroups: TabGroup[] = data.archivedGroups || [];
+  const tabGroups: TabGroup[] = (data.tabGroups as TabGroup[]) || [];
+  const archivedGroups: TabGroup[] = (data.archivedGroups as TabGroup[]) || [];
 
   let html = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
 <!-- This is an automatically generated file.
@@ -1017,8 +1027,8 @@ export async function exportAsHtmlBookmarks(): Promise<string> {
 
 export async function exportAsCsv(): Promise<string> {
   const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups']);
-  const tabGroups: TabGroup[] = data.tabGroups || [];
-  const archivedGroups: TabGroup[] = data.archivedGroups || [];
+  const tabGroups: TabGroup[] = (data.tabGroups as TabGroup[]) || [];
+  const archivedGroups: TabGroup[] = (data.archivedGroups as TabGroup[]) || [];
 
   const rows: string[] = ['"Section","Group Name","Tab Title","URL","Saved Date"'];
 
@@ -1254,13 +1264,14 @@ export interface BackupSnapshot {
 export async function getRollingBackupSnapshots(): Promise<BackupSnapshot[]> {
   if (typeof chrome === 'undefined' || !chrome.storage?.local) return [];
   const res = await chrome.storage.local.get('_backupSnapshots');
-  return (res._backupSnapshots || []).sort((a: BackupSnapshot, b: BackupSnapshot) => b.timestamp - a.timestamp);
+  const snapshots = (res._backupSnapshots as BackupSnapshot[]) || [];
+  return snapshots.sort((a: BackupSnapshot, b: BackupSnapshot) => b.timestamp - a.timestamp);
 }
 
 export async function createRollingBackup(force = false): Promise<boolean> {
   const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups']);
-  const currentTabGroups = data.tabGroups || [];
-  const currentArchivedGroups = data.archivedGroups || [];
+  const currentTabGroups = (data.tabGroups as TabGroup[]) || [];
+  const currentArchivedGroups = (data.archivedGroups as TabGroup[]) || [];
 
   // Skip empty backups unless explicitly forced
   if (!force && currentTabGroups.length === 0 && currentArchivedGroups.length === 0) {
@@ -1268,7 +1279,7 @@ export async function createRollingBackup(force = false): Promise<boolean> {
   }
 
   const existing = await chrome.storage.local.get('_backupSnapshots');
-  const existingSnapshots: BackupSnapshot[] = existing._backupSnapshots || [];
+  const existingSnapshots: BackupSnapshot[] = (existing._backupSnapshots as BackupSnapshot[]) || [];
 
   // Deduplication: If no data changes have occurred since the last snapshot, skip creation
   if (!force && existingSnapshots.length > 0) {

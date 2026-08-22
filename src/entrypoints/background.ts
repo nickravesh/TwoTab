@@ -244,7 +244,7 @@ export default defineBackground(() => {
     const key = `tab_${tabId}`;
     try {
       const sessionData = await getStorageSession().get(key);
-      const cached = sessionData[key];
+      const cached = sessionData[key] as { url?: string; title?: string } | undefined;
       await getStorageSession().remove(key);
 
       if (!cached || !cached.url) return;
@@ -263,7 +263,7 @@ export default defineBackground(() => {
       }
 
       const data = await chrome.storage.local.get('recentlyClosed');
-      const recentlyClosed = data.recentlyClosed || [];
+      const recentlyClosed = (data.recentlyClosed as any[]) || [];
 
       const newItem = {
         id: `closed_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
@@ -512,7 +512,7 @@ export default defineBackground(() => {
     }
 
     const data = await chrome.storage.local.get('tabGroups');
-    const tabGroups = data.tabGroups || [];
+    const tabGroups = (data.tabGroups as any[]) || [];
 
     const newGroup = {
       id: Date.now() + Math.floor(Math.random() * 1000),
@@ -577,7 +577,7 @@ export default defineBackground(() => {
 
     const windowId = tabs[0].windowId;
     const data = await chrome.storage.local.get('tabGroups');
-    const tabGroups = data.tabGroups || [];
+    const tabGroups = (data.tabGroups as any[]) || [];
 
     const newGroup = {
       id: Date.now() + Math.floor(Math.random() * 1000),
@@ -619,7 +619,7 @@ export default defineBackground(() => {
     }
 
     const data = await chrome.storage.local.get('tabGroups');
-    const tabGroups = data.tabGroups || [];
+    const tabGroups = (data.tabGroups as any[]) || [];
 
     const groupName = validTabs.length === 1
       ? (validTabs[0].title ? (validTabs[0].title.length > 35 ? `${validTabs[0].title.slice(0, 35)}...` : validTabs[0].title) : 'Saved Tab')

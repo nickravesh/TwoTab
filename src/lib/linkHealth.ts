@@ -80,7 +80,7 @@ export async function getLinkHealthScanState(): Promise<LinkHealthScanState> {
   }
   try {
     const data = await chrome.storage.local.get(LINK_HEALTH_SCAN_STATE_KEY);
-    return data[LINK_HEALTH_SCAN_STATE_KEY] || DEFAULT_LINK_HEALTH_SCAN_STATE;
+    return (data[LINK_HEALTH_SCAN_STATE_KEY] as LinkHealthScanState) || DEFAULT_LINK_HEALTH_SCAN_STATE;
   } catch (e) {
     return DEFAULT_LINK_HEALTH_SCAN_STATE;
   }
@@ -555,7 +555,8 @@ export class DomainRateLimiter {
           break;
         }
 
-        const [item] = this.queue.splice(index, 1);
+        const item = this.queue.splice(index, 1)[0];
+        if (!item) break;
         const { domain, task, resolve, reject } = item;
 
         // Apply domain cooldown if needed
@@ -766,7 +767,10 @@ export class HealthScanController {
 
     // Initial progress report for cached items
     if (checked > 0) {
-      reportProgress(Object.values(results)[0]);
+      const firstRes = Object.values(results)[0];
+      if (firstRes) {
+        reportProgress(firstRes);
+      }
     }
 
     let saveCounter = 0;
@@ -1037,7 +1041,7 @@ export async function quarantineBrokenLinks(
     id: newGroupId,
     date: now.toISOString(),
     name: quarantineTitle || `Broken Links Archive (${dateStr})`,
-    color: 'rose',
+    color: 'red',
     tabs: quarantinedTabs,
   };
 

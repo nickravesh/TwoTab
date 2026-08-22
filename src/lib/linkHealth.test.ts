@@ -142,6 +142,7 @@ describe('Link Health & Dead Link Inspector Engine', () => {
       const customState = {
         isScanning: true,
         isPaused: false,
+        isWaitingForNetwork: false,
         total: 100,
         checked: 45,
         healthy: 40,
@@ -470,10 +471,10 @@ describe('Link Health & Dead Link Inspector Engine', () => {
       const group101 = updatedGroups.find((g) => g.id === 101);
       expect(group101?.tabs.length).toBe(2);
 
-      // Quarantine group should be first with rose color
+      // Quarantine group should be first with red color tag
       const quarantineGroup = updatedGroups[0];
       expect(quarantineGroup.name).toBe('Broken Links Quarantine');
-      expect(quarantineGroup.color).toBe('rose');
+      expect(quarantineGroup.color).toBe('red');
       expect(quarantineGroup.tabs.length).toBe(2);
     });
 
