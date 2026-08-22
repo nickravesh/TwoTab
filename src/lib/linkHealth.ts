@@ -41,6 +41,56 @@ export interface HealthScanProgress {
 
 export const LINK_HEALTH_CACHE_KEY = 'twotab_link_health_cache';
 export const LINK_HEALTH_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 Days TTL
+export const LINK_HEALTH_SCAN_STATE_KEY = 'twotab_link_health_scan_state';
+
+export interface LinkHealthScanState {
+  isScanning: boolean;
+  isPaused: boolean;
+  total: number;
+  checked: number;
+  healthy: number;
+  redirected: number;
+  protected: number;
+  broken: number;
+  unreachable: number;
+  velocity: number;
+  lastUpdated: string;
+}
+
+export const DEFAULT_LINK_HEALTH_SCAN_STATE: LinkHealthScanState = {
+  isScanning: false,
+  isPaused: false,
+  total: 0,
+  checked: 0,
+  healthy: 0,
+  redirected: 0,
+  protected: 0,
+  broken: 0,
+  unreachable: 0,
+  velocity: 0,
+  lastUpdated: '',
+};
+
+export async function getLinkHealthScanState(): Promise<LinkHealthScanState> {
+  if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+    return DEFAULT_LINK_HEALTH_SCAN_STATE;
+  }
+  try {
+    const data = await chrome.storage.local.get(LINK_HEALTH_SCAN_STATE_KEY);
+    return data[LINK_HEALTH_SCAN_STATE_KEY] || DEFAULT_LINK_HEALTH_SCAN_STATE;
+  } catch (e) {
+    return DEFAULT_LINK_HEALTH_SCAN_STATE;
+  }
+}
+
+export async function saveLinkHealthScanState(state: LinkHealthScanState): Promise<void> {
+  if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
+  try {
+    await safeStorageSet({ [LINK_HEALTH_SCAN_STATE_KEY]: state });
+  } catch (e) {
+    console.warn('[TwoTab LinkHealth] Failed to persist scan state:', e);
+  }
+}
 
 // =============================================================================
 // Cache Management

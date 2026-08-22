@@ -1,4 +1,5 @@
 import {
+  getGroups,
   migrateIfNeeded,
   runHealthCheck,
   createRollingBackup,
@@ -7,9 +8,17 @@ import {
   unwrapDormantUrl,
   unwrapDormantTitle,
 } from '@/lib/storage';
+import {
+  HealthScanController,
+  saveLinkHealthScanState,
+  getLinkHealthScanState,
+  isCheckableUrl,
+  type LinkHealthScanState,
+} from '@/lib/linkHealth';
 
 export default defineBackground(() => {
   const getStorageSession = () => chrome.storage.session || chrome.storage.local;
+  let activeHealthScanController: HealthScanController | null = null;
 
   // ==========================================================================
   // Service Worker Startup: Schema Migration + Health Check + Tab Cache Init
@@ -308,6 +317,162 @@ export default defineBackground(() => {
         } catch (error: any) {
           sendResponse({ status: 'error', message: error.message || error });
         }
+      })();
+      return true;
+    }
+
+    // ========================================================================
+    // Background Link Health Inspection Actions
+    // ========================================================================
+
+    if (request.action === 'startLinkHealthScan') {
+      (async () => {
+        try {
+          if (activeHealthScanController) {
+            activeHealthScanController.cancel();
+            activeHealthScanController = null;
+          }
+
+          const forceRefresh = Boolean(request.forceRefresh);
+          const groups = await getGroups();
+          const checkableTabs: Array<{ url: string; title: string }> = [];
+          const seen = new Set<string>();
+
+          for (const g of groups) {
+            for (const t of g.tabs || []) {
+              if (t && t.url && isCheckableUrl(t.url) && !seen.has(t.url)) {
+                seen.add(t.url);
+                checkableTabs.push({ url: t.url, title: t.title || t.url });
+              }
+            }
+          }
+
+          const controller = new HealthScanController({
+            maxGlobalConcurrency: 6,
+            maxPerDomainConcurrency: 2,
+          });
+          activeHealthScanController = controller;
+
+          // Broadcast progress and persist state asynchronously
+          controller.scan(
+            checkableTabs,
+            (progress, currentRes, allResults) => {
+              const scanState: LinkHealthScanState = {
+                isScanning: progress.isScanning,
+                isPaused: progress.isPaused,
+                total: progress.total,
+                checked: progress.checked,
+                healthy: progress.healthy,
+                redirected: progress.redirected,
+                protected: progress.protected,
+                broken: progress.broken,
+                unreachable: progress.unreachable,
+                velocity: progress.velocity,
+                lastUpdated: new Date().toISOString(),
+              };
+
+              saveLinkHealthScanState(scanState).catch(() => {});
+
+              try {
+                chrome.runtime.sendMessage(
+                  {
+                    action: 'linkHealthProgress',
+                    progress: scanState,
+                    currentResult: currentRes,
+                    results: allResults,
+                  },
+                  () => {
+                    if (chrome.runtime.lastError) {
+                      // Safely ignore if no UI listeners are active
+                    }
+                  }
+                );
+              } catch (_) {}
+            },
+            { forceRefresh }
+          ).then(async (finalResults) => {
+            const finalState: LinkHealthScanState = {
+              isScanning: false,
+              isPaused: false,
+              total: checkableTabs.length,
+              checked: Object.keys(finalResults).length,
+              healthy: Object.values(finalResults).filter((r) => r.status === 'healthy').length,
+              redirected: Object.values(finalResults).filter((r) => r.status === 'redirected').length,
+              protected: Object.values(finalResults).filter((r) => r.status === 'protected').length,
+              broken: Object.values(finalResults).filter((r) => r.status === 'broken').length,
+              unreachable: Object.values(finalResults).filter((r) => r.status === 'unreachable').length,
+              velocity: 0,
+              lastUpdated: new Date().toISOString(),
+            };
+            await saveLinkHealthScanState(finalState);
+            activeHealthScanController = null;
+
+            try {
+              chrome.runtime.sendMessage(
+                {
+                  action: 'linkHealthCompleted',
+                  progress: finalState,
+                  results: finalResults,
+                },
+                () => {
+                  if (chrome.runtime.lastError) {}
+                }
+              );
+            } catch (_) {}
+          });
+
+          sendResponse({ status: 'started', total: checkableTabs.length });
+        } catch (e: any) {
+          sendResponse({ status: 'error', message: e.message || String(e) });
+        }
+      })();
+      return true;
+    }
+
+    if (request.action === 'pauseLinkHealthScan') {
+      if (activeHealthScanController) {
+        activeHealthScanController.pause();
+      }
+      (async () => {
+        const currentState = await getLinkHealthScanState();
+        const nextState = { ...currentState, isPaused: true };
+        await saveLinkHealthScanState(nextState);
+        sendResponse({ status: 'paused', state: nextState });
+      })();
+      return true;
+    }
+
+    if (request.action === 'resumeLinkHealthScan') {
+      if (activeHealthScanController) {
+        activeHealthScanController.resume();
+      }
+      (async () => {
+        const currentState = await getLinkHealthScanState();
+        const nextState = { ...currentState, isPaused: false };
+        await saveLinkHealthScanState(nextState);
+        sendResponse({ status: 'resumed', state: nextState });
+      })();
+      return true;
+    }
+
+    if (request.action === 'stopLinkHealthScan') {
+      if (activeHealthScanController) {
+        activeHealthScanController.cancel();
+        activeHealthScanController = null;
+      }
+      (async () => {
+        const currentState = await getLinkHealthScanState();
+        const nextState = { ...currentState, isScanning: false, isPaused: false };
+        await saveLinkHealthScanState(nextState);
+        sendResponse({ status: 'stopped', state: nextState });
+      })();
+      return true;
+    }
+
+    if (request.action === 'getLinkHealthScanStatus') {
+      (async () => {
+        const state = await getLinkHealthScanState();
+        sendResponse({ status: 'success', state });
       })();
       return true;
     }

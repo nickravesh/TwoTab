@@ -7,13 +7,17 @@ import {
   type LinkHealthResult,
   type HealthScanProgress,
   type LinkHealthStatus,
-  HealthScanController,
+  type LinkHealthScanState,
+  getLinkHealthCache,
+  getLinkHealthScanState,
+  clearLinkHealthCache,
   applyBatchRedirects,
   quarantineBrokenLinks,
   purgeBrokenLinks,
   getWaybackUrl,
-  clearLinkHealthCache,
   isCheckableUrl,
+  LINK_HEALTH_CACHE_KEY,
+  LINK_HEALTH_SCAN_STATE_KEY,
 } from '@/lib/linkHealth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,20 +37,17 @@ import {
   ShieldCheck,
   AlertTriangle,
   XCircle,
-  HelpCircle,
   Play,
   Pause,
   RotateCcw,
   ExternalLink,
   Archive,
   Trash2,
-  Sparkles,
   Search,
   Check,
   Loader2,
   History,
-  ShieldAlert,
-  SlidersHorizontal,
+  Zap,
 } from 'lucide-react';
 
 interface LinkHealthModalProps {
@@ -77,7 +78,7 @@ export function LinkHealthModal({
     velocity: 0,
   });
 
-  const controllerRef = useRef<HealthScanController | null>(null);
+  const [isLoadingInitialState, setIsLoadingInitialState] = useState(true);
 
   // Filters & Search
   const [activeFilter, setActiveFilter] = useState<'all' | LinkHealthStatus>('all');
@@ -91,9 +92,11 @@ export function LinkHealthModal({
   // Collect all unique checkable tabs with their metadata
   const allLibraryTabs = useMemo(() => {
     const list: Array<{ url: string; title: string; groupId: number; groupName: string }> = [];
+    const seen = new Set<string>();
     for (const group of tabGroups) {
       for (const t of group.tabs || []) {
-        if (t && t.url && isCheckableUrl(t.url)) {
+        if (t && t.url && isCheckableUrl(t.url) && !seen.has(t.url)) {
+          seen.add(t.url);
           list.push({
             url: t.url,
             title: t.title || t.url,
@@ -106,65 +109,154 @@ export function LinkHealthModal({
     return list;
   }, [tabGroups]);
 
-  // Start / orchestrate scanner
-  const startScan = (forceRefresh = false) => {
-    if (controllerRef.current) {
-      controllerRef.current.cancel();
+  // Load persistent cache and live scan state from background service worker
+  const loadStoredState = async () => {
+    try {
+      const [cachedResults, scanState] = await Promise.all([
+        getLinkHealthCache(),
+        getLinkHealthScanState(),
+      ]);
+
+      setResults(cachedResults || {});
+
+      const checkedCount = Object.keys(cachedResults || {}).length;
+      const totalCount = scanState.total > 0 ? scanState.total : allLibraryTabs.length;
+
+      let healthy = 0;
+      let redirected = 0;
+      let protectedCount = 0;
+      let broken = 0;
+      let unreachable = 0;
+
+      for (const item of Object.values(cachedResults || {})) {
+        if (item.status === 'healthy') healthy++;
+        else if (item.status === 'redirected') redirected++;
+        else if (item.status === 'protected') protectedCount++;
+        else if (item.status === 'broken') broken++;
+        else if (item.status === 'unreachable') unreachable++;
+      }
+
+      setProgress({
+        total: totalCount,
+        checked: checkedCount,
+        healthy,
+        redirected,
+        protected: protectedCount,
+        broken,
+        unreachable,
+        isScanning: scanState.isScanning,
+        isPaused: scanState.isPaused,
+        velocity: scanState.velocity || 0,
+      });
+    } catch (e) {
+      console.warn('[TwoTab LinkHealth] Failed to load initial state:', e);
+    } finally {
+      setIsLoadingInitialState(false);
     }
-
-    const controller = new HealthScanController({ maxGlobalConcurrency: 6, maxPerDomainConcurrency: 2 });
-    controllerRef.current = controller;
-
-    controller.scan(
-      allLibraryTabs,
-      (prog, currentRes, allResults) => {
-        setProgress({ ...prog });
-        setResults({ ...allResults });
-      },
-      { forceRefresh }
-    ).then((finalResults) => {
-      setResults({ ...finalResults });
-    });
   };
 
   useEffect(() => {
     if (isOpen) {
-      // Automatically start scan on open (uses 7-day cache where available)
-      startScan(false);
+      loadStoredState();
+
+      // Listen to live background progress events
+      const handleMessage = (msg: any) => {
+        if (!msg) return;
+        if (msg.action === 'linkHealthProgress') {
+          if (msg.progress) {
+            setProgress((prev) => ({
+              ...prev,
+              ...msg.progress,
+            }));
+          }
+          if (msg.results) {
+            setResults(msg.results);
+          } else if (msg.currentResult) {
+            setResults((prev) => ({
+              ...prev,
+              [msg.currentResult.url]: msg.currentResult,
+            }));
+          }
+        } else if (msg.action === 'linkHealthCompleted') {
+          if (msg.progress) {
+            setProgress((prev) => ({
+              ...prev,
+              ...msg.progress,
+              isScanning: false,
+            }));
+          }
+          if (msg.results) {
+            setResults(msg.results);
+          }
+        }
+      };
+
+      chrome.runtime.onMessage.addListener(handleMessage);
+
+      // Listen to storage changes
+      const handleStorageChange = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => {
+        if (areaName === 'local') {
+          if (changes[LINK_HEALTH_CACHE_KEY]?.newValue) {
+            setResults(changes[LINK_HEALTH_CACHE_KEY].newValue);
+          }
+          if (changes[LINK_HEALTH_SCAN_STATE_KEY]?.newValue) {
+            const newState: LinkHealthScanState = changes[LINK_HEALTH_SCAN_STATE_KEY].newValue;
+            setProgress((prev) => ({
+              ...prev,
+              ...newState,
+            }));
+          }
+        }
+      };
+
+      chrome.storage.onChanged.addListener(handleStorageChange);
+
+      return () => {
+        chrome.runtime.onMessage.removeListener(handleMessage);
+        chrome.storage.onChanged.removeListener(handleStorageChange);
+      };
     } else {
-      // Cancel active scan when closing
-      if (controllerRef.current) {
-        controllerRef.current.cancel();
-        controllerRef.current = null;
-      }
       setConfirmAction(null);
       setActionSuccessMessage(null);
     }
-  }, [isOpen]);
+  }, [isOpen, allLibraryTabs.length]);
 
-  // Scan controls
+  // Background Control Actions via Service Worker
+  const handleStartScan = (forceRefresh = false) => {
+    chrome.runtime.sendMessage(
+      { action: 'startLinkHealthScan', forceRefresh },
+      (response) => {
+        if (response && response.status === 'started') {
+          setProgress((prev) => ({
+            ...prev,
+            isScanning: true,
+            isPaused: false,
+            total: response.total || allLibraryTabs.length,
+          }));
+        }
+      }
+    );
+  };
+
   const handleTogglePause = () => {
-    if (!controllerRef.current) return;
-    if (progress.isPaused) {
-      controllerRef.current.resume();
-      setProgress((prev) => ({ ...prev, isPaused: false }));
-    } else {
-      controllerRef.current.pause();
-      setProgress((prev) => ({ ...prev, isPaused: true }));
-    }
+    const action = progress.isPaused ? 'resumeLinkHealthScan' : 'pauseLinkHealthScan';
+    chrome.runtime.sendMessage({ action }, (response) => {
+      if (response && response.state) {
+        setProgress((prev) => ({ ...prev, isPaused: response.state.isPaused }));
+      }
+    });
   };
 
   const handleStopScan = () => {
-    if (controllerRef.current) {
-      controllerRef.current.cancel();
-      setProgress((prev) => ({ ...prev, isScanning: false }));
-    }
+    chrome.runtime.sendMessage({ action: 'stopLinkHealthScan' }, () => {
+      setProgress((prev) => ({ ...prev, isScanning: false, isPaused: false }));
+    });
   };
 
   const handleRescanAll = async () => {
     await clearLinkHealthCache();
     setResults({});
-    startScan(true);
+    handleStartScan(true);
   };
 
   // Group and count categorized items
@@ -241,8 +333,7 @@ export function LinkHealthModal({
       setActionSuccessMessage(`Successfully updated ${res.updatedCount} URLs to their target destinations across ${res.affectedGroupsCount} groups.`);
       setConfirmAction(null);
       if (onDataMutated) onDataMutated();
-      // Re-scan updated library
-      startScan(false);
+      handleStartScan(false);
     } catch (e: any) {
       console.error('[TwoTab] Error updating batch redirects:', e);
     } finally {
@@ -259,7 +350,7 @@ export function LinkHealthModal({
       setActionSuccessMessage(`Quarantined ${res.quarantinedCount} broken links into a dedicated archive group.`);
       setConfirmAction(null);
       if (onDataMutated) onDataMutated();
-      startScan(false);
+      handleStartScan(false);
     } catch (e: any) {
       console.error('[TwoTab] Error quarantining broken links:', e);
     } finally {
@@ -276,7 +367,7 @@ export function LinkHealthModal({
       setActionSuccessMessage(`Permanently deleted ${res.purgedCount} dead links across ${res.affectedGroupsCount} groups.`);
       setConfirmAction(null);
       if (onDataMutated) onDataMutated();
-      startScan(false);
+      handleStartScan(false);
     } catch (e: any) {
       console.error('[TwoTab] Error purging broken links:', e);
     } finally {
@@ -309,12 +400,22 @@ export function LinkHealthModal({
                   </Badge>
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  Intelligent network evaluation, dead link detection (404), and 1-click redirect optimizer.
+                  Background network evaluation, dead link detection (404), and 1-click redirect optimizer.
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
+              {!progress.isScanning && (
+                <Button
+                  size="sm"
+                  onClick={() => handleStartScan(false)}
+                  className="text-xs h-8 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
+                >
+                  <Play className="w-3 h-3 fill-current" />
+                  {progress.checked > 0 ? 'Resume / Check Unscanned' : 'Start Full Scan'}
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -344,12 +445,22 @@ export function LinkHealthModal({
                 {progress.isScanning ? (
                   <span className="flex items-center gap-1.5 text-primary">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Scanning {progress.checked} of {progress.total} unique links ({percentComplete}%)
+                    Background scanning {progress.checked} of {progress.total} unique links ({percentComplete}%)
                   </span>
-                ) : (
+                ) : progress.checked > 0 && progress.checked >= progress.total ? (
                   <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    Scan complete ({progress.checked} links evaluated)
+                    All {progress.checked} links evaluated & verified
+                  </span>
+                ) : progress.checked > 0 ? (
+                  <span className="flex items-center gap-1.5 text-foreground font-medium">
+                    <History className="w-3.5 h-3.5 text-primary" />
+                    {progress.checked} of {progress.total} links evaluated ({percentComplete}%)
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    Ready to scan {allLibraryTabs.length} unique links in the background
                   </span>
                 )}
                 {progress.velocity > 0 && progress.isScanning && (
@@ -404,7 +515,7 @@ export function LinkHealthModal({
             {/* Healthy */}
             <button
               onClick={() => setActiveFilter(activeFilter === 'healthy' ? 'all' : 'healthy')}
-              className={`p-2.5 rounded-xl border text-left transition-all ${
+              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                 activeFilter === 'healthy'
                   ? 'border-emerald-500/50 bg-emerald-500/15 shadow-sm'
                   : 'border-border/60 bg-muted/20 hover:bg-muted/40'
@@ -424,7 +535,7 @@ export function LinkHealthModal({
             {/* Redirected */}
             <button
               onClick={() => setActiveFilter(activeFilter === 'redirected' ? 'all' : 'redirected')}
-              className={`p-2.5 rounded-xl border text-left transition-all ${
+              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                 activeFilter === 'redirected'
                   ? 'border-blue-500/50 bg-blue-500/15 shadow-sm'
                   : 'border-border/60 bg-muted/20 hover:bg-muted/40'
@@ -444,7 +555,7 @@ export function LinkHealthModal({
             {/* Protected */}
             <button
               onClick={() => setActiveFilter(activeFilter === 'protected' ? 'all' : 'protected')}
-              className={`p-2.5 rounded-xl border text-left transition-all ${
+              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                 activeFilter === 'protected'
                   ? 'border-amber-500/50 bg-amber-500/15 shadow-sm'
                   : 'border-border/60 bg-muted/20 hover:bg-muted/40'
@@ -464,7 +575,7 @@ export function LinkHealthModal({
             {/* Broken */}
             <button
               onClick={() => setActiveFilter(activeFilter === 'broken' ? 'all' : 'broken')}
-              className={`p-2.5 rounded-xl border text-left transition-all ${
+              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                 activeFilter === 'broken'
                   ? 'border-rose-500/50 bg-rose-500/15 shadow-sm'
                   : 'border-border/60 bg-muted/20 hover:bg-muted/40'
@@ -484,7 +595,7 @@ export function LinkHealthModal({
             {/* Unreachable */}
             <button
               onClick={() => setActiveFilter(activeFilter === 'unreachable' ? 'all' : 'unreachable')}
-              className={`p-2.5 rounded-xl border text-left transition-all ${
+              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                 activeFilter === 'unreachable'
                   ? 'border-purple-500/50 bg-purple-500/15 shadow-sm'
                   : 'border-border/60 bg-muted/20 hover:bg-muted/40'
@@ -521,7 +632,7 @@ export function LinkHealthModal({
               <Button
                 size="sm"
                 onClick={() => setConfirmAction('update_redirects')}
-                className="h-8 text-xs gap-1.5 bg-blue-600 hover:bg-blue-500 text-white shadow-sm"
+                className="h-8 text-xs gap-1.5 bg-blue-600 hover:bg-blue-500 text-white shadow-sm font-medium"
               >
                 <ArrowRight className="w-3.5 h-3.5" />
                 Update {redirectItems.length} Redirects
@@ -534,7 +645,7 @@ export function LinkHealthModal({
                 size="sm"
                 variant="outline"
                 onClick={() => setConfirmAction('quarantine_broken')}
-                className="h-8 text-xs gap-1.5 border-rose-500/30 text-rose-400 hover:bg-rose-500/15"
+                className="h-8 text-xs gap-1.5 border-rose-500/30 text-rose-400 hover:bg-rose-500/15 font-medium"
               >
                 <Archive className="w-3.5 h-3.5" />
                 Quarantine {brokenItems.length} Dead
@@ -547,7 +658,7 @@ export function LinkHealthModal({
                 size="sm"
                 variant="destructive"
                 onClick={() => setConfirmAction('purge_broken')}
-                className="h-8 text-xs gap-1.5"
+                className="h-8 text-xs gap-1.5 font-medium"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Purge {brokenItems.length} Dead
@@ -576,13 +687,34 @@ export function LinkHealthModal({
 
         {/* Tier 3: Scrollable Evaluation Results List */}
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6 space-y-2.5">
-          {displayItems.length === 0 ? (
+          {isLoadingInitialState ? (
             <div className="flex flex-col items-center justify-center h-48 text-center text-muted-foreground space-y-2">
-              <ShieldCheck className="w-10 h-10 opacity-30 text-primary" />
-              <p className="text-sm font-medium">No links matching the selected filter.</p>
-              <p className="text-xs">
-                {searchQuery ? 'Try clearing your search term.' : 'All evaluated links are in order.'}
-              </p>
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <p className="text-xs">Loading health inspection state...</p>
+            </div>
+          ) : displayItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-52 text-center text-muted-foreground space-y-3">
+              <ShieldCheck className="w-12 h-12 opacity-30 text-primary" />
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-foreground">
+                  {Object.keys(results).length === 0 ? 'No links have been scanned yet' : 'No links matching the selected filter'}
+                </p>
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  {Object.keys(results).length === 0
+                    ? `Click 'Start Full Scan' to begin background health evaluation across ${allLibraryTabs.length} tabs.`
+                    : searchQuery ? 'Try clearing your search term.' : 'All evaluated links in this category are clear.'}
+                </p>
+              </div>
+              {Object.keys(results).length === 0 && !progress.isScanning && (
+                <Button
+                  size="sm"
+                  onClick={() => handleStartScan(false)}
+                  className="text-xs h-8 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 mt-1 font-medium"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  Start Full Scan ({allLibraryTabs.length} tabs)
+                </Button>
+              )}
             </div>
           ) : (
             displayItems.map((item) => {
@@ -702,11 +834,11 @@ export function LinkHealthModal({
                           applyBatchRedirects([{ oldUrl: item.url, newUrl: item.finalUrl! }]).then(
                             () => {
                               if (onDataMutated) onDataMutated();
-                              startScan(false);
+                              handleStartScan(false);
                             }
                           )
                         }
-                        className="h-7 px-2 text-[11px] gap-1 bg-blue-600 hover:bg-blue-500 text-white"
+                        className="h-7 px-2 text-[11px] gap-1 bg-blue-600 hover:bg-blue-500 text-white font-medium"
                       >
                         Update
                       </Button>

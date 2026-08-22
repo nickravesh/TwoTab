@@ -6,6 +6,9 @@ import {
   getLinkHealthCache,
   saveLinkHealthCache,
   clearLinkHealthCache,
+  getLinkHealthScanState,
+  saveLinkHealthScanState,
+  DEFAULT_LINK_HEALTH_SCAN_STATE,
   DomainRateLimiter,
   HealthScanController,
   applyBatchRedirects,
@@ -128,6 +131,29 @@ describe('Link Health & Dead Link Inspector Engine', () => {
       await clearLinkHealthCache();
       const emptyCache = await getLinkHealthCache();
       expect(emptyCache).toEqual({});
+    });
+
+    it('getLinkHealthScanState & saveLinkHealthScanState: persists and loads live scan state', async () => {
+      const defaultState = await getLinkHealthScanState();
+      expect(defaultState).toEqual(DEFAULT_LINK_HEALTH_SCAN_STATE);
+
+      const customState = {
+        isScanning: true,
+        isPaused: false,
+        total: 100,
+        checked: 45,
+        healthy: 40,
+        redirected: 3,
+        protected: 1,
+        broken: 1,
+        unreachable: 0,
+        velocity: 15.2,
+        lastUpdated: new Date().toISOString(),
+      };
+
+      await saveLinkHealthScanState(customState);
+      const loaded = await getLinkHealthScanState();
+      expect(loaded).toEqual(customState);
     });
   });
 
