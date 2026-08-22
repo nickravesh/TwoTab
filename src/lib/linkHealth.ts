@@ -155,9 +155,32 @@ export class NetworkOfflineError extends Error {
 }
 
 /**
- * Verifies if the browser has genuine internet connectivity.
+ * Checks if an error indicates a full device network disconnection vs single-site error.
  */
-export async function checkInternetConnectivity(timeoutMs = 3000): Promise<boolean> {
+export function isPotentialNetworkDrop(err: any): boolean {
+  if (!err) return false;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+  const msg = (err.message || String(err)).toLowerCase();
+  const name = (err.name || '').toLowerCase();
+  return (
+    msg.includes('failed to fetch') ||
+    msg.includes('fetch failed') ||
+    msg.includes('networkerror') ||
+    msg.includes('err_internet_disconnected') ||
+    msg.includes('err_network_changed') ||
+    msg.includes('err_name_not_resolved') ||
+    msg.includes('err_connection_reset') ||
+    msg.includes('err_address_unreachable') ||
+    msg.includes('enotfound') ||
+    msg.includes('econnrefused') ||
+    name === 'networkofflineerror'
+  );
+}
+
+/**
+ * Verifies if the browser has genuine internet connectivity via live probes.
+ */
+export async function checkInternetConnectivity(timeoutMs = 2500): Promise<boolean> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     return false;
   }
@@ -167,8 +190,8 @@ export async function checkInternetConnectivity(timeoutMs = 3000): Promise<boole
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    // Fast probe to Google generate_204 endpoint
-    await fetch('https://www.google.com/generate_204', {
+    // Fast probe to Google generate_204 endpoint with random query to avoid cache
+    await fetch(`https://www.google.com/generate_204?_t=${Date.now()}`, {
       method: 'HEAD',
       mode: 'no-cors',
       cache: 'no-store',
@@ -178,14 +201,11 @@ export async function checkInternetConnectivity(timeoutMs = 3000): Promise<boole
     clearTimeout(timer);
     return true;
   } catch (_) {
-    // If google probe fails, check Cloudflare DNS probe as secondary verification
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      return false;
-    }
+    // Secondary fast probe to Cloudflare CDN endpoint
     try {
       const controller2 = new AbortController();
       const timer2 = setTimeout(() => controller2.abort(), 2000);
-      await fetch('https://1.1.1.1/cdn-cgi/trace', {
+      await fetch(`https://1.1.1.1/cdn-cgi/trace?_t=${Date.now()}`, {
         method: 'HEAD',
         mode: 'no-cors',
         cache: 'no-store',
@@ -249,7 +269,8 @@ function normalizeUrlForCompare(url: string): string {
 
 export async function checkSingleUrl(
   url: string,
-  timeoutMs: number = 8000
+  timeoutMs: number = 8000,
+  parentSignal?: AbortSignal
 ): Promise<LinkHealthResult> {
   if (!isCheckableUrl(url)) {
     return {
@@ -267,10 +288,20 @@ export async function checkSingleUrl(
 
   const checkedAt = new Date().toISOString();
 
-  // Helper for fetch with timeout
+  // Helper for fetch with timeout & combined abort signal
   const runFetch = async (method: 'HEAD' | 'GET'): Promise<{ response: Response; finalUrl: string }> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    // If parent signal aborts (e.g. user clicked Pause), abort immediately!
+    const onParentAbort = () => controller.abort();
+    if (parentSignal) {
+      if (parentSignal.aborted) {
+        clearTimeout(timer);
+        throw new DOMException('Aborted by parent signal', 'AbortError');
+      }
+      parentSignal.addEventListener('abort', onParentAbort);
+    }
 
     try {
       const res = await fetch(url, {
@@ -282,9 +313,11 @@ export async function checkSingleUrl(
         },
       });
       clearTimeout(timer);
+      if (parentSignal) parentSignal.removeEventListener('abort', onParentAbort);
       return { response: res, finalUrl: res.url || url };
     } catch (err: any) {
       clearTimeout(timer);
+      if (parentSignal) parentSignal.removeEventListener('abort', onParentAbort);
       throw err;
     }
   };
@@ -295,7 +328,10 @@ export async function checkSingleUrl(
     try {
       result = await runFetch('HEAD');
     } catch (headErr: any) {
-      // If HEAD fails due to 405 Method Not Allowed, or network rejection, try streamed GET fallback
+      if (parentSignal?.aborted) {
+        throw headErr;
+      }
+      // If HEAD fails due to timeout or abort, classify as unreachable/timeout
       if (
         headErr.name === 'AbortError' ||
         (headErr.message && headErr.message.includes('aborted'))
@@ -307,6 +343,7 @@ export async function checkSingleUrl(
           checkedAt,
         };
       }
+      // Fallback to GET
       result = await runFetch('GET');
     }
 
@@ -319,15 +356,26 @@ export async function checkSingleUrl(
         const getResult = await runFetch('GET');
         return evaluateResponse(url, getResult.response, getResult.finalUrl, checkedAt);
       } catch (getErr: any) {
+        if (parentSignal?.aborted) throw getErr;
+        if (isPotentialNetworkDrop(getErr)) {
+          const isOnline = await checkInternetConnectivity(1500);
+          if (!isOnline) throw new NetworkOfflineError();
+        }
         return evaluateError(url, getErr, checkedAt);
       }
     }
 
     return evaluateResponse(url, response, finalUrl, checkedAt);
   } catch (err: any) {
-    // If error is network drop / offline, throw NetworkOfflineError to prevent marking link as dead
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      throw new NetworkOfflineError();
+    if (parentSignal?.aborted) {
+      throw err;
+    }
+    // Check if failure is due to device network disconnection
+    if (isPotentialNetworkDrop(err)) {
+      const isOnline = await checkInternetConnectivity(1500);
+      if (!isOnline) {
+        throw new NetworkOfflineError();
+      }
     }
     return evaluateError(url, err, checkedAt);
   }
@@ -547,7 +595,7 @@ export class DomainRateLimiter {
 }
 
 // =============================================================================
-// Library Scanner Controller with Pause & Network Guardian
+// Library Scanner Controller with Instant Pause & Network Guardian
 // =============================================================================
 
 export interface ScanOptions {
@@ -565,6 +613,7 @@ export class HealthScanController {
   private pauseResolvers: Array<() => void> = [];
   private networkResolvers: Array<() => void> = [];
   private networkCheckInterval: any = null;
+  private activeAbortControllers: Set<AbortController> = new Set();
 
   constructor(options?: ScanOptions) {
     this.limiter = new DomainRateLimiter(
@@ -577,6 +626,13 @@ export class HealthScanController {
   public pause(): void {
     this.isPaused = true;
     this.limiter.pause();
+    // Instantly abort all active in-flight fetches so pause takes effect in 0ms!
+    for (const ctrl of this.activeAbortControllers) {
+      try {
+        ctrl.abort();
+      } catch (_) {}
+    }
+    this.activeAbortControllers.clear();
   }
 
   public resume(): void {
@@ -595,6 +651,12 @@ export class HealthScanController {
       clearInterval(this.networkCheckInterval);
       this.networkCheckInterval = null;
     }
+    for (const ctrl of this.activeAbortControllers) {
+      try {
+        ctrl.abort();
+      } catch (_) {}
+    }
+    this.activeAbortControllers.clear();
     this.resume();
   }
 
@@ -707,7 +769,6 @@ export class HealthScanController {
       reportProgress(Object.values(results)[0]);
     }
 
-    let consecutiveNetworkErrors = 0;
     let saveCounter = 0;
 
     // Worker queue pipeline (Worker Pool)
@@ -730,14 +791,23 @@ export class HealthScanController {
         const url = pendingUrls.shift();
         if (!url) break;
 
+        const abortCtrl = new AbortController();
+        this.activeAbortControllers.add(abortCtrl);
+
         try {
           const res = await this.limiter.enqueue(url, () =>
-            checkSingleUrl(url, options?.timeoutMs || 8000)
+            checkSingleUrl(url, options?.timeoutMs || 8000, abortCtrl.signal)
           );
 
-          if (this.isCancelled) break;
+          this.activeAbortControllers.delete(abortCtrl);
 
-          consecutiveNetworkErrors = 0;
+          if (this.isCancelled) break;
+          if (this.isPaused) {
+            // Put aborted URL back on queue for resume
+            pendingUrls.unshift(url);
+            continue;
+          }
+
           results[url] = res;
           checked++;
           countStatus(res.status);
@@ -748,45 +818,63 @@ export class HealthScanController {
             saveLinkHealthCache(results).catch(() => {});
           }
         } catch (err: any) {
+          this.activeAbortControllers.delete(abortCtrl);
+
           if (this.isCancelled) break;
 
-          if (err instanceof NetworkOfflineError || err.name === 'NetworkOfflineError') {
-            // General network disconnection: Put URL back into queue!
+          if (this.isPaused) {
+            // Request was aborted by user clicking Pause: Push back to pendingUrls
             pendingUrls.unshift(url);
-            consecutiveNetworkErrors++;
-
-            if (!this.isWaitingForNetwork) {
-              this.isWaitingForNetwork = true;
-              this.limiter.pause();
-
-              reportProgress({
-                url,
-                status: 'unreachable',
-                error: 'Waiting for internet connection...',
-                checkedAt: new Date().toISOString(),
-              });
-
-              // Start auto-recovery watcher
-              this.startNetworkRecoveryWatcher(() => {
-                const resolvers = [...this.networkResolvers];
-                this.networkResolvers = [];
-                resolvers.forEach((r) => r());
-              });
-            }
-
-            await this.waitForNetwork();
-          } else {
-            // Standard individual URL error
-            results[url] = {
-              url,
-              status: 'unreachable',
-              error: err.message || 'Request failed',
-              checkedAt: new Date().toISOString(),
-            };
-            checked++;
-            unreachableCount++;
-            reportProgress(results[url]);
+            continue;
           }
+
+          if (err instanceof NetworkOfflineError || err.name === 'NetworkOfflineError' || isPotentialNetworkDrop(err)) {
+            // Check if full network is offline
+            const online = await checkInternetConnectivity(1500);
+            if (!online) {
+              // General network disconnection: Put URL back into queue!
+              pendingUrls.unshift(url);
+
+              // Abort all other active requests immediately and put them back in queue
+              for (const ctrl of this.activeAbortControllers) {
+                try { ctrl.abort(); } catch (_) {}
+              }
+              this.activeAbortControllers.clear();
+
+              if (!this.isWaitingForNetwork) {
+                this.isWaitingForNetwork = true;
+                this.limiter.pause();
+
+                reportProgress({
+                  url,
+                  status: 'unreachable',
+                  error: 'Waiting for internet connection...',
+                  checkedAt: new Date().toISOString(),
+                });
+
+                // Start auto-recovery watcher
+                this.startNetworkRecoveryWatcher(() => {
+                  const resolvers = [...this.networkResolvers];
+                  this.networkResolvers = [];
+                  resolvers.forEach((r) => r());
+                });
+              }
+
+              await this.waitForNetwork();
+              continue;
+            }
+          }
+
+          // Individual unreachable URL
+          results[url] = {
+            url,
+            status: 'unreachable',
+            error: err.message || 'Request failed',
+            checkedAt: new Date().toISOString(),
+          };
+          checked++;
+          unreachableCount++;
+          reportProgress(results[url]);
         }
       }
     };
@@ -823,7 +911,7 @@ export class HealthScanController {
       }
 
       // Probe connectivity
-      const online = await checkInternetConnectivity(2000);
+      const online = await checkInternetConnectivity(1500);
       if (online) {
         clearInterval(this.networkCheckInterval);
         this.networkCheckInterval = null;
@@ -831,7 +919,7 @@ export class HealthScanController {
         this.limiter.resume();
         onRecovered();
       }
-    }, 3000);
+    }, 2000);
   }
 }
 

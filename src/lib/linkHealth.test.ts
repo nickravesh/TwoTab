@@ -240,12 +240,23 @@ describe('Link Health & Dead Link Inspector Engine', () => {
       expect(res.statusCode).toBe(200);
     });
 
-    it('Unreachable: handles server 500 errors and timeouts gracefully', async () => {
-      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Failed to fetch'));
+    it('Unreachable: handles server 500 errors and timeouts gracefully when network is online', async () => {
+      globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+        if (url.includes('generate_204') || url.includes('1.1.1.1')) {
+          return Promise.resolve({ ok: true, status: 204 });
+        }
+        return Promise.reject(new Error('Server Connection Refused'));
+      });
 
       const res = await checkSingleUrl('https://offline-server.xyz');
       expect(res.status).toBe('unreachable');
-      expect(res.error).toContain('Failed to fetch');
+      expect(res.error).toContain('Server Connection Refused');
+    });
+
+    it('Offline Network Drop: throws NetworkOfflineError when internet connectivity probe fails', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('TypeError: Failed to fetch'));
+
+      await expect(checkSingleUrl('https://any-site.com')).rejects.toThrow(NetworkOfflineError);
     });
   });
 

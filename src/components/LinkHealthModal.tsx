@@ -253,12 +253,13 @@ export function LinkHealthModal({
   };
 
   const handleTogglePause = () => {
-    const action = progress.isPaused ? 'resumeLinkHealthScan' : 'pauseLinkHealthScan';
+    const nextPaused = !progress.isPaused;
+    // 0ms instant optimistic UI state update
+    setProgress((prev) => ({ ...prev, isPaused: nextPaused }));
+    const action = nextPaused ? 'pauseLinkHealthScan' : 'resumeLinkHealthScan';
     chrome.runtime.sendMessage({ action }, (response) => {
       if (response && response.state) {
         setProgress((prev) => ({ ...prev, isPaused: response.state.isPaused }));
-      } else {
-        setProgress((prev) => ({ ...prev, isPaused: !prev.isPaused }));
       }
     });
   };
