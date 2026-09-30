@@ -3,6 +3,7 @@ import { type TabGroup } from '@/lib/storage';
 import { LinkHealthTool } from './LinkHealthTool';
 import { DuplicateCleanerTool } from './DuplicateCleanerTool';
 import { DomainOrganizerTool } from './DomainOrganizerTool';
+import { StaleTabsTool } from './StaleTabsTool';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -57,10 +58,10 @@ export function ToolsView({ tabGroups, onDataMutated }: ToolsViewProps) {
       id: 'stale-tabs' as const,
       label: 'Stale Tabs',
       icon: Clock,
-      status: 'upcoming' as const,
-      badge: 'Soon',
-      badgeVariant: 'outline' as const,
-      description: 'Aging & dormant tab purifier',
+      status: 'active' as const,
+      badge: 'Live',
+      badgeVariant: 'default' as const,
+      description: 'Multi-horizon aging purifier, cold storage archiver & fragment consolidator',
     },
   ];
 
@@ -129,6 +130,9 @@ export function ToolsView({ tabGroups, onDataMutated }: ToolsViewProps) {
         )}
         {activeSubTool === 'domain-organizer' && (
           <DomainOrganizerTool tabGroups={tabGroups} onDataMutated={onDataMutated} />
+        )}
+        {activeSubTool === 'stale-tabs' && (
+          <StaleTabsTool tabGroups={tabGroups} onDataMutated={onDataMutated} />
         )}
       </div>
     </div>

@@ -7,7 +7,8 @@ import { ToolsView } from '@/components/tools/ToolsView';
 import { LinkHealthTool } from '@/components/tools/LinkHealthTool';
 import { DuplicateCleanerTool } from '@/components/tools/DuplicateCleanerTool';
 import { DomainOrganizerTool } from '@/components/tools/DomainOrganizerTool';
-import { DEFAULT_USER_PREFERENCES } from '@/lib/storage';
+import { StaleTabsTool } from '@/components/tools/StaleTabsTool';
+import { DEFAULT_USER_PREFERENCES, type TabGroup } from '@/lib/storage';
 
 // =============================================================================
 // Chrome API In-Memory Mocks for React Component Tests
@@ -402,6 +403,134 @@ describe('React Component Rendering & Regression Smoke Test Suite', () => {
 
     expect(screen.getByText(/Delete All GitHub Tabs/i)).toBeDefined();
     expect(screen.getByText('Permanently Delete')).toBeDefined();
+
+    const cancelBtn = screen.getByText('Cancel');
+    fireEvent.click(cancelBtn);
+  });
+
+  it('mounts <ToolsView /> and switches to Stale Tabs sub-tool', () => {
+    render(<ToolsView tabGroups={mockStorageStore.tabGroups} />);
+    expect(screen.getByText('Stale Tabs')).toBeDefined();
+
+    const staleBtn = screen.getByText('Stale Tabs').closest('button');
+    expect(staleBtn).toBeTruthy();
+    if (staleBtn) fireEvent.click(staleBtn);
+
+    expect(screen.getByText('Inactive Collections Review')).toBeDefined();
+    expect(screen.getByText(/100% Reversible • Safe/i)).toBeDefined();
+  });
+
+  it('mounts <StaleTabsTool /> and verifies metrics, filtering, and accordion expand/collapse', () => {
+    // Provide a test group with older date
+    const olderGroups: TabGroup[] = [
+      ...mockStorageStore.tabGroups,
+      {
+        id: 99,
+        date: new Date(Date.now() - 150 * 24 * 3600 * 1000).toISOString(), // 150 days (Stale)
+        name: 'Dormant Collection 99',
+        color: 'orange',
+        tabs: [{ title: 'Ancient Article', url: 'https://archive.org/article' }],
+      },
+    ];
+
+    render(<StaleTabsTool tabGroups={olderGroups} />);
+    expect(screen.getByText('Inactive Collections Review')).toBeDefined();
+
+    // Verify presence of time horizon pills
+    expect(screen.getByRole('button', { name: /1 Month ago/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /3 Months ago/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /6 Months ago/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /1 Year ago/i })).toBeDefined();
+
+    // Verify dormant collection card is shown
+    expect(screen.getByText('Dormant Collection 99')).toBeDefined();
+
+    // Test Expand collection
+    const expandBtn = screen.getByLabelText(/Expand collection/i);
+    fireEvent.click(expandBtn);
+    expect(screen.getByText('Ancient Article')).toBeDefined();
+
+    // Test Collapse collection
+    const collapseBtn = screen.getByLabelText(/Collapse collection/i);
+    fireEvent.click(collapseBtn);
+  });
+
+  it('opens and verifies Move Collections to Cold Storage modal in <StaleTabsTool />', () => {
+    const olderGroups: TabGroup[] = [
+      {
+        id: 99,
+        date: new Date(Date.now() - 150 * 24 * 3600 * 1000).toISOString(),
+        name: 'Dormant Collection 99',
+        color: 'orange',
+        tabs: [{ title: 'Ancient Article', url: 'https://archive.org/article' }],
+      },
+    ];
+
+    render(<StaleTabsTool tabGroups={olderGroups} />);
+
+    // Click single archive button
+    const archiveBtn = screen.getByTitle(/Move this collection to Archive/i);
+    fireEvent.click(archiveBtn);
+
+    expect(screen.getByText(/Move 1 Collection to Archive\?/i)).toBeDefined();
+    expect(screen.getByText(/What will happen:/i)).toBeDefined();
+    expect(screen.getByText('Confirm & Move to Archive')).toBeDefined();
+
+    const cancelBtn = screen.getByText('Cancel');
+    fireEvent.click(cancelBtn);
+  });
+
+  it('opens and verifies Consolidate Abandoned Fragments modal in <StaleTabsTool />', () => {
+    const fragmentGroups: TabGroup[] = [
+      {
+        id: 98,
+        date: new Date(Date.now() - 120 * 24 * 3600 * 1000).toISOString(),
+        name: 'Fragment 98',
+        color: 'purple',
+        tabs: [{ title: 'Fragment Tab 1', url: 'https://frag1.org' }],
+      },
+      {
+        id: 99,
+        date: new Date(Date.now() - 150 * 24 * 3600 * 1000).toISOString(),
+        name: 'Fragment 99',
+        color: 'purple',
+        tabs: [{ title: 'Fragment Tab 2', url: 'https://frag2.org' }],
+      },
+    ];
+
+    render(<StaleTabsTool tabGroups={fragmentGroups} />);
+
+    // Click bundle small groups button
+    const bundleBtn = screen.getByRole('button', { name: /Bundle Small Groups/i });
+    fireEvent.click(bundleBtn);
+
+    expect(screen.getByText('Bundle Small Collections into One')).toBeDefined();
+    expect(screen.getByText(/Consolidated Collection Name/i)).toBeDefined();
+    expect(screen.getByText('Bundle into 1 Collection')).toBeDefined();
+
+    const cancelBtn = screen.getByText('Cancel');
+    fireEvent.click(cancelBtn);
+  });
+
+  it('opens and verifies Permanent Deletion modal in <StaleTabsTool />', () => {
+    const olderGroups: TabGroup[] = [
+      {
+        id: 99,
+        date: new Date(Date.now() - 150 * 24 * 3600 * 1000).toISOString(),
+        name: 'Dormant Collection 99',
+        color: 'orange',
+        tabs: [{ title: 'Ancient Article', url: 'https://archive.org/article' }],
+      },
+    ];
+
+    render(<StaleTabsTool tabGroups={olderGroups} />);
+
+    const deleteBtn = screen.getByTitle(/Permanently delete collection/i);
+    fireEvent.click(deleteBtn);
+
+    expect(screen.getByText('Confirm Permanent Deletion')).toBeDefined();
+    expect(screen.getByText(/Guarded by Automatic Rolling Backup/i)).toBeDefined();
+    expect(screen.getByText('Delete Collections')).toBeDefined();
 
     const cancelBtn = screen.getByText('Cancel');
     fireEvent.click(cancelBtn);

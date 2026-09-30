@@ -843,6 +843,46 @@ export async function unarchiveGroup(id: number): Promise<void> {
   });
 }
 
+export async function archiveMultipleGroups(ids: number[]): Promise<{ count: number; tabsArchived: number }> {
+  if (!ids || ids.length === 0) return { count: 0, tabsArchived: 0 };
+  const idSet = new Set(ids);
+  return storageQueue.enqueue(async () => {
+    const groups = await getGroups();
+    const targets = groups.filter((g) => idSet.has(g.id));
+    if (targets.length === 0) return { count: 0, tabsArchived: 0 };
+
+    const updatedGroups = groups.filter((g) => !idSet.has(g.id));
+    const archived = await getArchivedGroups();
+    archived.push(...targets);
+
+    const tabsArchived = targets.reduce((sum, g) => sum + (g.tabs?.length || 0), 0);
+
+    // Single atomic write for both keys
+    await safeStorageSet({
+      tabGroups: updatedGroups,
+      archivedGroups: archived,
+    });
+
+    return { count: targets.length, tabsArchived };
+  });
+}
+
+export async function deleteMultipleGroups(ids: number[]): Promise<{ count: number; tabsDeleted: number }> {
+  if (!ids || ids.length === 0) return { count: 0, tabsDeleted: 0 };
+  const idSet = new Set(ids);
+  return storageQueue.enqueue(async () => {
+    const groups = await getGroups();
+    const targets = groups.filter((g) => idSet.has(g.id));
+    if (targets.length === 0) return { count: 0, tabsDeleted: 0 };
+
+    const updatedGroups = groups.filter((g) => !idSet.has(g.id));
+    const tabsDeleted = targets.reduce((sum, g) => sum + (g.tabs?.length || 0), 0);
+
+    await safeStorageSet({ tabGroups: updatedGroups });
+    return { count: targets.length, tabsDeleted };
+  });
+}
+
 // =============================================================================
 // URL Utilities
 // =============================================================================
