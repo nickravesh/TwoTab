@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { type TabGroup } from '@/lib/storage';
 import { LinkHealthTool } from './LinkHealthTool';
 import { DuplicateCleanerTool } from './DuplicateCleanerTool';
+import { DomainOrganizerTool } from './DomainOrganizerTool';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -47,10 +48,10 @@ export function ToolsView({ tabGroups, onDataMutated }: ToolsViewProps) {
       id: 'domain-organizer' as const,
       label: 'Domain Sorter',
       icon: FolderTree,
-      status: 'upcoming' as const,
-      badge: 'Soon',
-      badgeVariant: 'outline' as const,
-      description: 'Host & subdomain clustering engine',
+      status: 'active' as const,
+      badge: 'Live',
+      badgeVariant: 'default' as const,
+      description: 'Host & subdomain clustering engine, 1-click consolidation, and library auto-organizer',
     },
     {
       id: 'stale-tabs' as const,
@@ -125,6 +126,9 @@ export function ToolsView({ tabGroups, onDataMutated }: ToolsViewProps) {
         )}
         {activeSubTool === 'duplicates' && (
           <DuplicateCleanerTool tabGroups={tabGroups} onDataMutated={onDataMutated} />
+        )}
+        {activeSubTool === 'domain-organizer' && (
+          <DomainOrganizerTool tabGroups={tabGroups} onDataMutated={onDataMutated} />
         )}
       </div>
     </div>

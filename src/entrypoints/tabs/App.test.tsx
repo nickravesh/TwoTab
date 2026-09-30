@@ -6,6 +6,7 @@ import PopupApp from '../popup/App';
 import { ToolsView } from '@/components/tools/ToolsView';
 import { LinkHealthTool } from '@/components/tools/LinkHealthTool';
 import { DuplicateCleanerTool } from '@/components/tools/DuplicateCleanerTool';
+import { DomainOrganizerTool } from '@/components/tools/DomainOrganizerTool';
 import { DEFAULT_USER_PREFERENCES } from '@/lib/storage';
 
 // =============================================================================
@@ -287,6 +288,123 @@ describe('React Component Rendering & Regression Smoke Test Suite', () => {
     expect(screen.getByText('Link Health & Dead Link Inspector')).toBeDefined();
     expect(screen.getByText(/Scan Library/i)).toBeDefined();
     expect(screen.getByText(/Re-scan All/i)).toBeDefined();
+  });
+
+  it('mounts <ToolsView /> sub-tool switcher and switches to Domain Sorter', () => {
+    const { container } = render(<ToolsView tabGroups={mockStorageStore.tabGroups} />);
+    expect(container).toBeTruthy();
+    expect(screen.getByText('Domain Sorter')).toBeDefined();
+
+    // Switch to Domain Sorter sub-tool
+    const domainBtn = screen.getByText('Domain Sorter').closest('button');
+    expect(domainBtn).toBeTruthy();
+    if (domainBtn) fireEvent.click(domainBtn);
+
+    expect(screen.getByText('Domain Sorter & Organizer')).toBeDefined();
+    expect(screen.getByText(/Cluster, analyze, and consolidate/i)).toBeDefined();
+    expect(screen.getByText('github.com')).toBeDefined();
+    expect(screen.getByText('google.com')).toBeDefined();
+  });
+
+  it('mounts <DomainOrganizerTool /> and tests search, filter chips, subdomain toggle, and collapse/expand', () => {
+    const { container } = render(<DomainOrganizerTool tabGroups={mockStorageStore.tabGroups} />);
+    expect(container).toBeTruthy();
+    expect(screen.getByText('Domain Sorter & Organizer')).toBeDefined();
+    expect(screen.getByText('Unique Domains')).toBeDefined();
+
+    // Search query filtering
+    const searchInput = screen.getByPlaceholderText(/Search domains or URLs/i);
+    fireEvent.change(searchInput, { target: { value: 'github' } });
+    expect(screen.getByText('github.com')).toBeDefined();
+    expect(screen.queryByText('google.com')).toBeNull();
+
+    // Reset search
+    fireEvent.change(searchInput, { target: { value: '' } });
+    expect(screen.getByText('google.com')).toBeDefined();
+
+    // Test quick filter: Scattered Across Groups
+    const scatteredBtn = screen.getByRole('button', { name: /Scattered Across Groups/i });
+    fireEvent.click(scatteredBtn);
+    expect(screen.getByText('github.com')).toBeDefined();
+    expect(screen.queryByText('google.com')).toBeNull(); // google.com is in 1 group only
+
+    // Reset to All Domains
+    const allBtn = screen.getByRole('button', { name: /All Domains/i });
+    fireEvent.click(allBtn);
+    expect(screen.getByText('google.com')).toBeDefined();
+
+    // Toggle Subdomains view mode
+    const subdomainToggleBtn = screen.getByTitle('Toggle between grouping by root domain vs separate subdomains');
+    fireEvent.click(subdomainToggleBtn);
+    expect(screen.getByText('Subdomains')).toBeDefined();
+
+    // Toggle back to Root Domains
+    fireEvent.click(subdomainToggleBtn);
+    expect(screen.getByText('Root Domains')).toBeDefined();
+
+    // Test cluster collapse and expand
+    const githubHeader = screen.getByText('github.com').closest('[role="button"]');
+    expect(githubHeader).toBeTruthy();
+    if (githubHeader) {
+      // It is initially expanded; clicking collapses it
+      fireEvent.click(githubHeader);
+      expect(githubHeader.getAttribute('aria-expanded')).toBe('false');
+
+      // Clicking again expands it
+      fireEvent.click(githubHeader);
+      expect(githubHeader.getAttribute('aria-expanded')).toBe('true');
+    }
+
+    // Test bulk Collapse All button
+    const collapseAllBtn = screen.getByTitle('Collapse all domains');
+    fireEvent.click(collapseAllBtn);
+    const updatedGithubHeader = screen.getByText('github.com').closest('[role="button"]');
+    expect(updatedGithubHeader?.getAttribute('aria-expanded')).toBe('false');
+
+    // Test bulk Expand All button
+    const expandAllBtn = screen.getByTitle('Expand all domains');
+    fireEvent.click(expandAllBtn);
+    expect(screen.getByText('github.com').closest('[role="button"]')?.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('opens and verifies Consolidate Domain modal in <DomainOrganizerTool />', () => {
+    render(<DomainOrganizerTool tabGroups={mockStorageStore.tabGroups} />);
+
+    const consolidateBtn = screen.getAllByTitle('Gather all tabs of this domain into a single dedicated group')[0];
+    fireEvent.click(consolidateBtn);
+    expect(screen.getByText('Consolidate Domain Tabs')).toBeDefined();
+    expect(screen.getByText(/Move tabs to new group/i)).toBeDefined();
+    expect(screen.getByText(/Copy tabs to new group/i)).toBeDefined();
+
+    const cancelBtn = screen.getByText('Cancel');
+    fireEvent.click(cancelBtn);
+  });
+
+  it('opens and verifies Auto-Organize Library modal in <DomainOrganizerTool />', () => {
+    render(<DomainOrganizerTool tabGroups={mockStorageStore.tabGroups} />);
+
+    const autoOrganizeBtn = screen.getByRole('button', { name: /Auto-Organize Library/i });
+    fireEvent.click(autoOrganizeBtn);
+
+    expect(screen.getByText('Auto-Organize Entire Library by Domain')).toBeDefined();
+    expect(screen.getByText(/Grouping Threshold/i)).toBeDefined();
+    expect(screen.getByText('Proceed & Organize')).toBeDefined();
+
+    const cancelBtn = screen.getByText('Cancel');
+    fireEvent.click(cancelBtn);
+  });
+
+  it('opens and verifies Delete Domain modal in <DomainOrganizerTool />', () => {
+    render(<DomainOrganizerTool tabGroups={mockStorageStore.tabGroups} />);
+
+    const deleteBtn = screen.getAllByTitle('Delete all tabs of this domain across the library')[0];
+    fireEvent.click(deleteBtn);
+
+    expect(screen.getByText(/Delete All GitHub Tabs/i)).toBeDefined();
+    expect(screen.getByText('Permanently Delete')).toBeDefined();
+
+    const cancelBtn = screen.getByText('Cancel');
+    fireEvent.click(cancelBtn);
   });
 
   it('mounts <PopupApp /> extension popup cleanly', () => {
