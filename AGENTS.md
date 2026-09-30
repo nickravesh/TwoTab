@@ -103,3 +103,11 @@ When implementing or modifying theme switching with circular reveal animations v
 - **Storage Event Guarding**:
   Guard background storage listeners (`chrome.storage.onChanged`) against triggering concurrent DOM mutations while `html.theme-transitioning` is active.
 
+---
+
+## 7. Zero-Assumption Quality & Build Verification Pipeline
+- **Never Rely on Fast Bundlers for Type Safety**: Modern fast bundlers (Vite, esbuild, WXT, Turbopack) strip types without running full semantic checks. Always gate `test` and `build` commands with `tsc --noEmit`.
+- **Full-Tree DOM Smoke & Regression Testing**: Pure helper unit tests (`lib/*.test.ts`) do not evaluate unmounted JSX branches. Always maintain automated DOM component tests (`@testing-library/react` + `happy-dom`/`jsdom`) that mount top-level containers and expand all disclosure branches (accordions, modals, tabs) to ensure zero runtime symbol resolution failures.
+- **Zero-Error Invariant**: Never commit code with failing unit tests, unresolved type errors, or unhandled null checks.
+
+

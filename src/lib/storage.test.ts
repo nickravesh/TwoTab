@@ -792,10 +792,12 @@ https://site3.com | Site Three
 
     // Mock navigator.clipboard
     const mockWriteText = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, {
-      clipboard: {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: {
         writeText: mockWriteText,
       },
+      configurable: true,
+      writable: true,
     });
 
     const success = await copyToClipboardSafe('https://example.com');

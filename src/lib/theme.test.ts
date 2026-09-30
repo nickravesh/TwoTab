@@ -82,6 +82,10 @@ describe('TwoTab Theme Engine Unit Tests', () => {
     mockDocumentElement.classList.clear();
     mockDocumentElement.attributes.clear();
     mockDocumentElement.style.colorScheme = '';
+
+    if (typeof localStorage !== 'undefined') {
+      localStorage.clear();
+    }
   });
 
   afterEach(() => {

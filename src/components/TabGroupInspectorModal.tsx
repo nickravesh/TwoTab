@@ -116,7 +116,7 @@ export function TabGroupInspectorModal({
 
   // Undo Toast State
   const [undoSnapshot, setUndoSnapshot] = useState<{ tabs: Tab[]; description: string } | null>(null);
-  const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Copy Feedback State
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);

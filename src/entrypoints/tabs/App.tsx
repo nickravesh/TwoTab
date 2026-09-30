@@ -66,6 +66,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { TabGroupInspectorModal } from '@/components/TabGroupInspectorModal';
+import { ToolsView } from '@/components/tools/ToolsView';
 import {
   Accordion,
   AccordionContent,
@@ -106,6 +107,7 @@ import {
   ShieldAlert, 
   Globe, 
   Sun, 
+  SunMedium,
   Moon, 
   Monitor, 
   Copy, 
@@ -140,6 +142,7 @@ import {
   ArrowUpDown,
   SlidersHorizontal,
   Filter,
+  Wrench,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { THEME_PALETTES, type ThemePalette } from '@/lib/theme';
@@ -1051,11 +1054,11 @@ class ErrorBoundary extends React.Component<
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('[TwoTab] UI Exception caught by boundary:', error, errorInfo);
   }
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
@@ -1092,7 +1095,7 @@ class ErrorBoundary extends React.Component<
 
 function AppContent() {
   const { themeMode, resolvedTheme, setThemeMode } = useTheme();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'archive' | 'closed' | 'settings' | 'help'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'archive' | 'closed' | 'tools' | 'settings' | 'help'>('dashboard');
   const [groups, setGroups] = useState<TabGroup[]>([]);
   const [allDashboardGroups, setAllDashboardGroups] = useState<TabGroup[]>([]);
   const [archivedGroups, setArchivedGroups] = useState<TabGroup[]>([]);
@@ -1254,7 +1257,7 @@ function AppContent() {
           getRollingBackupSnapshots().then(setBackupSnapshots);
         }
         if (changes[PREFERENCES_STORAGE_KEY]) {
-          setUserPreferencesState(changes[PREFERENCES_STORAGE_KEY].newValue || DEFAULT_USER_PREFERENCES);
+          setUserPreferencesState((changes[PREFERENCES_STORAGE_KEY]?.newValue as UserPreferences) || DEFAULT_USER_PREFERENCES);
         }
       }
     };
@@ -1637,6 +1640,7 @@ function AppContent() {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'archive', label: 'Archive', icon: Archive },
     { id: 'closed', label: 'Recently Closed', icon: History },
+    { id: 'tools', label: 'Tools', icon: Wrench },
   ] as const;
 
   const prefItems = [
@@ -1665,6 +1669,13 @@ function AppContent() {
           title: 'Recently Closed',
           icon: History,
           badge: null,
+          badgeVariant: 'outline' as const,
+        };
+      case 'tools':
+        return {
+          title: 'Power Tools & Optimization',
+          icon: Wrench,
+          badge: 'Pro',
           badgeVariant: 'outline' as const,
         };
       case 'settings':
@@ -2141,7 +2152,21 @@ function AppContent() {
               </DropdownMenu>
             )}
 
-            {/* 4. Restore All Action */}
+            {/* 4. Link Health Inspector Action */}
+            {(activeTab === 'dashboard' || activeTab === 'archive') && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setActiveTab('tools')} 
+                className="btn-spring h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border/80 bg-background/80 dark:bg-background/60 hover:bg-background shadow-2xs rounded-lg font-medium"
+                title="Open Power Tools to evaluate link health and optimize library"
+              >
+                <Activity className="w-3.5 h-3.5 text-primary" />
+                <span className="hidden sm:inline">Link Health</span>
+              </Button>
+            )}
+
+            {/* 5. Restore All Action */}
             {activeTab === 'dashboard' && groups.length > 0 && (
               <Button 
                 variant="outline" 
@@ -2418,6 +2443,13 @@ function AppContent() {
                 </div>
               </ScrollArea>
             )
+          )}
+
+          {/* Tools View */}
+          {activeTab === 'tools' && (
+            <div className="flex-1 min-h-0 p-6 overflow-hidden">
+              <ToolsView tabGroups={groups} onDataMutated={loadData} />
+            </div>
           )}
 
           {/* Settings & Help Views */}
@@ -3253,7 +3285,7 @@ function AppContent() {
                       <Activity className="w-5 h-5 text-primary" />
                       System & Storage Diagnostics
                     </CardTitle>
-                    <Badge variant={healthStatus && !healthStatus.valid ? "destructive" : "emerald"} className="text-xs font-semibold px-2.5 py-0.5">
+                    <Badge variant={healthStatus && !healthStatus.valid ? "destructive" : "default"} className="text-xs font-semibold px-2.5 py-0.5">
                       {healthStatus ? (healthStatus.valid ? '✓ Storage Healthy' : `⚠ ${healthStatus.errors.length} Issues`) : 'Ready'}
                     </Badge>
                   </div>
@@ -3310,7 +3342,16 @@ function AppContent() {
                     </div>
                   )}
 
-                  <div className="flex justify-end pt-1">
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActiveTab('tools')}
+                      className="btn-spring text-xs font-semibold border-border gap-1.5"
+                    >
+                      <Activity className="w-3.5 h-3.5 text-primary" />
+                      Inspect Link Health
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -3319,7 +3360,7 @@ function AppContent() {
                       className="btn-spring text-xs font-semibold border-border gap-1.5"
                     >
                       <RotateCcw className={`w-3.5 h-3.5 ${isRunningHealthCheck ? 'animate-spin' : ''}`} />
-                      {isRunningHealthCheck ? 'Checking Storage...' : 'Run Diagnostic Check'}
+                      {isRunningHealthCheck ? 'Checking Storage...' : 'Run Storage Diagnostic'}
                     </Button>
                   </div>
                 </CardContent>

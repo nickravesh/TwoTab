@@ -130,7 +130,7 @@ export async function getStoredThemeMode(): Promise<ThemeMode> {
   try {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       const data = await chrome.storage.local.get(THEME_STORAGE_KEY);
-      if (data && VALID_MODES.includes(data[THEME_STORAGE_KEY])) {
+      if (data && VALID_MODES.includes(data[THEME_STORAGE_KEY] as ThemeMode)) {
         return data[THEME_STORAGE_KEY] as ThemeMode;
       }
     }

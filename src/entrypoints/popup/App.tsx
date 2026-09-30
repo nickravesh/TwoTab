@@ -64,11 +64,11 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('[TwoTab Popup] Uncaught rendering error:', error, errorInfo);
   }
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       return (
         <div className="w-[360px] p-6 text-center bg-card text-foreground flex flex-col items-center justify-center min-h-[300px] space-y-3">
@@ -181,7 +181,7 @@ function PopupContent() {
       }
 
       showMessage('Active tab saved!');
-      await loadGroups();
+      await loadData();
     } catch (e) {
       console.error('Error saving current tab:', e);
       showMessage('Failed to save active tab', 'error');
@@ -208,7 +208,7 @@ function PopupContent() {
           }
         });
       });
-      await loadGroups();
+      await loadData();
     } catch (e: any) {
       console.error('Error saving window:', e);
       showMessage(e?.message || 'Error saving window', 'error');
@@ -235,7 +235,7 @@ function PopupContent() {
           }
         });
       });
-      await loadGroups();
+      await loadData();
     } catch (e: any) {
       console.error('Error saving all windows:', e);
       showMessage(e?.message || 'Error saving all windows', 'error');
@@ -249,7 +249,7 @@ function PopupContent() {
     try {
       await deleteGroup(deleteConfirm.id);
       setDeleteConfirm(null);
-      await loadGroups();
+      await loadData();
     } catch (e) {
       console.error('Error deleting group:', e);
     }
@@ -259,7 +259,7 @@ function PopupContent() {
     try {
       const res = await restoreTabGroup(group);
       if (res.removed) {
-        await loadGroups();
+        await loadData();
       }
     } catch (e) {
       console.error('Error restoring group:', e);
