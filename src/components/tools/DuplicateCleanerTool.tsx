@@ -248,9 +248,6 @@ export function DuplicateCleanerTool({ tabGroups, onDataMutated }: DuplicateClea
               <div className="space-y-0.5">
                 <h3 className="text-base font-bold tracking-tight text-foreground flex items-center gap-2">
                   Smart Duplicate & Mirror Cleaner
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-primary/30 text-primary bg-primary/10 font-bold">
-                    Pro
-                  </Badge>
                 </h3>
                 <p className="text-xs text-muted-foreground">
                   4-tier URL normalizer and intelligent tab cleaner. Review and remove redundant links across your groups while keeping originals safe.

@@ -397,9 +397,6 @@ export function LinkHealthTool({ tabGroups, onDataMutated }: LinkHealthToolProps
               <div>
                 <h3 className="text-base font-bold tracking-tight text-foreground flex items-center gap-2">
                   Link Health & Dead Link Inspector
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-primary/30 text-primary bg-primary/10 font-bold">
-                    Pro
-                  </Badge>
                 </h3>
                 <p className="text-xs text-muted-foreground">
                   Background network evaluation, dead link detection (404/410), and 1-click batch destination optimizer.

@@ -1675,7 +1675,7 @@ function AppContent() {
         return {
           title: 'Power Tools & Optimization',
           icon: Wrench,
-          badge: 'Pro',
+          badge: null,
           badgeVariant: 'outline' as const,
         };
       case 'settings':

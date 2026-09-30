@@ -375,9 +375,6 @@ export function DomainOrganizerTool({ tabGroups, onDataMutated }: DomainOrganize
             <div>
               <h3 className="text-base font-bold tracking-tight text-foreground flex items-center gap-2">
                 Domain Sorter & Organizer
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-primary/30 text-primary bg-primary/10 font-bold">
-                  Pro
-                </Badge>
               </h3>
               <p className="text-xs text-muted-foreground">
                 Cluster, analyze, and consolidate tabs across your library by website.

@@ -5,7 +5,6 @@ import { DuplicateCleanerTool } from './DuplicateCleanerTool';
 import { DomainOrganizerTool } from './DomainOrganizerTool';
 import { StaleTabsTool } from './StaleTabsTool';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Activity,
   Copy,
@@ -32,8 +31,6 @@ export function ToolsView({ tabGroups, onDataMutated }: ToolsViewProps) {
       label: 'Link Health',
       icon: Activity,
       status: 'active' as const,
-      badge: 'Live',
-      badgeVariant: 'default' as const,
       description: 'Scan dead links (404/410), redirect optimizer, and Wayback lookup',
     },
     {
@@ -41,8 +38,6 @@ export function ToolsView({ tabGroups, onDataMutated }: ToolsViewProps) {
       label: 'Duplicates',
       icon: Copy,
       status: 'active' as const,
-      badge: 'Live',
-      badgeVariant: 'default' as const,
       description: '4-tier mirror detection, tracking param stripper & 1-click duplicate cleaner',
     },
     {
@@ -50,8 +45,6 @@ export function ToolsView({ tabGroups, onDataMutated }: ToolsViewProps) {
       label: 'Domain Sorter',
       icon: FolderTree,
       status: 'active' as const,
-      badge: 'Live',
-      badgeVariant: 'default' as const,
       description: 'Host & subdomain clustering engine, 1-click consolidation, and library auto-organizer',
     },
     {
@@ -59,8 +52,6 @@ export function ToolsView({ tabGroups, onDataMutated }: ToolsViewProps) {
       label: 'Stale Tabs',
       icon: Clock,
       status: 'active' as const,
-      badge: 'Live',
-      badgeVariant: 'default' as const,
       description: 'Multi-horizon aging purifier, cold storage archiver & fragment consolidator',
     },
   ];
@@ -95,20 +86,6 @@ export function ToolsView({ tabGroups, onDataMutated }: ToolsViewProps) {
               >
                 <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
                 <span>{tool.label}</span>
-                {tool.badge && (
-                  <Badge
-                    variant={tool.badgeVariant}
-                    className={`text-[9px] px-1.5 py-0 h-3.5 font-bold ${
-                      isSelected && isAvailable
-                        ? 'bg-primary/15 text-primary border-primary/30'
-                        : isAvailable
-                        ? 'bg-muted text-foreground border-border/60'
-                        : 'text-muted-foreground/70 border-border/50'
-                    }`}
-                  >
-                    {tool.badge}
-                  </Badge>
-                )}
               </button>
             );
           })}
