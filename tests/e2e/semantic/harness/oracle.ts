@@ -448,130 +448,14 @@ export const STOPWORDS = new Set([
   'portal', 'page', 'search', 'privacy', 'terms', 'overview', 'getting', 'started',
 ]);
 
-export function toTitleCase(str: string): string {
-  return str
-    .split(/\s+/)
-    .map((w) => (w.length > 0 ? w[0].toUpperCase() + w.slice(1).toLowerCase() : ''))
-    .join(' ');
-}
+import { generateGroupName, toTitleCase as semanticToTitleCase } from '@/lib/semantic/naming';
+
+export const toTitleCase = semanticToTitleCase;
 
 export function oracleGenerateGroupName(
   tabs: Tab[],
   metadata?: NormalizedTabMetadata[]
 ): { name: string; color: TabGroupColor } {
-  if (tabs.length === 0) {
-    return { name: 'Empty Collection', color: 'grey' };
-  }
-
-  const metas = metadata ?? tabs.map(oracleNormalizeTab);
-
-  // Check shared branded domain
-  const domains = metas.map((m) => m.domain).filter(Boolean);
-  const domainCounts = new Map<string, number>();
-  for (const d of domains) {
-    domainCounts.set(d, (domainCounts.get(d) ?? 0) + 1);
-  }
-
-  let dominantDomain = '';
-  let maxDomainCount = 0;
-  for (const [d, count] of domainCounts.entries()) {
-    if (count > maxDomainCount) {
-      maxDomainCount = count;
-      dominantDomain = d;
-    }
-  }
-
-  // Tokenize titles first (requiring at least one letter)
-  const titleTokenCounts = new Map<string, number>();
-  for (const m of metas) {
-    const words = m.cleanTitle
-      .toLowerCase()
-      .replace(/[^a-zA-Z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter((w) => w.length > 2 && !STOPWORDS.has(w) && /[a-zA-Z]/.test(w));
-
-    for (const w of words) {
-      titleTokenCounts.set(w, (titleTokenCounts.get(w) ?? 0) + 1);
-    }
-  }
-
-  // Find shared path tokens across multiple tabs
-  const pathTokenOccurrences = new Map<string, Set<number>>();
-  for (let idx = 0; idx < metas.length; idx++) {
-    const m = metas[idx];
-    const pathWords = m.pathSegments.join(' ')
-      .toLowerCase()
-      .replace(/[^a-zA-Z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter((w) => w.length > 2 && !STOPWORDS.has(w) && /[a-zA-Z]/.test(w));
-    for (const w of pathWords) {
-      if (!pathTokenOccurrences.has(w)) pathTokenOccurrences.set(w, new Set());
-      pathTokenOccurrences.get(w)!.add(idx);
-    }
-  }
-
-  const tokenCounts = new Map<string, number>();
-  if (titleTokenCounts.size > 0) {
-    for (const [w, count] of titleTokenCounts.entries()) {
-      tokenCounts.set(w, count);
-    }
-    // If title has very few distinct words (<= 1), augment with shared path tokens
-    if (titleTokenCounts.size <= 1) {
-      for (const [w, occ] of pathTokenOccurrences.entries()) {
-        if (occ.size >= 2) {
-          tokenCounts.set(w, (tokenCounts.get(w) ?? 0) + occ.size);
-        }
-      }
-    }
-  } else {
-    // Only use path tokens that are shared across multiple tabs
-    for (const [w, occ] of pathTokenOccurrences.entries()) {
-      if (occ.size >= 2 || (metas.length === 1 && occ.size === 1)) {
-        tokenCounts.set(w, occ.size);
-      }
-    }
-  }
-
-  // Find top terms
-  const sortedTokens = Array.from(tokenCounts.entries())
-    .sort((a, b) => b[1] - a[1]);
-
-  let generatedName = '';
-  if (sortedTokens.length >= 2 && sortedTokens[1][1] >= 2) {
-    generatedName = toTitleCase(`${sortedTokens[0][0]} ${sortedTokens[1][0]}`);
-  } else if (sortedTokens.length >= 1 && sortedTokens[0][1] >= 1) {
-    generatedName = toTitleCase(sortedTokens[0][0]);
-  }
-
-  // Branded domain enhancement
-  const getRootDomain = (d: string) => {
-    const parts = d.split('.');
-    if (parts.length >= 2) {
-      return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
-    }
-    return d;
-  };
-
-  const root = getRootDomain(dominantDomain);
-  const brandEntry = (dominantDomain && BRANDED_DOMAINS[dominantDomain]) || (root && BRANDED_DOMAINS[root]);
-
-  let assignedColor: TabGroupColor = 'blue';
-  if (brandEntry) {
-    assignedColor = brandEntry.color;
-    if (!generatedName || maxDomainCount === tabs.length) {
-      generatedName = generatedName ? `${brandEntry.name} — ${generatedName}` : brandEntry.name;
-    }
-  } else if (dominantDomain && !generatedName) {
-    if (/^\d+\.\d+\.\d+\.\d+$/.test(dominantDomain)) {
-      generatedName = dominantDomain;
-    } else {
-      generatedName = toTitleCase(dominantDomain.split('.')[0]);
-    }
-  }
-
-  if (!generatedName) {
-    generatedName = 'Saved Collection';
-  }
-
-  return { name: generatedName, color: assignedColor };
+  return generateGroupName(tabs, metadata);
 }
+

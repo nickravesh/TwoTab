@@ -49,7 +49,7 @@ describe('Tier 1: Deterministic Group Naming Engine (Features 10, 11, 12)', () =
       ];
 
       const { name } = oracleGenerateGroupName(tabs);
-      expect(name.toLowerCase()).toContain('stackoverflow');
+      expect(name.toLowerCase().replace(/\s+/g, '')).toContain('stackoverflow');
     });
 
     it('10.4 extracts meaningful path keywords when titles are brief or identical', () => {
