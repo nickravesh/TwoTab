@@ -5,6 +5,7 @@ import {
   deleteGroup, 
   deleteTabFromGroup, 
   getRelativeTime, 
+  type Tab,
   type TabGroup, 
   getArchivedGroups, 
   archiveGroup, 
@@ -148,6 +149,20 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { THEME_PALETTES, type ThemePalette } from '@/lib/theme';
+import {
+  ConsentDialog,
+  ProgressDialog,
+  GroupingPreviewDialog,
+  type PipelineStage,
+} from '@/components/semantic';
+import {
+  clusterTabs,
+  normalizeTab,
+  getEmbeddingProvider,
+  applyReorganization,
+  type ClusterGroup,
+  type ModelDownloadProgress,
+} from '@/lib/semantic';
 
 interface DeleteConfirmState {
   type: 'group' | 'tab' | 'all';
@@ -1129,6 +1144,109 @@ function AppContent() {
   const [sourceRect, setSourceRect] = useState<DOMRect | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Intelligent Tab Grouping State
+  const [aiConsentOpen, setAiConsentOpen] = useState(false);
+  const [aiProgressOpen, setAiProgressOpen] = useState(false);
+  const [aiProgressStage, setAiProgressStage] = useState<PipelineStage>('idle');
+  const [aiDownloadProgress, setAiDownloadProgress] = useState<ModelDownloadProgress | null>(null);
+  const [aiErrorMessage, setAiErrorMessage] = useState<string | null>(null);
+  const [aiPreviewOpen, setAiPreviewOpen] = useState(false);
+  const [aiProposalClusters, setAiProposalClusters] = useState<ClusterGroup[]>([]);
+  const [aiProposalUngrouped, setAiProposalUngrouped] = useState<Tab[]>([]);
+  const [aiTargetGroups, setAiTargetGroups] = useState<TabGroup[]>([]);
+
+  const handleOpenIntelligentGrouping = async () => {
+    if (groups.length === 0) {
+      showMessage('No saved tab groups to organize', 'error');
+      return;
+    }
+    const isCached = await getEmbeddingProvider().isModelCached();
+    if (!isCached) {
+      setAiConsentOpen(true);
+    } else {
+      executeIntelligentGrouping();
+    }
+  };
+
+  const executeIntelligentGrouping = async () => {
+    try {
+      setAiErrorMessage(null);
+      setAiDownloadProgress(null);
+      setAiProgressStage('downloading');
+      setAiProgressOpen(true);
+
+      const provider = getEmbeddingProvider();
+      await provider.initialize((progress) => {
+        setAiDownloadProgress(progress);
+        if (progress.status === 'progress' || progress.status === 'downloading') {
+          setAiProgressStage('downloading');
+        } else {
+          setAiProgressStage('loading');
+        }
+      });
+
+      setAiProgressStage('embedding');
+      const allTabs: Tab[] = groups.flatMap((g) => g.tabs);
+      if (allTabs.length === 0) {
+        setAiProgressOpen(false);
+        showMessage('No tabs found in saved groups to organize', 'error');
+        return;
+      }
+
+      const normalizedMetas = allTabs.map((t) => normalizeTab(t));
+      const prompts = normalizedMetas.map((m) => m.semanticPrompt);
+
+      const embeddings = await provider.generateEmbeddings(prompts);
+
+      setAiProgressStage('clustering');
+      const items = allTabs.map((tab, idx) => ({
+        tab,
+        embedding: embeddings[idx],
+      }));
+
+      const clusteringResult = clusterTabs(items, {
+        similarityThreshold: 0.70,
+        minimumGroupSize: 2,
+      });
+
+      setAiProgressOpen(false);
+      setAiProposalClusters(clusteringResult.clusters);
+      setAiProposalUngrouped(clusteringResult.ungroupedTabs);
+      setAiTargetGroups(groups);
+      setAiPreviewOpen(true);
+    } catch (err: any) {
+      console.error('[TwoTab AI] Grouping pipeline failed:', err);
+      setAiProgressStage('error');
+      setAiErrorMessage(err?.message || 'Failed to complete intelligent grouping.');
+    }
+  };
+
+  const handleApplySemanticGrouping = async (
+    editedClusters: ClusterGroup[],
+    ungrouped: Tab[]
+  ) => {
+    const proposedGroups: TabGroup[] = editedClusters.map((c, idx) => ({
+      id: Date.now() + idx,
+      date: new Date().toISOString(),
+      name: c.name,
+      color: c.color,
+      tabs: c.tabs,
+    }));
+
+    const result = await applyReorganization({
+      originalGroups: aiTargetGroups,
+      proposedGroups,
+      ungroupedTabs: ungrouped,
+    });
+
+    if (result.success) {
+      await loadData();
+      showMessage('Intelligent grouping applied successfully!');
+    } else {
+      showMessage(`Grouping failed: ${result.error || 'Unknown error'}`, 'error');
+    }
+  };
+
   const handleInspectGroup = (group: TabGroup, cardElement?: HTMLElement | null) => {
     if (cardElement) {
       setSourceRect(cardElement.getBoundingClientRect());
@@ -1804,6 +1922,31 @@ function AppContent() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Intelligent Grouping Modals */}
+      <ConsentDialog
+        open={aiConsentOpen}
+        onOpenChange={setAiConsentOpen}
+        onConfirm={executeIntelligentGrouping}
+      />
+      <ProgressDialog
+        open={aiProgressOpen}
+        stage={aiProgressStage}
+        downloadProgress={aiDownloadProgress}
+        error={aiErrorMessage}
+        onCancel={() => {
+          setAiProgressOpen(false);
+          setAiProgressStage('idle');
+        }}
+      />
+      <GroupingPreviewDialog
+        open={aiPreviewOpen}
+        onOpenChange={setAiPreviewOpen}
+        clusters={aiProposalClusters}
+        ungroupedTabs={aiProposalUngrouped}
+        onApply={handleApplySemanticGrouping}
+        onCancel={() => setAiPreviewOpen(false)}
+      />
+
       {/* Tab Group Inspector Modal */}
       <TabGroupInspectorModal
         isOpen={!!inspectedGroup}
@@ -2186,6 +2329,20 @@ function AppContent() {
                 className="btn-spring h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border/80 bg-background/80 dark:bg-background/60 hover:bg-background shadow-2xs rounded-lg font-medium"
               >
                 <RotateCcw className="w-3.5 h-3.5" /> Restore All
+              </Button>
+            )}
+
+            {/* 6. Intelligent Tab Grouping Action */}
+            {activeTab === 'dashboard' && groups.length > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleOpenIntelligentGrouping} 
+                className="btn-spring h-9 gap-1.5 text-xs text-primary hover:text-primary-foreground hover:bg-primary border-primary/40 bg-primary/5 hover:border-primary shadow-2xs rounded-lg font-medium transition-all"
+                title="Group saved tabs semantically using local on-device AI"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Group Intelligently</span>
               </Button>
             )}
 

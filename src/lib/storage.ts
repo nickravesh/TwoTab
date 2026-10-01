@@ -231,7 +231,7 @@ class StorageQueue {
   }
 }
 
-const storageQueue = new StorageQueue();
+export const storageQueue = new StorageQueue();
 
 // =============================================================================
 // Safe Storage Write Wrapper — Error Detection

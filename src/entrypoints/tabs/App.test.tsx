@@ -827,6 +827,18 @@ describe('React Component Rendering & Regression Smoke Test Suite', () => {
     expect(await screen.findByText(/TwoTab Knowledge Center/i)).toBeDefined();
   });
 
+  it('renders Intelligent Grouping button and opens ConsentDialog on first use', async () => {
+    render(<App />);
+
+    const intelligentBtn = await screen.findByRole('button', { name: /Group Intelligently/i });
+    expect(intelligentBtn).toBeDefined();
+
+    fireEvent.click(intelligentBtn);
+
+    expect(await screen.findByText('Enable Intelligent Tab Grouping')).toBeDefined();
+    expect(screen.getByText(/~90 MB One-Time Download/i)).toBeDefined();
+  });
+
   it('mounts <PopupApp /> extension popup cleanly', () => {
     const { container } = render(<PopupApp />);
     expect(container).toBeTruthy();

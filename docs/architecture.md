@@ -76,3 +76,38 @@ When a user clicks "Save Tabs" in the popup or options page:
   { "action": "triggerImport" }
   ```
 - **Implementation**: This is fully handled in [tabs.js](file:///Users/ali/Documents/Programming/MyGitHub/TwoTab/tabs.js) via a runtime message listener. Clicking "Import" in the popup correctly redirects to the dashboard and automatically triggers the system file picker dialog for a seamless experience.
+
+---
+
+## Semantic AI Subsystem (Intelligent Tab Grouping)
+
+The semantic subsystem enables intelligent, topic-based clustering of saved tabs without transmitting any tab data off the user's machine.
+
+```mermaid
+graph LR
+    subgraph UI Layer
+        D[Dashboard Toolbar] -->|Trigger| C[Consent Dialog]
+        C -->|User Opt-In| P[Progress Dialog]
+        P -->|Inference Complete| PR[Interactive Preview Dialog]
+    end
+
+    subgraph Semantic Pipeline
+        N[Metadata Normalizer] --> W[Embedding Web Worker]
+        W -->|Transformers.js MiniLM FP32| CL[Complete-Linkage Clustering]
+        CL --> NM[Deterministic Group Naming]
+    end
+
+    subgraph Storage Safety
+        PR -->|User Confirmation| SM[Storage Mutex & Reorganizer]
+        SM -->|1. Emergency Snapshot| BK[Rolling Backup Snapshot]
+        SM -->|2. Atomic Write| ST[(chrome.storage.local)]
+    end
+```
+
+### Key Modules:
+- **`src/workers/embedding.worker.ts`**: Runs `@huggingface/transformers` in a dedicated Web Worker using single-threaded WebAssembly (`ort-wasm-simd-threaded.asyncify.wasm`). Model weights are downloaded on demand from Hugging Face into browser `CacheStorage` and never bundled into the extension package.
+- **`src/lib/semantic/normalization.ts`**: Strips tracking parameters, decodes dormant tab URLs, and generates canonical semantic prompts.
+- **`src/lib/semantic/similarity.ts`**: Computes unit-normalized dot product cosine similarity in $O(d)$ time.
+- **`src/lib/semantic/clustering.ts`**: Agglomerative hierarchical clustering with complete-linkage to guarantee anti-chaining invariants.
+- **`src/lib/semantic/naming.ts`**: Deterministically derives descriptive group names using term frequency, domain brands, and path heuristics.
+- **`src/lib/semantic/reorganizer.ts`**: Coordinates atomic writes via `storageQueue`, forces pre-mutation snapshot retention, and strictly enforces vector non-persistence.

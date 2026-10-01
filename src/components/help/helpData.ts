@@ -221,6 +221,28 @@ export const HELP_GUIDES: HelpGuide[] = [
     keywords: ['tags', 'colors', 'sorting', 'filter', 'rename', 'lock', 'slate', 'emerald', 'blue'],
   },
   {
+    id: 'intelligent-tab-grouping',
+    category: 'organization',
+    title: 'Intelligent Tab Grouping (Local AI)',
+    badge: 'Local AI',
+    summary: 'Intelligently reorganizes saved tabs using a completely on-device semantic embedding model (Xenova/all-MiniLM-L6-v2 FP32 ONNX).',
+    whatItDoes: 'Analyzes the semantic subject and topic of your saved tabs (titles, domains, and meaningful paths) to group related tabs together, even if they come from completely different websites.',
+    howItWorks: 'Uses on-device WebAssembly inference via Transformers.js to generate 384-dimensional vector embeddings, computes cosine similarities, and applies complete-linkage agglomerative clustering with strict anti-chaining guarantees. All tab titles and URLs stay 100% on your machine.',
+    whatToExpect: 'Clicking "✨ Group Intelligently" opens a safe in-memory preview dialog showing detected semantic clusters, editable group names, assigned colors, and ungrouped tabs. Your saved data is never modified until you explicitly confirm.',
+    steps: [
+      'Locate the Saved Tab Groups header on the TwoTab Dashboard.',
+      'Click "Group Intelligently" (✨) in the toolbar.',
+      'On first use, confirm the one-time ~90 MB model download consent dialog.',
+      'Watch live progress as TwoTab computes semantic embeddings and groups related tabs.',
+      'Review the proposed organization: edit group names or colors as desired.',
+      'Click "Apply Grouping" to safely save the reorganized groups, or "Cancel" to discard.',
+    ],
+    proTip: 'A safety backup snapshot is automatically created before any reorganization is applied. You can undo or restore previous state anytime under Settings → Rolling Backups.',
+    actionLabel: 'Go to Dashboard',
+    actionTarget: 'dashboard',
+    keywords: ['ai', 'group', 'intelligent', 'group intelligently', 'semantic', 'embedding', 'minilm', 'clustering', 'local', 'private', 'offline'],
+  },
+  {
     id: 'recently-closed-tracker',
     category: 'organization',
     title: 'Live "Recently Closed" Tab Tracker',
@@ -546,6 +568,25 @@ export const CONTEXT_MENU_GUIDES: ContextMenuGuide[] = [
 // -----------------------------------------------------------------------------
 
 export const FAQ_ITEMS: FaqItem[] = [
+  {
+    id: 'faq-ai-privacy',
+    category: 'privacy-backups',
+    question: 'How does Intelligent Tab Grouping protect my privacy?',
+    answer: 'TwoTab runs 100% locally on your machine with zero external AI APIs, zero remote servers, and zero telemetry. The Xenova/all-MiniLM-L6-v2 FP32 model executes directly in your browser using single-threaded WebAssembly. Your tab titles, URLs, and semantic embeddings are never transmitted across the network.',
+    keywords: ['ai', 'privacy', 'local', 'server', 'offline', 'telemetry', 'embeddings'],
+  },
+  {
+    id: 'faq-ai-model-download',
+    category: 'organization',
+    question: 'Why does Intelligent Tab Grouping require a one-time ~90 MB download?',
+    answer: 'To guarantee complete privacy and eliminate third-party AI dependencies, TwoTab downloads the official Xenova/all-MiniLM-L6-v2 FP32 ONNX model weights directly to your browser’s local cache on first use. After this one-time acquisition, Intelligent Grouping operates 100% offline without needing internet access.',
+    steps: [
+      'The model weights (~90 MB) are cached locally in your browser storage.',
+      'Subsequent grouping requests execute instantly from the local cache.',
+      'No background network calls are made during inference.',
+    ],
+    keywords: ['ai', 'download', 'model size', '90mb', 'offline', 'cache', 'weights'],
+  },
   {
     id: 'faq-difference-onetab',
     category: 'getting-started',

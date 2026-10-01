@@ -90,3 +90,16 @@ This document describes the complete feature suite of **TwoTab** (v1.11.1+) and 
 ## 9. 100% Offline Local Privacy
 - Operates entirely within your local browser storage (`chrome.storage.local`).
 - Zero external network requests, zero telemetry, zero trackers, and zero cloud dependencies.
+
+---
+
+## 10. Local AI-Powered Intelligent Tab Grouping
+- **Description**: Semantically analyzes and clusters saved tab groups into cohesive, topical collections using an on-device FP32 embedding model (`Xenova/all-MiniLM-L6-v2`) via Transformers.js.
+- **Key Capabilities**:
+  - **On-Demand Model Download**: ~90 MB official FP32 ONNX model is acquired only upon explicit user consent and cached persistently in the browser's CacheStorage (`transformers-cache`).
+  - **100% Local Inference**: WebAssembly runtime (`numThreads: 1`) executes inference completely on-device without contacting external APIs, telemetry, or remote servers. Works fully offline once cached.
+  - **Deterministic Tab Normalization**: Cleans URLs by stripping 110+ tracking parameters (`utm_*`, `fbclid`, `gclid`), recursively unwraps dormant tabs, and synthesizes structured prompts from titles, domains, and paths.
+  - **Complete-Linkage Clustering**: Strict anti-chaining agglomerative hierarchical clustering ($O(d)$ cosine similarity, threshold $0.70$) prevents semantic drift. Tabs failing similarity criteria are safely placed in an Ungrouped collection.
+  - **Deterministic Group Naming**: Frequency-weighted tokenization with stopword filtering, domain brand mapping, and common path extraction creates human-readable title-cased names.
+  - **Interactive Preview & Non-Destructive Safety**: Full-screen modal allows users to review proposed clusters, edit group names inline, and inspect color badges before applying.
+  - **Pre-Mutation Snapshot Guarantee**: Automatically creates an emergency rolling backup snapshot before mutating `chrome.storage.local`, ensuring complete one-click recovery.
