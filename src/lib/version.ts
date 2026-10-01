@@ -2,7 +2,7 @@
 // TwoTab Version Configuration
 // =============================================================================
 
-export const APP_VERSION = '1.14.0';
+export const APP_VERSION = '1.15.0';
 
 /**
  * Returns the current application version with a leading 'v'.

@@ -80,7 +80,7 @@ const mockChrome = {
   },
   runtime: {
     lastError: null,
-    getManifest: vi.fn(() => ({ version: '1.14.0' })),
+    getManifest: vi.fn(() => ({ version: '1.15.0' })),
     sendMessage: vi.fn((_msg, cb) => {
       if (cb) cb({ status: 'success', count: 1 });
       return Promise.resolve({ status: 'success' });

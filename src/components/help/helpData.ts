@@ -1,5 +1,5 @@
 // =============================================================================
-// TwoTab Knowledge Center Data Model & Content Architecture (v1.14.0)
+// TwoTab Knowledge Center Data Model & Content Architecture (v1.15.0)
 // =============================================================================
 
 export type HelpCategoryKey = 

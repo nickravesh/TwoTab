@@ -2,13 +2,14 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { HelpCenterView } from './HelpCenterView';
+import { getAppVersion } from '@/lib/version';
 
 describe('HelpCenterView React Component DOM & Smoke Tests', () => {
   it('mounts cleanly and renders hero banner, title, version, and search input', () => {
     render(<HelpCenterView />);
 
     expect(screen.getByText('TwoTab Knowledge Center')).toBeDefined();
-    expect(screen.getAllByText(/v1\.14\.0/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(new RegExp(getAppVersion(), 'i')).length).toBeGreaterThan(0);
     expect(screen.getByPlaceholderText(/search guides, tools, shortcuts/i)).toBeDefined();
   });
 

@@ -83,7 +83,7 @@ const mockChrome = {
   runtime: {
     lastError: null,
     getURL: vi.fn((path: string) => `chrome-extension://twotab-test-id/${path}`),
-    getManifest: vi.fn(() => ({ version: '1.14.0' })),
+    getManifest: vi.fn(() => ({ version: '1.15.0' })),
     sendMessage: vi.fn((msg: any, cb: (res: any) => void) => {
       if (msg.action === 'saveTabs') {
         cb({ status: 'success', count: 3 });
