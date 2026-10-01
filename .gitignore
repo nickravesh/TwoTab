@@ -14,3 +14,7 @@ icon_ideas/
 
 # Test coverage
 coverage/
+
+# Agent guidelines and local configuration
+AGENTS.md
+.agents/
