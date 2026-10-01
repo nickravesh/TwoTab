@@ -860,6 +860,7 @@ function VirtualizedCardGrid({
     getScrollElement: () => parentRef.current,
     estimateSize: () => currentRowHeight,
     overscan: 2,
+    initialRect: { width: 1200, height: 800 },
   });
 
   const virtualItems = virtualizer.getVirtualItems();
@@ -974,12 +975,20 @@ function VirtualizedCardGrid({
     >
       <div
         style={{
-          height: `${virtualizer.getTotalSize()}px`,
+          height: `${virtualizer.getTotalSize() || rowCount * currentRowHeight}px`,
           width: '100%',
           position: 'relative',
         }}
       >
-        {virtualItems.map((virtualRow) => {
+        {(virtualItems.length > 0
+          ? virtualItems
+          : Array.from({ length: rowCount }, (_, i) => ({
+              key: i,
+              index: i,
+              start: i * currentRowHeight,
+              size: currentRowHeight,
+            }))
+        ).map((virtualRow) => {
           const startIndex = virtualRow.index * cols;
           const rowGroups = filteredGroups.slice(startIndex, startIndex + cols);
 

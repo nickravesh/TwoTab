@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import App from './App';
 import PopupApp from '../popup/App';
 import { ToolsView } from '@/components/tools/ToolsView';
@@ -8,7 +8,7 @@ import { LinkHealthTool } from '@/components/tools/LinkHealthTool';
 import { DuplicateCleanerTool } from '@/components/tools/DuplicateCleanerTool';
 import { DomainOrganizerTool } from '@/components/tools/DomainOrganizerTool';
 import { StaleTabsTool } from '@/components/tools/StaleTabsTool';
-import { DEFAULT_USER_PREFERENCES, type TabGroup } from '@/lib/storage';
+import { DEFAULT_USER_PREFERENCES, PREFERENCES_STORAGE_KEY, type TabGroup } from '@/lib/storage';
 
 // =============================================================================
 // Chrome API In-Memory Mocks for React Component Tests
@@ -38,17 +38,20 @@ const mockChrome = {
         }
         return Promise.resolve({ ...mockStorageStore });
       }),
-      set: vi.fn((items: Record<string, any>) => {
+      set: vi.fn((items: Record<string, any>, cb?: () => void) => {
         Object.assign(mockStorageStore, items);
+        if (typeof cb === 'function') cb();
         return Promise.resolve();
       }),
-      remove: vi.fn((keys: any) => {
+      remove: vi.fn((keys: any, cb?: () => void) => {
         const arr = Array.isArray(keys) ? keys : [keys];
         for (const k of arr) delete mockStorageStore[k];
+        if (typeof cb === 'function') cb();
         return Promise.resolve();
       }),
-      clear: vi.fn(() => {
+      clear: vi.fn((cb?: () => void) => {
         for (const k in mockStorageStore) delete mockStorageStore[k];
+        if (typeof cb === 'function') cb();
         return Promise.resolve();
       }),
       getBytesInUse: vi.fn(() => Promise.resolve(1024)),
@@ -96,14 +99,16 @@ describe('React Component Rendering & Regression Smoke Test Suite', () => {
     vi.clearAllMocks();
     for (const k in mockStorageStore) delete mockStorageStore[k];
 
+    mockStorageStore[PREFERENCES_STORAGE_KEY] = { ...DEFAULT_USER_PREFERENCES };
     mockStorageStore.userPreferences = { ...DEFAULT_USER_PREFERENCES };
     mockStorageStore._backupSnapshots = [];
     mockStorageStore._schemaVersion = 1;
 
+    const now = Date.now();
     mockStorageStore.tabGroups = [
       {
         id: 1,
-        date: new Date().toISOString(),
+        date: new Date(now - 1000).toISOString(),
         name: 'Alpha Research Group',
         color: 'blue',
         tabs: [
@@ -113,7 +118,7 @@ describe('React Component Rendering & Regression Smoke Test Suite', () => {
       },
       {
         id: 2,
-        date: new Date().toISOString(),
+        date: new Date(now - 2000).toISOString(),
         name: 'Beta Secondary Group',
         color: 'purple',
         tabs: [
@@ -125,7 +130,7 @@ describe('React Component Rendering & Regression Smoke Test Suite', () => {
     mockStorageStore.archivedGroups = [
       {
         id: 3,
-        date: new Date().toISOString(),
+        date: new Date(now - 3000).toISOString(),
         name: 'Old Archived Project',
         color: 'grey',
         tabs: [{ title: 'Archive Reference', url: 'https://archive.org' }],
@@ -535,6 +540,291 @@ describe('React Component Rendering & Regression Smoke Test Suite', () => {
 
     const cancelBtn = screen.getByText('Cancel');
     fireEvent.click(cancelBtn);
+  });
+
+  // ===========================================================================
+  // Dashboard Interactive Workflows & Navigation
+  // ===========================================================================
+
+  it('filters dashboard tab groups in real-time using search input and clears via Escape/X', async () => {
+    render(<App />);
+
+    // Wait for cards to appear after initial loading completes
+    expect(await screen.findByText('Alpha Research Group')).toBeDefined();
+    expect(screen.getByText('Beta Secondary Group')).toBeDefined();
+
+    // Type query into search
+    const searchInput = screen.getByPlaceholderText('Search saved tabs...');
+    fireEvent.change(searchInput, { target: { value: 'Google' } });
+
+    // Alpha group contains Google Search, Beta does not
+    expect(screen.getByText('Alpha Research Group')).toBeDefined();
+    expect(screen.queryByText('Beta Secondary Group')).toBeNull();
+
+    // Clear search using Escape key
+    fireEvent.keyDown(searchInput, { key: 'Escape', code: 'Escape' });
+    expect(searchInput.getAttribute('value')).toBe('');
+    expect(screen.getByText('Beta Secondary Group')).toBeDefined();
+  });
+
+  it('sorts tab groups by name ascending and tab count via sort dropdown', async () => {
+    render(<App />);
+
+    expect(await screen.findByText('Alpha Research Group')).toBeDefined();
+
+    // Open sort dropdown
+    const sortTrigger = screen.getByTitle('Sort tab groups');
+    fireEvent.pointerDown(sortTrigger, { button: 0, ctrlKey: false });
+
+    // Select Name (A to Z)
+    const nameSort = await screen.findByText('Name (A → Z)');
+    fireEvent.click(nameSort);
+
+    // Verify sort updated in trigger
+    await waitFor(() => {
+      expect(screen.getAllByText(/Alpha Research Group/i).length).toBeGreaterThan(0);
+    });
+  });
+
+  it('filters tab groups by color tag selection and clears filters', async () => {
+    render(<App />);
+
+    expect(await screen.findByText('Alpha Research Group')).toBeDefined();
+
+    // Open color tag filter dropdown
+    const colorFilterTrigger = screen.getByTitle('Filter by color tag');
+    fireEvent.pointerDown(colorFilterTrigger, { button: 0, ctrlKey: false });
+
+    // Toggle Purple color filter (Beta group is purple, Alpha is blue)
+    const purpleFilter = await screen.findByText('Purple');
+    fireEvent.click(purpleFilter);
+
+    await waitFor(() => {
+      expect(screen.getByText('Beta Secondary Group')).toBeDefined();
+      expect(screen.queryByText('Alpha Research Group')).toBeNull();
+    });
+
+    // Clear filters
+    const clearBtn = await screen.findByText('Clear all');
+    fireEvent.click(clearBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Alpha Research Group')).toBeDefined();
+      expect(screen.getByText('Beta Secondary Group')).toBeDefined();
+    });
+  });
+
+  it('renames a tab group directly from the card header inline edit input', async () => {
+    render(<App />);
+
+    expect(await screen.findByText('Alpha Research Group')).toBeDefined();
+
+    // Click rename group button
+    const renameBtns = screen.getAllByTitle('Rename group');
+    fireEvent.click(renameBtns[0]);
+
+    // Inline rename input appears
+    const renameInput = screen.getByDisplayValue('Alpha Research Group');
+    fireEvent.change(renameInput, { target: { value: 'Renamed Alpha Workspace' } });
+
+    // Save rename
+    const saveRenameBtn = screen.getByTitle('Save name');
+    fireEvent.click(saveRenameBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Renamed Alpha Workspace')).toBeDefined();
+    });
+  });
+
+  it('archives a group from dashboard, navigates to Archive tab, and unarchives it back', async () => {
+    render(<App />);
+
+    const alphaHeading = await screen.findByText('Alpha Research Group');
+    expect(alphaHeading).toBeDefined();
+
+    // Archive Alpha Research Group using within on its card
+    const alphaCard = alphaHeading.closest('[data-group-id]');
+    const archiveBtn = within(alphaCard as HTMLElement).getByTitle('Archive group');
+    fireEvent.click(archiveBtn);
+
+    // Group disappears from Dashboard
+    await waitFor(() => {
+      expect(screen.queryByText('Alpha Research Group')).toBeNull();
+    });
+
+    // Switch to Archive view via sidebar nav specifically
+    const archiveNav = within(screen.getByRole('navigation')).getByRole('button', { name: /Archive/i });
+    fireEvent.click(archiveNav);
+
+    // Alpha group now in Archive along with existing Old Archived Project
+    expect(await screen.findByText('Alpha Research Group')).toBeDefined();
+    expect(screen.getByText('Old Archived Project')).toBeDefined();
+
+    // Unarchive Alpha group
+    const alphaArchiveCard = (await screen.findByText('Alpha Research Group')).closest('[data-group-id]');
+    const unarchiveBtn = within(alphaArchiveCard as HTMLElement).getByTitle('Unarchive group');
+    fireEvent.click(unarchiveBtn);
+
+    // Switch back to Dashboard view
+    const dashboardNav = within(screen.getByRole('navigation')).getByRole('button', { name: /Dashboard/i });
+    fireEvent.click(dashboardNav);
+
+    // Alpha group back in Dashboard
+    expect(await screen.findByText('Alpha Research Group')).toBeDefined();
+  });
+
+  it('deletes a group from dashboard after confirming in dialog', async () => {
+    render(<App />);
+
+    const betaHeading = await screen.findByText('Beta Secondary Group');
+    expect(betaHeading).toBeDefined();
+
+    // Click delete group specifically on Beta group
+    const betaCard = betaHeading.closest('[data-group-id]');
+    const deleteBtn = within(betaCard as HTMLElement).getByTitle('Delete group');
+    fireEvent.click(deleteBtn);
+
+    // Confirmation dialog appears
+    expect(await screen.findByText('Confirm Deletion')).toBeDefined();
+    const confirmDeleteBtn = screen.getByRole('button', { name: 'Delete' });
+    fireEvent.click(confirmDeleteBtn);
+
+    // Beta group removed
+    await waitFor(() => {
+      expect(screen.queryByText('Beta Secondary Group')).toBeNull();
+    });
+  });
+
+  it('navigates to Recently Closed tab and displays closed items', async () => {
+    render(<App />);
+
+    // Switch to Recently Closed view via sidebar
+    const closedNav = screen.getByRole('button', { name: /Recently Closed/i });
+    fireEvent.click(closedNav);
+
+    // Closed page item appears
+    expect(await screen.findByText('Recently Closed Page')).toBeDefined();
+    expect(screen.getByText(/news\.ycombinator\.com/)).toBeDefined();
+
+    // Reopen button triggers tab create
+    const reopenBtn = screen.getByRole('button', { name: /Reopen Tab/i });
+    fireEvent.click(reopenBtn);
+    expect(mockChrome.tabs.create).toHaveBeenCalledWith({ url: 'https://news.ycombinator.com', active: true });
+  });
+
+  it('navigates to Settings tab and toggles user preferences and card density', async () => {
+    render(<App />);
+
+    // Switch to Settings
+    const settingsNav = screen.getByRole('button', { name: /Settings/i });
+    fireEvent.click(settingsNav);
+
+    expect(await screen.findByText('Appearance & Curated Themes')).toBeDefined();
+    expect(screen.getByText('Tab Workflow & Restoration Rules')).toBeDefined();
+
+    // Toggle Protect Pinned Tabs preference
+    const protectBtn = screen.getByRole('button', { name: /Protected|Unprotected/i });
+    fireEvent.click(protectBtn);
+
+    await waitFor(() => {
+      expect(mockStorageStore[PREFERENCES_STORAGE_KEY]?.protectPinnedTabs).toBe(false);
+    });
+
+    // Expand Advanced Display Settings
+    const advancedToggle = screen.getByText('Advanced Display & Interface Settings');
+    fireEvent.click(advancedToggle);
+
+    // Switch card density to Compact Grid
+    const compactDensityBtn = await screen.findByText('Compact Grid');
+    fireEvent.click(compactDensityBtn);
+
+    await waitFor(() => {
+      expect(mockStorageStore[PREFERENCES_STORAGE_KEY]?.cardDensity).toBe('compact');
+    });
+
+    // Toggle Restore Destination to Current Active Window
+    const currentWindowBtn = screen.getByText('Current Active Window');
+    fireEvent.click(currentWindowBtn);
+
+    await waitFor(() => {
+      expect(mockStorageStore[PREFERENCES_STORAGE_KEY]?.restoreDestination).toBe('current_window');
+    });
+  });
+
+  it('creates rolling backup snapshot in Settings and opens restore confirmation modal', async () => {
+    render(<App />);
+
+    // Switch to Settings
+    const settingsNav = screen.getByRole('button', { name: /Settings/i });
+    fireEvent.click(settingsNav);
+
+    expect(await screen.findByText('Automated Rolling Backups')).toBeDefined();
+
+    // Create snapshot
+    const createBackupBtn = screen.getByRole('button', { name: /Backup Now/i });
+    fireEvent.click(createBackupBtn);
+
+    expect(await screen.findByText('Rolling snapshot created successfully!')).toBeDefined();
+
+    // Verify snapshot entry in table
+    const restoreSnapBtn = (await screen.findByText('Restore')).closest('button')!;
+    fireEvent.click(restoreSnapBtn);
+
+    expect(await screen.findByText('Restore Rolling Snapshot?')).toBeDefined();
+    const cancelModalBtn = screen.getByRole('button', { name: 'Cancel' });
+    fireEvent.click(cancelModalBtn);
+  });
+
+  it('parses and imports OneTab formatted tab list in Settings import hub', async () => {
+    render(<App />);
+
+    // Switch to Settings
+    const settingsNav = screen.getByRole('button', { name: /Settings/i });
+    fireEvent.click(settingsNav);
+
+    const importArea = await screen.findByPlaceholderText(/Paste OneTab text export here/i);
+    fireEvent.change(importArea, {
+      target: {
+        value: 'https://vitest.dev | Vitest Next Gen Testing\nhttps://wxt.dev | Next-Gen Framework',
+      },
+    });
+
+    const parseBtn = screen.getByRole('button', { name: /Parse & Import/i });
+    fireEvent.click(parseBtn);
+
+    await waitFor(() => {
+      expect(mockStorageStore.tabGroups.length).toBeGreaterThan(2);
+    });
+  });
+
+  it('opens and verifies Clear All Saved Data disaster recovery modal in Settings', async () => {
+    render(<App />);
+
+    // Switch to Settings
+    const settingsNav = screen.getByRole('button', { name: /Settings/i });
+    fireEvent.click(settingsNav);
+
+    // Danger zone button
+    const clearAllBtn = await screen.findByRole('button', { name: /Clear All Saved Data/i });
+    fireEvent.click(clearAllBtn);
+
+    // Confirmation dialog
+    expect(await screen.findByText('Are you absolutely sure?')).toBeDefined();
+    expect(screen.getByText(/This action will permanently delete/i)).toBeDefined();
+
+    // Cancel out
+    const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+    fireEvent.click(cancelBtn);
+  });
+
+  it('navigates to Help Center and displays guides', async () => {
+    render(<App />);
+
+    const helpNav = screen.getByRole('button', { name: /Help/i });
+    fireEvent.click(helpNav);
+
+    // Help Center view rendered
+    expect(await screen.findByText(/TwoTab Knowledge Center/i)).toBeDefined();
   });
 
   it('mounts <PopupApp /> extension popup cleanly', () => {

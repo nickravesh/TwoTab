@@ -794,9 +794,19 @@ export function TabGroupInspectorModal({
 
                     {/* Apple-style Checkbox */}
                     <div
+                      role="checkbox"
+                      aria-checked={isSelected}
+                      tabIndex={0}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleToggleSelect(originalIndex, e);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === ' ' || e.key === 'Enter') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleToggleSelect(originalIndex);
+                        }
                       }}
                       className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors shrink-0 cursor-pointer ${
                         isSelected
