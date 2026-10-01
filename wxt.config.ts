@@ -12,6 +12,12 @@ export default defineConfig({
     content_security_policy: {
       extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
     },
+    web_accessible_resources: [
+      {
+        resources: ['ort/*'],
+        matches: ['<all_urls>'],
+      },
+    ],
     icons: {
       '16': 'icons/icon-16.png',
       '32': 'icons/icon-32.png',

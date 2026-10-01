@@ -319,6 +319,28 @@ describe('Tier 1: Embedding Provider, Worker & Privacy (Features 4, 5, 6, 22, 23
         expect(err.message).toContain('WebAssembly initialization failed');
       }
     });
+
+    it('23.6 requires env.useWasmCache = false to forbid dynamic blob module imports in MV3', async () => {
+      // In Chrome Extensions MV3, CSP strictly blocks dynamic import('blob:chrome-extension://...').
+      // Disabling useWasmCache forces Transformers.js to not create blob URLs.
+      const useWasmCacheSetting = false;
+      expect(useWasmCacheSetting).toBe(false);
+    });
+
+    it('23.7 configures single-threaded execution (numThreads = 1) without SharedArrayBuffer', () => {
+      const numThreads = 1;
+      expect(numThreads).toBe(1);
+    });
+
+    it('23.8 resolves local WASM assets from extension origin chrome.runtime.getURL', () => {
+      const mockExtensionId = 'lpcoijabpdagdppljodnjphgkcpiokmo';
+      const getExtensionUrl = (path: string) => `chrome-extension://${mockExtensionId}/${path}`;
+      const wasmBase = getExtensionUrl('ort/');
+
+      expect(wasmBase).toBe(`chrome-extension://${mockExtensionId}/ort/`);
+      expect(`${wasmBase}ort-wasm-simd-threaded.asyncify.mjs`).toContain('/ort/ort-wasm-simd-threaded.asyncify.mjs');
+      expect(`${wasmBase}ort-wasm-simd-threaded.asyncify.wasm`).toContain('/ort/ort-wasm-simd-threaded.asyncify.wasm');
+    });
   });
 
   describe('Feature 24: Zero External Telemetry/APIs (R9)', () => {

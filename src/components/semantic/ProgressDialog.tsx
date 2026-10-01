@@ -46,9 +46,9 @@ export const ProgressDialog: React.FC<ProgressDialogProps> = ({
   const getStageIcon = () => {
     switch (stage) {
       case 'downloading':
-        return <Download className="w-5 h-5 text-primary animate-bounce" />;
+        return <Download className="w-5 h-5 text-primary animate-pulse" />;
       case 'loading':
-        return <Cpu className="w-5 h-5 text-primary animate-spin" />;
+        return <Cpu className="w-5 h-5 text-primary animate-pulse" />;
       case 'embedding':
         return <Sparkles className="w-5 h-5 text-primary animate-pulse" />;
       case 'clustering':
@@ -79,13 +79,26 @@ export const ProgressDialog: React.FC<ProgressDialogProps> = ({
 
   const getStageDescription = () => {
     switch (stage) {
-      case 'downloading':
+      case 'downloading': {
+        const file = downloadProgress?.file || '';
+        const isModel = file.includes('model.onnx') || file.endsWith('.onnx');
         if (downloadProgress?.progress !== undefined && !isNaN(downloadProgress.progress)) {
-          const mbLoaded = downloadProgress.loaded ? (downloadProgress.loaded / (1024 * 1024)).toFixed(1) : '?';
-          const mbTotal = downloadProgress.total ? (downloadProgress.total / (1024 * 1024)).toFixed(1) : '90.4';
-          return `Downloading model weights (${mbLoaded} MB / ${mbTotal} MB — ${Math.round(downloadProgress.progress)}%)`;
+          const pct = Math.round(downloadProgress.progress);
+          if (isModel && downloadProgress.loaded && downloadProgress.total) {
+            const mbLoaded = (downloadProgress.loaded / (1024 * 1024)).toFixed(1);
+            const mbTotal = (downloadProgress.total / (1024 * 1024)).toFixed(1);
+            return `Downloading model weights (${mbLoaded} MB / ${mbTotal} MB — ${pct}%)`;
+          }
+          if (file) {
+            return `Acquiring ${file} (${pct}%)...`;
+          }
+          return `Downloading model weights (${pct}%)`;
+        }
+        if (file) {
+          return `Acquiring ${file} into local cache...`;
         }
         return 'Acquiring Xenova/all-MiniLM-L6-v2 FP32 ONNX model (~90 MB) into browser cache...';
+      }
       case 'loading':
         return 'Compiling single-threaded WebAssembly execution pipeline...';
       case 'embedding':
@@ -102,7 +115,7 @@ export const ProgressDialog: React.FC<ProgressDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel?.()}>
       <DialogContent className="sm:max-w-[440px] p-6 rounded-2xl bg-card border-border shadow-xl">
-        <DialogHeader className="space-y-3">
+        <DialogHeader className="space-y-2.5">
           <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
             {getStageIcon()}
           </div>
@@ -115,15 +128,15 @@ export const ProgressDialog: React.FC<ProgressDialogProps> = ({
         </DialogHeader>
 
         {stage !== 'error' && (
-          <div className="py-4 space-y-2">
-            <div className="w-full bg-muted/60 h-2 rounded-full overflow-hidden">
+          <div className="py-2 space-y-2">
+            <div className="w-full bg-muted/60 h-2 rounded-full overflow-hidden relative">
               {stage === 'downloading' && downloadProgress?.progress !== undefined ? (
                 <div
                   className="bg-primary h-full transition-all duration-300 rounded-full"
                   style={{ width: `${Math.min(100, Math.max(0, downloadProgress.progress))}%` }}
                 />
               ) : (
-                <div className="bg-primary h-full rounded-full animate-pulse w-2/3" />
+                <div className="bg-primary/80 h-full rounded-full w-full animate-pulse" />
               )}
             </div>
             <p className="text-[11px] text-muted-foreground/80 text-center font-mono">
@@ -132,7 +145,7 @@ export const ProgressDialog: React.FC<ProgressDialogProps> = ({
           </div>
         )}
 
-        <DialogFooter className="pt-2 flex justify-end">
+        <DialogFooter className="flex justify-end pt-1">
           <Button
             variant="outline"
             size="sm"

@@ -1154,42 +1154,64 @@ function AppContent() {
   const [aiProposalClusters, setAiProposalClusters] = useState<ClusterGroup[]>([]);
   const [aiProposalUngrouped, setAiProposalUngrouped] = useState<Tab[]>([]);
   const [aiTargetGroups, setAiTargetGroups] = useState<TabGroup[]>([]);
+  const aiCancelledRef = useRef<boolean>(false);
 
-  const handleOpenIntelligentGrouping = async () => {
-    if (groups.length === 0) {
+  const handleOpenIntelligentGrouping = async (targetGroups?: TabGroup[]) => {
+    const targets = targetGroups || groups;
+    if (targets.length === 0) {
       showMessage('No saved tab groups to organize', 'error');
       return;
     }
+
+    const totalTabs = targets.reduce((sum, g) => sum + (g.tabs?.length || 0), 0);
+    if (totalTabs < 2) {
+      showMessage('At least 2 saved tabs are needed for intelligent grouping');
+      return;
+    }
+
+    setAiTargetGroups(targets);
+    aiCancelledRef.current = false;
+
     const isCached = await getEmbeddingProvider().isModelCached();
     if (!isCached) {
       setAiConsentOpen(true);
     } else {
-      executeIntelligentGrouping();
+      executeIntelligentGrouping(targets);
     }
   };
 
-  const executeIntelligentGrouping = async () => {
+  const executeIntelligentGrouping = async (targetsOverride?: TabGroup[]) => {
+    const targets = targetsOverride || aiTargetGroups;
+    aiCancelledRef.current = false;
+
     try {
       setAiErrorMessage(null);
       setAiDownloadProgress(null);
-      setAiProgressStage('downloading');
-      setAiProgressOpen(true);
 
       const provider = getEmbeddingProvider();
+      const isCached = await provider.isModelCached();
+      if (aiCancelledRef.current) return;
+
+      setAiProgressStage(isCached ? 'loading' : 'downloading');
+      setAiProgressOpen(true);
+
       await provider.initialize((progress) => {
+        if (aiCancelledRef.current) return;
         setAiDownloadProgress(progress);
-        if (progress.status === 'progress' || progress.status === 'downloading') {
+        if (progress.status === 'progress' || progress.status === 'downloading' || progress.status === 'initiate') {
           setAiProgressStage('downloading');
-        } else {
+        } else if (progress.status === 'done' && (progress.file?.includes('model.onnx') || progress.file?.endsWith('.onnx'))) {
           setAiProgressStage('loading');
         }
       });
 
+      if (aiCancelledRef.current) return;
+
       setAiProgressStage('embedding');
-      const allTabs: Tab[] = groups.flatMap((g) => g.tabs);
-      if (allTabs.length === 0) {
+      const allTabs: Tab[] = targets.flatMap((g) => g.tabs);
+      if (allTabs.length < 2) {
         setAiProgressOpen(false);
-        showMessage('No tabs found in saved groups to organize', 'error');
+        showMessage('At least 2 saved tabs are needed to organize');
         return;
       }
 
@@ -1197,6 +1219,7 @@ function AppContent() {
       const prompts = normalizedMetas.map((m) => m.semanticPrompt);
 
       const embeddings = await provider.generateEmbeddings(prompts);
+      if (aiCancelledRef.current) return;
 
       setAiProgressStage('clustering');
       const items = allTabs.map((tab, idx) => ({
@@ -1209,12 +1232,18 @@ function AppContent() {
         minimumGroupSize: 2,
       });
 
+      if (aiCancelledRef.current) return;
+
       setAiProgressOpen(false);
       setAiProposalClusters(clusteringResult.clusters);
       setAiProposalUngrouped(clusteringResult.ungroupedTabs);
-      setAiTargetGroups(groups);
+      setAiTargetGroups(targets);
       setAiPreviewOpen(true);
     } catch (err: any) {
+      if (aiCancelledRef.current) {
+        console.log('[TwoTab AI] Grouping pipeline cancelled by user.');
+        return;
+      }
       console.error('[TwoTab AI] Grouping pipeline failed:', err);
       setAiProgressStage('error');
       setAiErrorMessage(err?.message || 'Failed to complete intelligent grouping.');
@@ -1934,6 +1963,8 @@ function AppContent() {
         downloadProgress={aiDownloadProgress}
         error={aiErrorMessage}
         onCancel={() => {
+          aiCancelledRef.current = true;
+          getEmbeddingProvider().terminate();
           setAiProgressOpen(false);
           setAiProgressStage('idle');
         }}
@@ -2337,7 +2368,7 @@ function AppContent() {
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={handleOpenIntelligentGrouping} 
+                onClick={() => handleOpenIntelligentGrouping()} 
                 className="btn-spring h-9 gap-1.5 text-xs text-primary hover:text-primary-foreground hover:bg-primary border-primary/40 bg-primary/5 hover:border-primary shadow-2xs rounded-lg font-medium transition-all"
                 title="Group saved tabs semantically using local on-device AI"
               >

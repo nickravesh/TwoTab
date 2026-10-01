@@ -72,6 +72,39 @@ describe('Semantic UI Components DOM Rendering & Interaction Suite', () => {
       expect(screen.getByText(/46%/)).toBeDefined();
     });
 
+    it('displays file-specific details for config and tokenizer downloads without progress percentage', () => {
+      render(
+        <ProgressDialog
+          open={true}
+          stage="downloading"
+          downloadProgress={{
+            status: 'initiate',
+            file: 'tokenizer.json',
+          }}
+          error={null}
+        />
+      );
+
+      expect(screen.getByText(/Acquiring tokenizer\.json into local cache\.\.\./i)).toBeDefined();
+    });
+
+    it('triggers onCancel when Cancel button is clicked during downloading', () => {
+      const handleCancel = vi.fn();
+      render(
+        <ProgressDialog
+          open={true}
+          stage="downloading"
+          downloadProgress={null}
+          error={null}
+          onCancel={handleCancel}
+        />
+      );
+
+      const cancelBtn = screen.getByRole('button', { name: /Cancel/i });
+      fireEvent.click(cancelBtn);
+      expect(handleCancel).toHaveBeenCalledTimes(1);
+    });
+
     it('renders loading and embedding stages correctly', () => {
       const { rerender } = render(
         <ProgressDialog
@@ -210,6 +243,93 @@ describe('Semantic UI Components DOM Rendering & Interaction Suite', () => {
           mockUngrouped
         );
       });
+    });
+
+    it('flushes in-progress rename automatically when Apply Grouping is clicked without hitting Enter', async () => {
+      const handleApply = vi.fn();
+      render(
+        <GroupingPreviewDialog
+          open={true}
+          onOpenChange={vi.fn()}
+          clusters={mockClusters}
+          ungroupedTabs={mockUngrouped}
+          onApply={handleApply}
+          onCancel={vi.fn()}
+        />
+      );
+
+      const renameBtns = screen.getAllByTitle('Rename group');
+      fireEvent.click(renameBtns[0]);
+
+      const editInput = screen.getByDisplayValue('Django & Python Web Development');
+      fireEvent.change(editInput, { target: { value: 'Flushed Without Enter' } });
+
+      // Click Apply directly while input is active
+      const applyBtn = screen.getByRole('button', { name: /Apply Grouping/i });
+      fireEvent.click(applyBtn);
+
+      await waitFor(() => {
+        expect(handleApply).toHaveBeenCalledWith(
+          expect.arrayContaining([
+            expect.objectContaining({ name: 'Flushed Without Enter' }),
+          ]),
+          mockUngrouped
+        );
+      });
+    });
+
+    it('cancels rename on Escape key without modifying the cluster name', () => {
+      render(
+        <GroupingPreviewDialog
+          open={true}
+          onOpenChange={vi.fn()}
+          clusters={mockClusters}
+          ungroupedTabs={mockUngrouped}
+          onApply={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      const renameBtns = screen.getAllByTitle('Rename group');
+      fireEvent.click(renameBtns[0]);
+
+      const editInput = screen.getByDisplayValue('Django & Python Web Development');
+      fireEvent.change(editInput, { target: { value: 'Cancelled Change' } });
+      fireEvent.keyDown(editInput, { key: 'Escape' });
+
+      expect(screen.queryByDisplayValue('Cancelled Change')).toBeNull();
+      expect(screen.getByText('Django & Python Web Development')).toBeDefined();
+    });
+
+    it('gracefully renders tabs with internal or malformed URLs without crashing', () => {
+      const edgeCaseClusters: ClusterGroup[] = [
+        {
+          id: 'cluster-edge',
+          name: 'Edge Case Tabs',
+          color: 'purple',
+          coherenceScore: 0.9,
+          tabs: [
+            { title: 'Chrome Settings', url: 'chrome://settings' },
+            { title: 'Blank Tab', url: 'about:blank' },
+            { title: 'Malformed URL Tab', url: 'ht tp://broken url/' },
+          ],
+        },
+      ];
+
+      render(
+        <GroupingPreviewDialog
+          open={true}
+          onOpenChange={vi.fn()}
+          clusters={edgeCaseClusters}
+          ungroupedTabs={[]}
+          onApply={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText('Chrome Settings')).toBeDefined();
+      expect(screen.getByText('Blank Tab')).toBeDefined();
+      expect(screen.getByText('Malformed URL Tab')).toBeDefined();
     });
 
     it('renders empty fallback state when no clusters could be formed', () => {

@@ -34,11 +34,11 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px] p-6 rounded-2xl bg-card border-border shadow-xl">
-        <DialogHeader className="space-y-3 pb-2">
-          <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-            <Sparkles className="w-6 h-6 animate-pulse" />
+        <DialogHeader className="space-y-2.5">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+            <Sparkles className="w-5 h-5 text-primary" />
           </div>
-          <DialogTitle className="text-lg font-bold text-foreground tracking-tight">
+          <DialogTitle className="text-base font-bold text-foreground tracking-tight">
             Enable Intelligent Tab Grouping
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
@@ -47,21 +47,21 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 py-3 text-xs">
+        <div className="space-y-2.5 text-xs">
           <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/40 border border-border/60">
             <HardDrive className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
-              <span className="font-semibold text-foreground">~90 MB One-Time Download</span>
+            <div className="space-y-0.5 min-w-0">
+              <span className="font-semibold text-foreground text-xs">~90 MB One-Time Download</span>
               <p className="text-muted-foreground text-[11px] leading-normal">
-                Downloads the official FP32 ONNX model (<code className="text-primary font-mono text-[10px]">Xenova/all-MiniLM-L6-v2</code>) into your browser&apos;s local cache.
+                Downloads the official FP32 ONNX model (<code className="px-1.5 py-0.5 rounded bg-muted text-foreground font-mono text-[10px] border border-border/60">Xenova/all-MiniLM-L6-v2</code>) into your browser&apos;s local cache.
               </p>
             </div>
           </div>
 
           <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/40 border border-border/60">
             <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
-              <span className="font-semibold text-foreground">100% Local &amp; Private</span>
+            <div className="space-y-0.5 min-w-0">
+              <span className="font-semibold text-foreground text-xs">100% Local &amp; Private</span>
               <p className="text-muted-foreground text-[11px] leading-normal">
                 All inference runs completely inside your browser. Your tabs, titles, and URLs are <strong>never</strong> transmitted to external servers, cloud APIs, or telemetry services.
               </p>
@@ -70,8 +70,8 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
 
           <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/40 border border-border/60">
             <Wifi className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
-              <span className="font-semibold text-foreground">Works Offline</span>
+            <div className="space-y-0.5 min-w-0">
+              <span className="font-semibold text-foreground text-xs">Works Offline</span>
               <p className="text-muted-foreground text-[11px] leading-normal">
                 Once downloaded and cached, Intelligent Grouping operates entirely offline without an active internet connection.
               </p>
@@ -79,7 +79,7 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
           </div>
         </div>
 
-        <DialogFooter className="pt-2 flex sm:justify-end gap-2">
+        <DialogFooter className="flex sm:justify-end gap-2 pt-1">
           <Button
             variant="outline"
             size="sm"

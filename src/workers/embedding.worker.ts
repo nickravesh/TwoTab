@@ -11,11 +11,12 @@
 
 import { pipeline, env } from '@huggingface/transformers';
 
-// Strict local browser configuration
+// Strict local browser and Chrome Extension MV3 configuration
 env.allowLocalModels = false;
-if (env.backends && env.backends.onnx && env.backends.onnx.wasm) {
-  env.backends.onnx.wasm.numThreads = 1;
-}
+env.useBrowserCache = true;
+// CRITICAL: Disable WASM caching via blob URLs because Chrome MV3 CSP strictly
+// blocks dynamic import('blob:chrome-extension://...').
+env.useWasmCache = false;
 
 let extractor: any = null;
 
@@ -24,6 +25,30 @@ self.onmessage = async (event: MessageEvent) => {
 
   try {
     if (type === 'INIT') {
+      const wasmBaseUrl =
+        payload?.wasmBaseUrl ||
+        (typeof chrome !== 'undefined' && chrome.runtime?.getURL
+          ? chrome.runtime.getURL('ort/')
+          : undefined);
+
+      const onnxBackend = (env.backends.onnx ??= {}) as any;
+      const wasmBackend = (onnxBackend.wasm ??= {});
+
+      if (wasmBaseUrl) {
+        const ortBase = wasmBaseUrl.endsWith('/') ? wasmBaseUrl : `${wasmBaseUrl}/`;
+        const paths = {
+          mjs: `${ortBase}ort-wasm-simd-threaded.asyncify.mjs`,
+          wasm: `${ortBase}ort-wasm-simd-threaded.asyncify.wasm`,
+        };
+
+        wasmBackend.wasmPaths = paths;
+        wasmBackend.numThreads = 1;
+        wasmBackend.proxy = false;
+      } else {
+        wasmBackend.numThreads = 1;
+        wasmBackend.proxy = false;
+      }
+
       if (!extractor) {
         extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
           dtype: 'fp32',

@@ -54,6 +54,14 @@ const COLOR_CLASSES: Record<TabGroupColor, string> = {
   grey: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20',
 };
 
+const getSafeHost = (url: string): string => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '') || 'internal';
+  } catch {
+    return 'unknown';
+  }
+};
+
 export const GroupingPreviewDialog: React.FC<GroupingPreviewDialogProps> = ({
   open,
   onOpenChange,
@@ -92,7 +100,13 @@ export const GroupingPreviewDialog: React.FC<GroupingPreviewDialogProps> = ({
   const handleConfirmApply = async () => {
     try {
       setIsApplying(true);
-      await onApply(editedClusters, ungroupedTabs);
+      let clustersToApply = editedClusters;
+      if (editingGroupId && editNameValue.trim()) {
+        clustersToApply = editedClusters.map((c) =>
+          c.id === editingGroupId ? { ...c, name: editNameValue.trim() } : c
+        );
+      }
+      await onApply(clustersToApply, ungroupedTabs);
       onOpenChange(false);
     } finally {
       setIsApplying(false);
@@ -160,7 +174,11 @@ export const GroupingPreviewDialog: React.FC<GroupingPreviewDialogProps> = ({
                             <Input
                               value={editNameValue}
                               onChange={(e) => setEditNameValue(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && handleSaveRename(cluster.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveRename(cluster.id);
+                                if (e.key === 'Escape') setEditingGroupId(null);
+                              }}
+                              onBlur={() => handleSaveRename(cluster.id)}
                               autoFocus
                               className="h-7 text-xs font-semibold py-0"
                             />
@@ -198,27 +216,39 @@ export const GroupingPreviewDialog: React.FC<GroupingPreviewDialogProps> = ({
 
                     {/* Tab List */}
                     <div className="p-2.5 space-y-1.5">
-                      {cluster.tabs.map((tab, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/40 text-xs transition-colors group"
-                        >
-                          <img
-                            src={`https://www.google.com/s2/favicons?domain=${new URL(tab.url).hostname}&sz=32`}
-                            alt=""
-                            className="w-3.5 h-3.5 shrink-0 rounded-xs"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                          <span className="truncate flex-1 text-foreground/90 font-medium">
-                            {tab.title || tab.url}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground shrink-0 font-mono">
-                            {new URL(tab.url).hostname.replace(/^www\./, '')}
-                          </span>
-                        </div>
-                      ))}
+                      {cluster.tabs.map((tab, idx) => {
+                        const host = getSafeHost(tab.url);
+                        const faviconUrl =
+                          host !== 'internal' && host !== 'unknown'
+                            ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=32`
+                            : '';
+
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/40 text-xs transition-colors group"
+                          >
+                            {faviconUrl ? (
+                              <img
+                                src={faviconUrl}
+                                alt=""
+                                className="w-3.5 h-3.5 shrink-0 rounded-xs"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <span className="w-3.5 h-3.5 shrink-0 rounded-xs bg-muted/60" />
+                            )}
+                            <span className="truncate flex-1 text-foreground/90 font-medium">
+                              {tab.title || tab.url}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground shrink-0 font-mono">
+                              {host}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );

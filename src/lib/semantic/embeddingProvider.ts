@@ -152,11 +152,21 @@ export class SemanticEmbeddingProvider implements IEmbeddingProvider {
           this.worker.onerror = (err) => {
             console.error('[TwoTab AI] Worker execution error:', err);
             this.state = 'error';
+            const errorObj = new Error(err.message || 'Worker thread execution error');
+            for (const { reject } of this.pendingRequests.values()) {
+              reject(errorObj);
+            }
+            this.pendingRequests.clear();
           };
         }
 
-        // Send INIT command to worker
-        await this.postWorkerMessage('INIT', {});
+        // Send INIT command to worker with extension base URL for local WASM assets
+        const wasmBaseUrl =
+          typeof chrome !== 'undefined' && chrome.runtime?.getURL
+            ? chrome.runtime.getURL('ort/')
+            : undefined;
+
+        await this.postWorkerMessage('INIT', { wasmBaseUrl });
         this.state = 'ready';
         console.log('[TwoTab AI] Model pipeline successfully initialized.');
       } catch (err: any) {
