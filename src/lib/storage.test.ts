@@ -19,6 +19,8 @@ import {
   exportAsCsv,
   clearAllData,
   runHealthCheck,
+  appendTabGroup,
+  addRecentlyClosedItem,
   getUserPreferences,
   setUserPreferences,
   saveRecentlyClosedItems,
@@ -1271,13 +1273,100 @@ https://site3.com | Site Three
       expect(mockStorageStore.tabGroups).toEqual([]);
     });
 
+    it('Restoration: restoreAllTabGroups preserves non-restored groups when restoring a subset with remove behavior', async () => {
+      mockStorageStore.tabGroups = [
+        { id: 101, date: '2026-08-18', name: 'Group 1', tabs: [{ title: 'T1', url: 'https://site1.com' }] },
+        { id: 102, date: '2026-08-18', name: 'Group 2', tabs: [{ title: 'T2', url: 'https://site2.com' }] },
+        { id: 103, date: '2026-08-18', name: 'Group 3', tabs: [{ title: 'T3', url: 'https://site3.com' }] },
+      ];
+
+      // Restore only Group 1 and Group 3
+      const toRestore: TabGroup[] = [mockStorageStore.tabGroups[0], mockStorageStore.tabGroups[2]];
+
+      const result = await restoreAllTabGroups(toRestore, {
+        protectPinnedTabs: true,
+        restoreDestination: 'new_window',
+        restoreBehavior: 'remove',
+        recentlyClosedLimit: 50,
+        lazyLoadRestoration: 'never',
+      });
+
+      expect(result.count).toBe(2);
+      expect(result.groupsCount).toBe(2);
+      expect(result.removed).toBe(true);
+      // Group 2 MUST still exist and not be wiped!
+      expect(mockStorageStore.tabGroups).toHaveLength(1);
+      expect(mockStorageStore.tabGroups[0].id).toBe(102);
+    });
+
+    it('appendTabGroup: prepends group safely via mutex queue', async () => {
+      mockStorageStore.tabGroups = [
+        { id: 1, date: '2026-08-18', name: 'Old Group', tabs: [{ title: 'T1', url: 'https://old.com' }] },
+      ];
+
+      const newGroup: TabGroup = {
+        id: 2,
+        date: '2026-08-19',
+        name: 'New Group',
+        tabs: [{ title: 'T2', url: 'https://new.com' }],
+      };
+
+      await appendTabGroup(newGroup);
+      expect(mockStorageStore.tabGroups).toHaveLength(2);
+      expect(mockStorageStore.tabGroups[0].id).toBe(2);
+      expect(mockStorageStore.tabGroups[1].id).toBe(1);
+    });
+
+    it('addRecentlyClosedItem: adds item to recentlyClosed and respects limit', async () => {
+      mockStorageStore.recentlyClosed = [
+        { id: 'c1', title: 'Site 1', url: 'https://site1.com', timestamp: '2026-08-18' },
+      ];
+
+      await addRecentlyClosedItem({
+        id: 'c2',
+        title: 'Site 2',
+        url: 'https://site2.com',
+        timestamp: '2026-08-19',
+      });
+
+      expect(mockStorageStore.recentlyClosed).toHaveLength(2);
+      expect(mockStorageStore.recentlyClosed[0].id).toBe('c2');
+      expect(mockStorageStore.recentlyClosed[1].id).toBe('c1');
+    });
+
+    it('unwrapDormantUrl: preserves encoded query parameters without double decoding', () => {
+      const complexUrl = 'https://example.com/search?q=foo%2Bbar&page=1';
+      const dormantUrl = `chrome-extension://twotab/dormant.html?url=${encodeURIComponent(complexUrl)}&title=Search`;
+
+      const unwrapped = unwrapDormantUrl(dormantUrl);
+      expect(unwrapped).toBe(complexUrl);
+
+      // Title unwrap
+      const unwrappedTitle = unwrapDormantTitle('Search', dormantUrl);
+      expect(unwrappedTitle).toBe('Search');
+    });
+
+    it('runHealthCheck: detects invalid tab structures and corrupted recentlyClosed items', async () => {
+      mockStorageStore.tabGroups = [
+        { id: 1, tabs: [{ title: 'Bad Tab', url: 12345 }] }, // invalid URL type
+      ];
+      mockStorageStore.recentlyClosed = [
+        { id: 999, url: null }, // invalid item
+      ];
+
+      const health = await runHealthCheck();
+      expect(health.valid).toBe(false);
+      expect(health.errors.some((e) => e.includes('missing or invalid url'))).toBe(true);
+      expect(health.errors.some((e) => e.includes('recentlyClosed[0]'))).toBe(true);
+    });
+
     it('copyToClipboardSafe: handles empty text and invalid inputs safely', async () => {
       expect(await copyToClipboardSafe('')).toBe(false);
       expect(await copyToClipboardSafe(null as any)).toBe(false);
       expect(await copyToClipboardSafe(undefined as any)).toBe(false);
     });
 
-    it('getRelativeTime: handles timestamps, unix numbers, and distant date intervals', () => {
+    it('getRelativeTime: handles timestamps, unix numbers, distant dates, and returns Unknown for invalid dates', () => {
       const now = Date.now();
       // Seconds
       expect(getRelativeTime(now)).toBe('just now');
@@ -1296,6 +1385,8 @@ https://site3.com | Site Three
       expect(getRelativeTime(Math.floor(now / 1000))).toBe('just now');
       // Number as string
       expect(getRelativeTime(String(now))).toBe('just now');
+      // Invalid date string
+      expect(getRelativeTime('not-a-valid-date')).toBe('Unknown');
     });
   });
 });

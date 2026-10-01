@@ -63,15 +63,19 @@ describe('TwoTab Theme Engine Unit Tests', () => {
   beforeEach(() => {
     mockStorage = {};
 
-    // Mock chrome.storage.local
+    // Mock chrome.storage.local & chrome.runtime
     (globalThis as any).chrome = {
+      runtime: {
+        lastError: null,
+      },
       storage: {
         local: {
           get: vi.fn((key: string) => {
             return Promise.resolve({ [key]: mockStorage[key] });
           }),
-          set: vi.fn((data: Record<string, any>) => {
+          set: vi.fn((data: Record<string, any>, callback?: () => void) => {
             Object.assign(mockStorage, data);
+            if (callback) callback();
             return Promise.resolve();
           }),
         },

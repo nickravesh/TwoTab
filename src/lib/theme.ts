@@ -1,3 +1,5 @@
+import { safeStorageSet } from './storage';
+
 export type ThemePalette =
   | 'midnight'
   | 'obsidian'
@@ -152,7 +154,7 @@ export async function setStoredThemeMode(mode: ThemeMode): Promise<void> {
 
   try {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      await chrome.storage.local.set({ [THEME_STORAGE_KEY]: mode });
+      await safeStorageSet({ [THEME_STORAGE_KEY]: mode });
     }
   } catch (e) {
     console.error('[TwoTab Theme] Error writing stored theme mode:', e);

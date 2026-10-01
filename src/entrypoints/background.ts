@@ -7,6 +7,8 @@ import {
   safeStorageSet,
   unwrapDormantUrl,
   unwrapDormantTitle,
+  appendTabGroup,
+  addRecentlyClosedItem,
 } from '@/lib/storage';
 import {
   HealthScanController,
@@ -20,6 +22,17 @@ import {
 export default defineBackground(() => {
   const getStorageSession = () => chrome.storage.session || chrome.storage.local;
   let activeHealthScanController: HealthScanController | null = null;
+
+  function showActionBadge(text: string, color: string, durationMs = 2500) {
+    if (typeof chrome === 'undefined' || !chrome.action) return;
+    try {
+      chrome.action.setBadgeText({ text });
+      chrome.action.setBadgeBackgroundColor({ color });
+      setTimeout(() => {
+        chrome.action.setBadgeText({ text: '' });
+      }, durationMs);
+    } catch (_) {}
+  }
 
   // ==========================================================================
   // Service Worker Startup: Schema Migration + Health Check + Tab Cache Init
@@ -62,6 +75,9 @@ export default defineBackground(() => {
     if (typeof chrome === 'undefined' || !chrome.contextMenus) return;
     try {
       chrome.contextMenus.removeAll(() => {
+        if (chrome.runtime.lastError) {
+          console.warn('[TwoTab] Error clearing context menus:', chrome.runtime.lastError.message);
+        }
         // Parent Root Menu — Active across tab bar, web page, selection, link, and toolbar icon
         chrome.contextMenus.create({
           id: 'twotab_root',
@@ -117,21 +133,42 @@ export default defineBackground(() => {
   chrome.contextMenus?.onClicked.addListener(async (info, tab) => {
     try {
       if (info.menuItemId === 'twotab_save_active') {
-        if (tab) await saveSpecificTabs([tab], true);
+        if (tab) {
+          const res = await saveSpecificTabs([tab], true);
+          if (res.status === 'success') {
+            showActionBadge('✓', '#10b981');
+          } else {
+            showActionBadge('!', '#f59e0b');
+          }
+        }
       } else if (info.menuItemId === 'twotab_save_selected') {
         const highlighted = await chrome.tabs.query({ currentWindow: true, highlighted: true });
-        if (highlighted && highlighted.length > 0) {
-          await saveSpecificTabs(highlighted, true);
-        } else if (tab) {
-          await saveSpecificTabs([tab], true);
+        const targets = highlighted && highlighted.length > 0 ? highlighted : (tab ? [tab] : []);
+        if (targets.length > 0) {
+          const res = await saveSpecificTabs(targets, true);
+          if (res.status === 'success') {
+            showActionBadge(`${res.count}`, '#10b981');
+          } else {
+            showActionBadge('!', '#f59e0b');
+          }
         }
       } else if (info.menuItemId === 'twotab_save_link') {
         if (info.linkUrl) {
           const title = info.selectionText || info.linkUrl;
-          await saveSpecificTabs([{ url: info.linkUrl, title } as any], false);
+          const res = await saveSpecificTabs([{ url: info.linkUrl, title } as any], false);
+          if (res.status === 'success') {
+            showActionBadge('✓', '#10b981');
+          } else {
+            showActionBadge('!', '#f59e0b');
+          }
         }
       } else if (info.menuItemId === 'twotab_save_window') {
-        await saveCurrentWindowTabs();
+        const res = await saveCurrentWindowTabs();
+        if (res && res.status === 'success') {
+          showActionBadge(`${res.count}`, '#10b981');
+        } else {
+          showActionBadge('!', '#f59e0b');
+        }
       } else if (info.menuItemId === 'twotab_open_dashboard') {
         const url = chrome.runtime.getURL('/tabs.html');
         const existing = await chrome.tabs.query({ url });
@@ -262,9 +299,6 @@ export default defineBackground(() => {
         return;
       }
 
-      const data = await chrome.storage.local.get('recentlyClosed');
-      const recentlyClosed = (data.recentlyClosed as any[]) || [];
-
       const newItem = {
         id: `closed_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
         title: unwrapDormantTitle(cached.title, cached.url) || realUrl,
@@ -272,10 +306,7 @@ export default defineBackground(() => {
         timestamp: new Date().toISOString(),
       };
 
-      const prefs = await getUserPreferences();
-      const limit = prefs.recentlyClosedLimit || 50;
-      const updated = [newItem, ...recentlyClosed].slice(0, limit);
-      await safeStorageSet({ recentlyClosed: updated });
+      await addRecentlyClosedItem(newItem);
     } catch (e) {
       console.error('[TwoTab] Error saving recently closed tab:', e);
     }
@@ -511,17 +542,13 @@ export default defineBackground(() => {
       return { status: 'no_tabs', reason: activeTab.pinned && prefs.protectPinnedTabs ? 'Active tab is pinned and protected' : 'System pages cannot be saved' };
     }
 
-    const data = await chrome.storage.local.get('tabGroups');
-    const tabGroups = (data.tabGroups as any[]) || [];
-
     const newGroup = {
       id: Date.now() + Math.floor(Math.random() * 1000),
       date: new Date().toISOString(),
       name: eligible.title ? (eligible.title.length > 35 ? `${eligible.title.slice(0, 35)}...` : eligible.title) : 'Saved Tab',
       tabs: [{ title: eligible.title, url: eligible.url }]
     };
-    tabGroups.push(newGroup);
-    await safeStorageSet({ tabGroups });
+    await appendTabGroup(newGroup);
 
     if (activeTab.id !== undefined) {
       const windowTabs = await chrome.tabs.query({ currentWindow: true });
@@ -576,8 +603,6 @@ export default defineBackground(() => {
     }
 
     const windowId = tabs[0].windowId;
-    const data = await chrome.storage.local.get('tabGroups');
-    const tabGroups = (data.tabGroups as any[]) || [];
 
     const newGroup = {
       id: Date.now() + Math.floor(Math.random() * 1000),
@@ -585,9 +610,7 @@ export default defineBackground(() => {
       name: `Window Group`,
       tabs: tabData
     };
-    tabGroups.push(newGroup);
-
-    await safeStorageSet({ tabGroups });
+    await appendTabGroup(newGroup);
 
     // Open a new blank tab in the window first
     await chrome.tabs.create({ url: 'chrome://newtab', windowId });
@@ -618,9 +641,6 @@ export default defineBackground(() => {
       return { status: 'no_tabs', reason: 'Tabs are protected or system pages' };
     }
 
-    const data = await chrome.storage.local.get('tabGroups');
-    const tabGroups = (data.tabGroups as any[]) || [];
-
     const groupName = validTabs.length === 1
       ? (validTabs[0].title ? (validTabs[0].title.length > 35 ? `${validTabs[0].title.slice(0, 35)}...` : validTabs[0].title) : 'Saved Tab')
       : `Selected Tabs (${validTabs.length})`;
@@ -632,8 +652,7 @@ export default defineBackground(() => {
       tabs: validTabs,
     };
 
-    tabGroups.push(newGroup);
-    await safeStorageSet({ tabGroups });
+    await appendTabGroup(newGroup);
 
     if (closeTabs) {
       const tabIds = tabsToSave

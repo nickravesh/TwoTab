@@ -1,5 +1,6 @@
 import {
   getGroups,
+  saveGroups,
   safeStorageSet,
   createRollingBackup,
   type TabGroup,
@@ -975,7 +976,7 @@ export async function applyBatchRedirects(
   });
 
   if (updatedCount > 0) {
-    await safeStorageSet({ tabGroups: updatedGroups });
+    await saveGroups(updatedGroups);
 
     // Update local health cache to reflect the new URLs
     const cache = await getLinkHealthCache();
@@ -1046,7 +1047,7 @@ export async function quarantineBrokenLinks(
   };
 
   updatedGroups.unshift(quarantineGroup);
-  await safeStorageSet({ tabGroups: updatedGroups });
+  await saveGroups(updatedGroups);
 
   return { quarantinedCount: quarantinedTabs.length, newGroupId };
 }
@@ -1091,7 +1092,7 @@ export async function purgeBrokenLinks(
   }
 
   if (purgedCount > 0) {
-    await safeStorageSet({ tabGroups: updatedGroups });
+    await saveGroups(updatedGroups);
   }
 
   return { purgedCount, affectedGroupsCount };

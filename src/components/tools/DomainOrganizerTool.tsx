@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { type TabGroup, type TabGroupColor } from '@/lib/storage';
+import { type TabGroup, type TabGroupColor, copyToClipboardSafe } from '@/lib/storage';
 import {
   extractDomainInfo,
   getLibraryDomainClusters,
@@ -199,13 +199,11 @@ export function DomainOrganizerTool({ tabGroups, onDataMutated }: DomainOrganize
     }
   };
 
-  const copyUrl = (url: string) => {
-    try {
-      navigator.clipboard.writeText(url);
+  const copyUrl = async (url: string) => {
+    const success = await copyToClipboardSafe(url);
+    if (success) {
       setCopiedTabUrl(url);
       setTimeout(() => setCopiedTabUrl(null), 2000);
-    } catch (err) {
-      console.error('Failed to copy URL:', err);
     }
   };
 

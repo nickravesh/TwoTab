@@ -279,7 +279,7 @@ export interface HealthCheckResult {
 export async function runHealthCheck(): Promise<HealthCheckResult> {
   const errors: string[] = [];
 
-  const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups', '_schemaVersion']);
+  const data = await chrome.storage.local.get(['tabGroups', 'archivedGroups', 'recentlyClosed', '_schemaVersion']);
 
   // Validate tabGroups structure
   if (data.tabGroups !== undefined && !Array.isArray(data.tabGroups)) {
@@ -288,6 +288,11 @@ export async function runHealthCheck(): Promise<HealthCheckResult> {
     data.tabGroups.forEach((g: any, i: number) => {
       if (typeof g?.id !== 'number') errors.push(`tabGroups[${i}] has invalid or missing id`);
       if (!Array.isArray(g?.tabs)) errors.push(`tabGroups[${i}] has invalid or missing tabs array`);
+      else {
+        g.tabs.forEach((t: any, j: number) => {
+          if (!t || typeof t.url !== 'string') errors.push(`tabGroups[${i}].tabs[${j}] has missing or invalid url`);
+        });
+      }
     });
   }
 
@@ -298,6 +303,22 @@ export async function runHealthCheck(): Promise<HealthCheckResult> {
     data.archivedGroups.forEach((g: any, i: number) => {
       if (typeof g?.id !== 'number') errors.push(`archivedGroups[${i}] has invalid or missing id`);
       if (!Array.isArray(g?.tabs)) errors.push(`archivedGroups[${i}] has invalid or missing tabs array`);
+      else {
+        g.tabs.forEach((t: any, j: number) => {
+          if (!t || typeof t.url !== 'string') errors.push(`archivedGroups[${i}].tabs[${j}] has missing or invalid url`);
+        });
+      }
+    });
+  }
+
+  // Validate recentlyClosed structure
+  if (data.recentlyClosed !== undefined && !Array.isArray(data.recentlyClosed)) {
+    errors.push('recentlyClosed exists but is not an array — data may be corrupted');
+  } else if (Array.isArray(data.recentlyClosed)) {
+    data.recentlyClosed.forEach((item: any, i: number) => {
+      if (!item || typeof item.id !== 'string' || typeof item.url !== 'string') {
+        errors.push(`recentlyClosed[${i}] has invalid or missing id/url`);
+      }
     });
   }
 
@@ -323,6 +344,16 @@ export async function runHealthCheck(): Promise<HealthCheckResult> {
 export async function getRecentlyClosedItems(): Promise<ClosedTabItem[]> {
   const data = await chrome.storage.local.get('recentlyClosed');
   return (data.recentlyClosed as ClosedTabItem[]) || [];
+}
+
+export async function addRecentlyClosedItem(item: ClosedTabItem): Promise<void> {
+  const prefs = await getUserPreferences();
+  const limit = prefs.recentlyClosedLimit || 50;
+  return storageQueue.enqueue(async () => {
+    const items = await getRecentlyClosedItems();
+    const updated = [item, ...items.filter(i => i.id !== item.id)].slice(0, limit);
+    await safeStorageSet({ recentlyClosed: updated });
+  });
 }
 
 export async function saveRecentlyClosedItems(items: ClosedTabItem[]): Promise<void> {
@@ -355,7 +386,18 @@ export async function clearRecentlyClosedItems(): Promise<void> {
 
 export async function getGroups(): Promise<TabGroup[]> {
   const data = await chrome.storage.local.get('tabGroups');
-  return (data.tabGroups as TabGroup[]) || [];
+  const raw = (data.tabGroups as TabGroup[]) || [];
+  return raw.map((g) => ({
+    ...g,
+    tabs: Array.isArray(g?.tabs) ? g.tabs : [],
+  }));
+}
+
+export async function appendTabGroup(newGroup: TabGroup): Promise<void> {
+  return storageQueue.enqueue(async () => {
+    const groups = await getGroups();
+    await safeStorageSet({ tabGroups: [newGroup, ...groups] });
+  });
 }
 
 export async function saveGroups(groups: TabGroup[]): Promise<void> {
@@ -516,7 +558,7 @@ export function unwrapDormantUrl(url?: string): string {
     try {
       const parsed = new URL(url);
       const target = parsed.searchParams.get('url');
-      if (target) return decodeURIComponent(target);
+      if (target) return target;
     } catch (_) {}
   }
   return url;
@@ -528,7 +570,7 @@ export function unwrapDormantTitle(title?: string, url?: string): string {
     try {
       const parsed = new URL(url);
       const target = parsed.searchParams.get('title');
-      if (target) return decodeURIComponent(target);
+      if (target) return target;
     } catch (_) {}
   }
   return title || '';
@@ -770,7 +812,12 @@ export async function restoreAllTabGroups(
 
   let removed = false;
   if (userPrefs.restoreBehavior === 'remove') {
-    await safeStorageSet({ tabGroups: [] });
+    const restoredIds = new Set(groups.map((g) => g.id));
+    await storageQueue.enqueue(async () => {
+      const current = await getGroups();
+      const remaining = current.filter((g) => !restoredIds.has(g.id));
+      await safeStorageSet({ tabGroups: remaining });
+    });
     removed = true;
   }
 
@@ -783,7 +830,11 @@ export async function restoreAllTabGroups(
 
 export async function getArchivedGroups(): Promise<TabGroup[]> {
   const data = await chrome.storage.local.get('archivedGroups');
-  return (data.archivedGroups as TabGroup[]) || [];
+  const raw = (data.archivedGroups as TabGroup[]) || [];
+  return raw.map((g) => ({
+    ...g,
+    tabs: Array.isArray(g?.tabs) ? g.tabs : [],
+  }));
 }
 
 export async function saveArchivedGroups(groups: TabGroup[]): Promise<void> {
@@ -1135,46 +1186,50 @@ export async function importData(
         ids.add(g.id);
       }
 
-      await safeStorageSet({
-        tabGroups: importedTabGroups,
-        archivedGroups: importedArchivedGroups,
+      return storageQueue.enqueue(async () => {
+        await safeStorageSet({
+          tabGroups: importedTabGroups,
+          archivedGroups: importedArchivedGroups,
+        });
+        return true;
       });
-      return true;
     }
 
-    // Merge mode: re-key colliding IDs and append to existing groups
-    const currentTabGroups = await getGroups();
-    const currentArchivedGroups = await getArchivedGroups();
-    const existingIds = new Set<number>([
-      ...currentTabGroups.map(g => g.id),
-      ...currentArchivedGroups.map(g => g.id),
-    ]);
+    return storageQueue.enqueue(async () => {
+      // Merge mode: re-key colliding IDs and append to existing groups
+      const currentTabGroups = await getGroups();
+      const currentArchivedGroups = await getArchivedGroups();
+      const existingIds = new Set<number>([
+        ...currentTabGroups.map(g => g.id),
+        ...currentArchivedGroups.map(g => g.id),
+      ]);
 
-    let maxId = Math.max(0, ...Array.from(existingIds), Date.now());
+      let maxId = Math.max(0, ...Array.from(existingIds), Date.now());
 
-    const rekeyedTabGroups = importedTabGroups.map(g => {
-      if (existingIds.has(g.id)) {
-        maxId++;
-        return { ...g, id: maxId };
-      }
-      existingIds.add(g.id);
-      return g;
+      const rekeyedTabGroups = importedTabGroups.map(g => {
+        if (existingIds.has(g.id)) {
+          maxId++;
+          return { ...g, id: maxId };
+        }
+        existingIds.add(g.id);
+        return g;
+      });
+
+      const rekeyedArchivedGroups = importedArchivedGroups.map(g => {
+        if (existingIds.has(g.id)) {
+          maxId++;
+          return { ...g, id: maxId };
+        }
+        existingIds.add(g.id);
+        return g;
+      });
+
+      await safeStorageSet({
+        tabGroups: [...currentTabGroups, ...rekeyedTabGroups],
+        archivedGroups: [...currentArchivedGroups, ...rekeyedArchivedGroups],
+      });
+      return true;
     });
-
-    const rekeyedArchivedGroups = importedArchivedGroups.map(g => {
-      if (existingIds.has(g.id)) {
-        maxId++;
-        return { ...g, id: maxId };
-      }
-      existingIds.add(g.id);
-      return g;
-    });
-
-    await safeStorageSet({
-      tabGroups: [...currentTabGroups, ...rekeyedTabGroups],
-      archivedGroups: [...currentArchivedGroups, ...rekeyedArchivedGroups],
-    });
-    return true;
   } catch (e) {
     console.error('[TwoTab] Import failed:', e);
     return false;
@@ -1255,18 +1310,20 @@ export async function importOneTabOrPlainText(
 
     const totalTabsCount = parsedGroups.reduce((sum, g) => sum + g.tabs.length, 0);
 
-    if (mode === 'replace') {
-      await safeStorageSet({ tabGroups: parsedGroups });
-    } else {
-      const currentGroups = await getGroups();
-      await safeStorageSet({ tabGroups: [...currentGroups, ...parsedGroups] });
-    }
+    return storageQueue.enqueue(async () => {
+      if (mode === 'replace') {
+        await safeStorageSet({ tabGroups: parsedGroups });
+      } else {
+        const currentGroups = await getGroups();
+        await safeStorageSet({ tabGroups: [...currentGroups, ...parsedGroups] });
+      }
 
-    return {
-      success: true,
-      importedGroupsCount: parsedGroups.length,
-      importedTabsCount: totalTabsCount,
-    };
+      return {
+        success: true,
+        importedGroupsCount: parsedGroups.length,
+        importedTabsCount: totalTabsCount,
+      };
+    });
   } catch (e) {
     console.error('[TwoTab] OneTab / Plain Text import failed:', e);
     return { success: false, importedGroupsCount: 0, importedTabsCount: 0 };
@@ -1357,11 +1414,13 @@ export async function restoreFromRollingBackup(timestamp: number): Promise<boole
   const target = snapshots.find(s => s.timestamp === timestamp);
   if (!target || !target.data) return false;
 
-  await safeStorageSet({
-    tabGroups: target.data.tabGroups || [],
-    archivedGroups: target.data.archivedGroups || [],
+  return storageQueue.enqueue(async () => {
+    await safeStorageSet({
+      tabGroups: target.data.tabGroups || [],
+      archivedGroups: target.data.archivedGroups || [],
+    });
+    return true;
   });
-  return true;
 }
 
 // =============================================================================
@@ -1382,10 +1441,12 @@ export function getRelativeTime(input: string | number): string {
     }
   }
 
+  if (isNaN(date.getTime())) return 'Unknown';
+
   const now = new Date();
   const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  if (isNaN(diffSec) || diffSec < 0 || diffSec < 60) return 'just now';
+  if (diffSec < 0 || diffSec < 60) return 'just now';
   const diffMin = Math.floor(diffSec / 60);
   if (diffMin < 60) return `${diffMin}m ago`;
   const diffHr = Math.floor(diffMin / 60);

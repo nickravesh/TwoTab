@@ -223,6 +223,10 @@ export function LinkHealthTool({ tabGroups, onDataMutated }: LinkHealthToolProps
     chrome.runtime.sendMessage(
       { action: 'startLinkHealthScan', forceRefresh },
       (response) => {
+        if (chrome.runtime.lastError) {
+          console.warn('[TwoTab LinkHealth] Start scan message failed:', chrome.runtime.lastError.message);
+          return;
+        }
         if (response && response.status === 'offline') {
           setOfflineAlert(response.message || 'No internet connection detected. Please check your network connection.');
           return;
@@ -246,6 +250,10 @@ export function LinkHealthTool({ tabGroups, onDataMutated }: LinkHealthToolProps
     setProgress((prev) => ({ ...prev, isPaused: nextPaused }));
     const action = nextPaused ? 'pauseLinkHealthScan' : 'resumeLinkHealthScan';
     chrome.runtime.sendMessage({ action }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.warn('[TwoTab LinkHealth] Toggle pause message failed:', chrome.runtime.lastError.message);
+        return;
+      }
       if (response && response.state) {
         setProgress((prev) => ({ ...prev, isPaused: response.state.isPaused }));
       }
@@ -254,6 +262,9 @@ export function LinkHealthTool({ tabGroups, onDataMutated }: LinkHealthToolProps
 
   const handleStopScan = () => {
     chrome.runtime.sendMessage({ action: 'stopLinkHealthScan' }, () => {
+      if (chrome.runtime.lastError) {
+        console.warn('[TwoTab LinkHealth] Stop scan message failed:', chrome.runtime.lastError.message);
+      }
       setProgress((prev) => ({ ...prev, isScanning: false, isPaused: false, isWaitingForNetwork: false }));
     });
   };
