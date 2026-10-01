@@ -120,7 +120,10 @@ export interface IEmbeddingProvider {
   getState(): EmbeddingProviderState;
   isModelCached(): Promise<boolean>;
   initialize(onProgress?: (progress: ModelDownloadProgress) => void): Promise<void>;
-  generateEmbeddings(texts: string[]): Promise<Float32Array[]>;
+  generateEmbeddings(
+    texts: string[],
+    onProgress?: (progress: ModelDownloadProgress) => void
+  ): Promise<Float32Array[]>;
   terminate(): Promise<void>;
   clearCache(): void;
   getCacheSize(): number;

@@ -69,19 +69,55 @@ self.onmessage = async (event: MessageEvent) => {
         return;
       }
 
-      const output = await extractor(texts, {
-        pooling: 'mean',
-        normalize: true,
-      });
-
       const dims = 384;
-      const flatData = output.data as Float32Array;
       const embeddings: Float32Array[] = [];
 
+      // Process sequentially (batch_size = 1) to eliminate WebAssembly buffer/integer
+      // overflow risks (ONNX Runtime SafeIntOnOverflow in CalcMemSizeForArrayWithAlignment)
+      // and keep WASM linear heap allocations minimal.
       for (let i = 0; i < texts.length; i++) {
-        const start = i * dims;
-        const end = start + dims;
-        embeddings.push(flatData.slice(start, end));
+        const rawText = texts[i];
+        const text = rawText && rawText.trim().length > 0 ? rawText.trim() : 'Untitled';
+
+        let vec: Float32Array;
+        try {
+          const output = await extractor(text, {
+            pooling: 'mean',
+            normalize: true,
+          });
+
+          const flatData = output.data as Float32Array;
+          vec = new Float32Array(flatData.slice(0, dims));
+
+          // Immediately free underlying ONNX WebAssembly tensor memory
+          if (output && typeof output.dispose === 'function') {
+            output.dispose();
+          }
+        } catch (itemErr: any) {
+          console.warn(`[TwoTab AI] Item inference failed at index ${i}, retrying with truncated prompt:`, itemErr);
+          const fallbackOutput = await extractor(text.slice(0, 120), {
+            pooling: 'mean',
+            normalize: true,
+          });
+          const flatData = fallbackOutput.data as Float32Array;
+          vec = new Float32Array(flatData.slice(0, dims));
+          if (fallbackOutput && typeof fallbackOutput.dispose === 'function') {
+            fallbackOutput.dispose();
+          }
+        }
+
+        embeddings.push(vec);
+
+        // Emit progress updates so the user gets smooth feedback during embedding
+        self.postMessage({
+          type: 'PROGRESS',
+          payload: {
+            status: 'embedding',
+            loaded: i + 1,
+            total: texts.length,
+            progress: Math.round(((i + 1) / texts.length) * 100),
+          },
+        });
       }
 
       self.postMessage({ id, type: 'EMBED_SUCCESS', payload: { embeddings } });

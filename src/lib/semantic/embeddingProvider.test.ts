@@ -80,6 +80,52 @@ describe('Semantic Embedding Provider (embeddingProvider.ts)', () => {
     expect(p1).toBe(p2);
   });
 
+  it('handles empty input array returning immediately', async () => {
+    provider.setTestInferenceEngine(async () => []);
+    await provider.initialize();
+    const res = await provider.generateEmbeddings([]);
+    expect(res).toEqual([]);
+  });
+
+  it('handles partial in-memory cache hits correctly preserving order', async () => {
+    let calledWith: string[] = [];
+    provider.setTestInferenceEngine(async (texts) => {
+      calledWith = [...texts];
+      return texts.map((t) => {
+        const v = new Float32Array(384);
+        v[0] = t.length;
+        return v;
+      });
+    });
+
+    await provider.initialize();
+    // Cache 'first'
+    await provider.generateEmbeddings(['first']);
+    expect(calledWith).toEqual(['first']);
+
+    // Now request ['first', 'second', 'first', 'third']
+    const results = await provider.generateEmbeddings(['first', 'second', 'first', 'third']);
+    // Only 'second' and 'third' should have been passed to inference engine
+    expect(calledWith).toEqual(['second', 'third']);
+    expect(results).toHaveLength(4);
+    expect(results[0][0]).toBe(5); // 'first'.length
+    expect(results[1][0]).toBe(6); // 'second'.length
+    expect(results[2][0]).toBe(5); // 'first'.length
+    expect(results[3][0]).toBe(5); // 'third'.length
+  });
+
+  it('accepts onProgress callback during generateEmbeddings', async () => {
+    const progressSpy = vi.fn();
+    provider.setTestInferenceEngine(async (texts) => {
+      return texts.map(() => new Float32Array(384));
+    });
+
+    await provider.initialize();
+    await provider.generateEmbeddings(['item1', 'item2'], progressSpy);
+    // Provider state is ready
+    expect(provider.getState()).toBe('ready');
+  });
+
   it('checkBrowserModelCache returns false when cache API is empty or absent', async () => {
     const res = await checkBrowserModelCache();
     expect(typeof res).toBe('boolean');

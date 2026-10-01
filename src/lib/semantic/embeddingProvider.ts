@@ -180,9 +180,16 @@ export class SemanticEmbeddingProvider implements IEmbeddingProvider {
     return this.initPromise;
   }
 
-  public async generateEmbeddings(texts: string[]): Promise<Float32Array[]> {
+  public async generateEmbeddings(
+    texts: string[],
+    onProgress?: (progress: ModelDownloadProgress) => void
+  ): Promise<Float32Array[]> {
     if (this.state !== 'ready') {
       throw new Error(`[TwoTab AI] Provider is not ready. Current state: ${this.state}`);
+    }
+
+    if (onProgress) {
+      this.onProgressCallback = onProgress;
     }
 
     if (!texts || texts.length === 0) {

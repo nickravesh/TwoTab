@@ -1208,6 +1208,7 @@ function AppContent() {
       if (aiCancelledRef.current) return;
 
       setAiProgressStage('embedding');
+      setAiDownloadProgress(null);
       const allTabs: Tab[] = targets.flatMap((g) => g.tabs);
       if (allTabs.length < 2) {
         setAiProgressOpen(false);
@@ -1218,7 +1219,10 @@ function AppContent() {
       const normalizedMetas = allTabs.map((t) => normalizeTab(t));
       const prompts = normalizedMetas.map((m) => m.semanticPrompt);
 
-      const embeddings = await provider.generateEmbeddings(prompts);
+      const embeddings = await provider.generateEmbeddings(prompts, (progress) => {
+        if (aiCancelledRef.current) return;
+        setAiDownloadProgress(progress);
+      });
       if (aiCancelledRef.current) return;
 
       setAiProgressStage('clustering');

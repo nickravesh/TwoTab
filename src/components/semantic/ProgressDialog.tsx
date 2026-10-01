@@ -101,8 +101,12 @@ export const ProgressDialog: React.FC<ProgressDialogProps> = ({
       }
       case 'loading':
         return 'Compiling single-threaded WebAssembly execution pipeline...';
-      case 'embedding':
+      case 'embedding': {
+        if (downloadProgress?.loaded && downloadProgress?.total) {
+          return `Generating vector embeddings (${downloadProgress.loaded} of ${downloadProgress.total} tabs)...`;
+        }
         return 'Generating normalized 384-dimensional vector embeddings for tab titles and domains...';
+      }
       case 'clustering':
         return 'Computing cosine similarities and running complete-linkage agglomerative clustering...';
       case 'error':
@@ -130,7 +134,7 @@ export const ProgressDialog: React.FC<ProgressDialogProps> = ({
         {stage !== 'error' && (
           <div className="py-2 space-y-2">
             <div className="w-full bg-muted/60 h-2 rounded-full overflow-hidden relative">
-              {stage === 'downloading' && downloadProgress?.progress !== undefined ? (
+              {(stage === 'downloading' || stage === 'embedding') && downloadProgress?.progress !== undefined ? (
                 <div
                   className="bg-primary h-full transition-all duration-300 rounded-full"
                   style={{ width: `${Math.min(100, Math.max(0, downloadProgress.progress))}%` }}

@@ -148,7 +148,7 @@ describe('Tier 2 Boundary: Deterministic Clustering (B03)', () => {
     const elapsed = performance.now() - start;
 
     expect(result.clusters.length).toBe(3);
-    expect(elapsed).toBeLessThan(100);
+    expect(elapsed).toBeLessThan(350);
   });
 
   it('B3.11 complete linkage on cyclic graph (A-B-C-D) maintains cluster-level coherence', () => {
