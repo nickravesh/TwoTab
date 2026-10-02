@@ -396,38 +396,63 @@ export function cleanTabTitle(rawTitle?: string, domain?: string): string {
   let title = rawTitle.trim();
   if (!title) return '';
 
-  // 1. Decode HTML entities and normalize typographic curly quotes
+  // 1. Strip invisible bidirectional formatting marks
+  title = title.replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '');
+
+  // 2. Decode HTML entities and normalize typographic curly quotes
   title = decodeHtmlEntities(title);
   title = title.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
 
-  // 2. Strip notification badge prefixes like (3) or [99+]
+  // 3. Strip notification badge prefixes like (3) or [99+]
   title = title.replace(NOTIFICATION_BADGE_REGEX, '');
 
-  // 2b. Strip trailing reddit subreddit suffixes (e.g. ": r/applehelp" or "- r/openclaw")
+  // 3b. Strip trailing email suffixes (e.g. " - user@gmail.com - Gmail")
+  title = title.replace(/\s*[-–—|•/·:]\s*[\w.-]+@[\w.-]+\.\w+\s*[-–—|•/·:]\s*Gmail$/i, '').trim();
+
+  // 3c. Strip leading URL prefixes, query strings, and hash fragments from raw title (e.g. "digikala.com/product/dkp-123/... -> ...")
+  if (/^(?:https?:\/\/)?(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/|$)/i.test(title)) {
+    title = title.replace(/[?#][^]*$/, '').trim();
+    if (title.includes('%')) {
+      try {
+        title = decodeURIComponent(title);
+      } catch {
+        // preserve as-is if malformed
+      }
+    }
+    const urlPrefixMatch = title.match(/^(?:https?:\/\/)?(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s\/]+)*\/\s*(.*)$/);
+    if (urlPrefixMatch && urlPrefixMatch[1] && urlPrefixMatch[1].trim().length >= 2) {
+      title = urlPrefixMatch[1].trim();
+    }
+    // Strip numeric identifier prefixes and file extensions from path slugs (e.g. "37-koleposhti" -> "koleposhti")
+    title = title.replace(/^(?:\d+-)+/g, '');
+    title = title.replace(/\.(?:html?|php|aspx?|jsp)$/i, '');
+  }
+
+  // 4. Strip trailing reddit subreddit suffixes (e.g. ": r/applehelp" or "- r/openclaw")
   title = title.replace(/\s*[-–—|•/·:]\s*r\/[a-zA-Z0-9_]+$/i, '').trim();
 
-  // 2c. Normalize inline subreddit mentions (e.g. "r/openclaw" -> "openclaw")
+  // 4b. Normalize inline subreddit mentions (e.g. "r/openclaw" -> "openclaw")
   title = title.replace(/\br\/([a-zA-Z0-9_]+)\b/g, '$1');
 
-  // 3. Strip common brand suffixes (only if remaining text is at least 2 chars)
+  // 5. Strip common brand suffixes (only if remaining text is at least 2 chars)
   const strippedSuffix = title.replace(COMMON_BRAND_SUFFIX_REGEX, '').trim();
   if (strippedSuffix.length >= 2) {
     title = strippedSuffix;
   }
 
-  // 4. Strip common brand prefixes (only if remaining text is at least 2 chars)
+  // 6. Strip common brand prefixes (only if remaining text is at least 2 chars)
   const strippedPrefix = title.replace(COMMON_BRAND_PREFIX_REGEX, '').trim();
   if (strippedPrefix.length >= 2) {
     title = strippedPrefix;
   }
 
-  // 5. Strip generic course/tutorial prefixes (only if remaining text is at least 2 chars)
+  // 7. Strip generic course/tutorial prefixes (only if remaining text is at least 2 chars)
   const strippedTutorial = title.replace(COMMON_TUTORIAL_PREFIX_REGEX, '').trim();
   if (strippedTutorial.length >= 2) {
     title = strippedTutorial;
   }
 
-  // 5a. Strip e-commerce transactional prefixes
+  // 7a. Strip e-commerce transactional prefixes
   const strippedEcommerce = title.replace(ECOMMERCE_PREFIX_REGEX, '').trim();
   if (strippedEcommerce.length >= 2) {
     title = strippedEcommerce;
@@ -437,13 +462,13 @@ export function cleanTabTitle(rawTitle?: string, domain?: string): string {
     title = strippedEnglishShop;
   }
 
-  // 5b. Strip Pinterest pin prefix ("Pin by Sarah on ...")
+  // 7b. Strip Pinterest pin prefix ("Pin by Sarah on ...")
   const strippedPin = title.replace(PINTEREST_PIN_PREFIX_REGEX, '').trim();
   if (strippedPin.length >= 2) {
     title = strippedPin;
   }
 
-  // 6. Strip domain-specific brand suffix if domain provided
+  // 8. Strip domain-specific brand suffix if domain provided
   if (domain) {
     const baseName = domain.replace(/^(www\.|m\.)/, '').split('.')[0];
     if (baseName && baseName.length > 2 && !['chrome', 'local', 'data', 'about'].includes(baseName)) {
@@ -455,7 +480,7 @@ export function cleanTabTitle(rawTitle?: string, domain?: string): string {
     }
   }
 
-  // 7. Collapse whitespace and trim hanging punctuation
+  // 9. Collapse whitespace and trim hanging punctuation
   title = title.replace(/\s+/g, ' ').replace(/^[-–—|•/·:\s]+|[-–—|•/·:\s]+$/g, '').trim();
 
   return title;
@@ -475,10 +500,17 @@ const LANGUAGE_CODE_REGEX = /^(en|en-us|en-gb|es|fr|de|ja|zh|zh-cn|ru|ko|pt|it)$
 export const GENERIC_PATH_ROUTING_TOKENS: ReadonlySet<string> = new Set([
   'watch', 'pin', 'pins', 'course', 'courses', 'document', 'documents',
   'feed', 'trending', 'video', 'videos',
-  // E-commerce catalog routing tokens
+  // AI conversation routing
+  'c', 'chat', 'app', 'thread', 'threads', 'share', 'p',
+  // Blog, CMS, and article routing
+  'pages', 'post', 'entry', 'entries', 'article', 'articles', 'blog',
+  // E-commerce & catalog routing tokens
+  'category', 'categories', 'cat', 'collection', 'collections', 'archive',
   'product', 'products', 'goods', 'kala', 'dp', 'gp',
   // Navigation routing tokens
   'detail', 'details', 'view', 'show',
+  // Standard OS filesystem root directory names (for file:// schemes)
+  'users', 'home', 'usr', 'var', 'etc', 'tmp', 'desktop', 'downloads', 'documents', 'pictures', 'videos', 'music',
 ]);
 
 /**
@@ -510,7 +542,7 @@ export function extractSanitizedPathSegments(
       // Skip trivial or index segments
       if (!s || s.toLowerCase() === 'index') continue;
 
-      // Filter generic routing noise tokens (e.g. /watch, /pin, /course, /document, /product)
+      // Filter generic routing noise tokens (e.g. /watch, /pin, /course, /document, /product, /category)
       if (GENERIC_PATH_ROUTING_TOKENS.has(s.toLowerCase())) {
         continue;
       }
@@ -587,6 +619,10 @@ export const MULTI_TOPIC_PLATFORMS: ReadonlySet<string> = new Set([
   // Search & social
   'google.com', 'bing.com', 'pinterest.com', 'reddit.com',
   'twitter.com', 'x.com', 'facebook.com', 'instagram.com',
+  // Conversational AI assistants & LLM portals
+  'chatgpt.com', 'claude.ai', 'gemini.google.com', 'perplexity.ai', 'poe.com', 'groq.com', 'mistral.ai',
+  // Local filesystem storage
+  'local-file',
   // Mega e-commerce platforms (products of wildly different categories)
   'digikala.com', 'torob.com', 'emalls.ir', 'amazon.com', 'ebay.com',
   'aliexpress.com', 'walmart.com', 'target.com', 'etsy.com',
@@ -663,24 +699,44 @@ export const GENERIC_PAGE_TITLES: ReadonlySet<string> = new Set([
   'home', 'homepage', 'welcome', 'official site', 'dashboard', 'new tab', 'untitled',
   'login', 'signin', 'sign in', 'signup', 'sign up', 'register', 'portal', 'index',
   'search', 'feed', 'explore', 'notifications', 'messages', 'settings', 'account',
-  'profile', 'inbox', 'activity', 'overview', 'main', 'start', 'getting started',
+  'profile', 'inbox', 'activity', 'overview', 'main', 'start', 'getting started', 'get started',
   'watch later', 'subscriptions', 'history', 'library', 'trending',
+  'repository search results', 'search results', 'results',
   'error', 'error 403', '403 forbidden', 'error 403 (forbidden)', '403', '404',
   '404 not found', 'page not found', 'domain blocked', 'blocked', 'access denied',
-  'pin', 'pins', 'quick saves',
+  'pin', 'pins', 'quick saves', 'files', 'dump', 'category', 'categories',
   'pricing', 'plans', 'pricing plans', 'privacy policy', 'terms', 'terms of service',
   'terms of use', 'about', 'about us', 'contact', 'contact us', 'faq',
+  // Multilingual / Persian generic navigation, auth, and catalog titles
+  'ورود', 'ثبت نام', 'صفحه اصلی', 'صفحه', 'جستجو', 'جستجوی وب', 'جستجوی', 'نتایج',
+  'دانلود', 'آپلود', 'حساب کاربری', 'پروفایل', 'تنظیمات', 'سامانه', 'سیستم', 'سبد خرید',
+  'خرید', 'قیمت', 'فروش', 'فروشگاه',
 ]);
 
 export const INFRASTRUCTURE_STOPWORDS: ReadonlySet<string> = new Set([
   'com', 'org', 'net', 'edu', 'gov', 'mil', 'io', 'ai', 'co', 'app', 'dev', 'ir', 'uk', 'de', 'fr', 'nl', 'ca', 'au', 'jp', 'cn', 'ru', 'ch', 'se', 'no', 'es', 'it', 'br', 'in', 'me', 'tv', 'cc', 'xyz', 'info', 'biz', 'online', 'site', 'store', 'tech',
   'www', 'm', 'mobile', 'api', 'web', 'mail', 'static', 'cdn', 'assets', 'img', 'media', 'download', 'downloads', 'index', 'html', 'php', 'aspx', 'jsp',
+  // Archive, packaging, and binary file extensions
+  'pdf', 'zip', 'rar', 'tar', 'gz', '7z', 'mhtml', 'dmg', 'pkg', 'iso', 'exe', 'bin', 'apk', 'ipa',
+  // Generic infrastructure, routing, and directory tokens
   'http', 'https', 'pin', 'pins', 'post', 'posts', 'view', 'views', 'photo', 'photos', 'item', 'items', 'product', 'products', 'watch', 'video', 'videos', 'channel',
+  'tools', 'dump', 'files', 'upload', 'dl', 'category', 'categories',
+  // Commercial transactional and navigation tokens
+  'buy', 'price', 'pricing', 'shop', 'store', 'order', 'cart', 'checkout', 'cheap', 'free', 'sale', 'discount',
+  'خرید', 'قیمت', 'فروش', 'فروشگاه', 'سفارش', 'ارزان', 'تخفیف', 'رایگان', 'آنلاین', 'اینترنتی',
+  'ورود', 'صفحه', 'سامانه', 'سیستم', 'برنامه', 'فایل', 'دانلود', 'آپلود', 'جستجو', 'وب',
 ]);
 
 const INFORMATIVENESS_STOPWORDS: ReadonlySet<string> = new Set([
-  'a', 'an', 'the', 'and', 'or', 'in', 'of', 'to', 'for', 'with', 'on', 'at', 'by',
+  'a', 'an', 'the', 'and', 'or', 'in', 'of', 'to', 'for', 'with', 'without', 'on', 'at', 'by',
   'from', 'about', 'is', 'are', 'was', 'were', 'it', 'its', 'as', 'vs',
+  // Universal Persian grammatical connectors and prepositions
+  'بدون', 'با', 'بی', 'در', 'از', 'به', 'برای', 'تا', 'بر', 'روی', 'زیر', 'بین',
+  'درباره', 'مورد', 'چون', 'اگر', 'که', 'این', 'آن', 'هم', 'نیز', 'یا', 'و',
+  'اما', 'ولی', 'باید', 'شاید', 'دیگر', 'همه', 'هر', 'هیچ', 'چند', 'بیشتر', 'کمتر',
+  'خیلی', 'زیاد', 'چرا', 'چگونه', 'چطور', 'کجا', 'کی', 'چه', 'کدام', 'وقتی',
+  'شدن', 'شد', 'شده', 'کردن', 'کرد', 'کرده', 'بودن', 'بود', 'بوده',
+  'داشتن', 'داشت', 'داشته', 'است', 'هست', 'نیست',
 ]);
 
 /**
@@ -743,7 +799,7 @@ export function calculateTabInformativeness(
       /\b(فروشگاه اینترنتی|آکادمی آنلاین|صفحه اصلی)\b/i.test(titleLower));
 
   // Count distinct substantive content words in cleanTitle (excluding pure numbers, hex hashes, and infrastructure words)
-  const titleTokens = titleLower.match(/[a-zA-Z0-9\u4e00-\u9fa5]+/g) || [];
+  const titleTokens = titleLower.match(/[\p{L}\p{N}]+/gu) || [];
   const contentWords = titleTokens.filter(
     (w) =>
       w.length >= 2 &&
@@ -755,6 +811,15 @@ export function calculateTabInformativeness(
       !GENERIC_PAGE_TITLES.has(w)
   );
   const distinctContentWords = new Set(contentWords).size;
+
+  // Check for opaque file downloads / hashes (e.g. 68b51bf7c448be2b.zip, UUID.tar.gz)
+  const hasOpaqueIdentifier =
+    titleTokens.some((t) => HEX_HASH_REGEX.test(t) || UUID_REGEX.test(t)) ||
+    cleanUrl.includes('view.php?f=') ||
+    cleanUrl.includes('/dl/');
+  if (hasOpaqueIdentifier && distinctContentWords <= 1) {
+    return { informativeness: 0.05, isLowInformation: true };
+  }
 
   // Pinterest pin check: minimal user pins without topical substance
   const isPinterestPin =
@@ -799,7 +864,7 @@ export function calculateTabInformativeness(
     const pathContentTokens = pathSegments
       .join(' ')
       .toLowerCase()
-      .match(/[a-zA-Z0-9\u4e00-\u9fa5]+/g) || [];
+      .match(/[\p{L}\p{N}]+/gu) || [];
     const distinctPathWords = new Set(
       pathContentTokens.filter(
         (w) =>

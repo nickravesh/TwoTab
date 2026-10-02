@@ -4,6 +4,7 @@ import path from 'path';
 import { pipeline, env } from '@huggingface/transformers';
 import { normalizeTab, hashString } from '@/lib/semantic/normalization';
 import { clusterTabs } from '@/lib/semantic/clustering';
+import { generateGroupName, extractCandidatePhrases, segmentTitleChunks } from '@/lib/semantic/naming';
 import type { Tab } from '@/lib/storage';
 
 // Configure offline model loading
@@ -234,6 +235,16 @@ describe('Real-World Tab Export Baseline Evaluation', () => {
       { title: 'Pricing', url: 'https://mullvad.net/en/pricing' },
       { title: 'Pricing - ZenMux', url: 'https://zenmux.ai/pricing/overview' },
       { title: 'آپلود عکس و فایل رایگان با لینک مستقیم - تولزچی', url: 'https://toolschi.com/tools/upload-center' },
+      { title: '68b51bf7c448be2b.zip — تولزچی', url: 'https://dl.toolschi.com/view.php?f=68b51bf7c448be2b.zip' },
+      { title: 'تصاویری از محیط نرم افزار BetterZip', url: 'https://soft98.ir/screenshot-2954-betterzip.html' },
+      { title: 'Command Safety Explanation', url: 'https://chatgpt.com/c/6a740836-5250-83eb-83b5-098da712801b' },
+      { title: 'Slang for Makes Sense', url: 'https://chatgpt.com/c/6a44810a-1984-83ed-ab1d-43bcbf0971fd' },
+      { title: 'Alien 1979 فیلم', url: 'https://decon-st-john.com/pages/post/17548/movie/alien/' },
+      { title: 'Star Trek 2009 فیلم', url: 'https://decon-st-john.com/pages/post/63234/movie/star-trek/' },
+      { title: 'قیمت و خرید ماوس بی سیم بیسوس مدل F01A B01055502833-00', url: 'https://www.digikala.com/product/dkp-12712468/%D9%85%D8%A7%D9%88%D8%B3-%D8%A8%DB%8C-%D8%B3%DB%8C%D9%85-%D8%A8%DB%8C%D8%B3%D9%88%D8%B3-%D9%85%D8%AF%D9%84-f01a-b01055502833-00/' },
+      { title: 'ویدیوی آموزشی مدل OSI - بخش اول - مکتب‌خونه', url: 'https://maktabkhooneh.org/course/%D8%A2%D9%85%D9%88%D8%B2%D8%B4-%D9%86%D8%AA%D9%88%D8%B1%DA%A9-%D9%BE%D9%84%D8%A7%D8%B3-mk7044/%D9%81%D8%B5%D9%84-%D8%B3%D9%88%D9%85-%D9%85%D8%AF%D9%84-%D9%85%D8%B1%D8%AC%D8%B9-%D9%85%D9%81%D9%87%D9%88%D9%85%DB%8C-osi-ch15660/%D9%88%DB%8C%D8%AF%DB%8C%D9%88-%D9%85%D8%AF%D9%84-osi-%D8%A8%D8%AE%D8%B4-%D8%A7%D9%88%D9%84/' },
+      { title: 'پاسخ_تشریحی_سوالات_آزمون_سیستم_عامل_پیشرفته_راست_چین.pdf', url: 'file:///Users/ali/Downloads/%D9%BE%D8%A7%D8%B3%D8%AE_%D8%AA%D8%B4%D8%B1%DB%8C%D8%AD%DB%8C_%D8%B3%D9%88%D8%A7%D9%84%D8%A7%D8%AA_%D8%A7%D9%93%D8%B2%D9%85%D9%88%D9%86_%D8%B3%DB%8C%D8%B3%D8%AA%D9%85_%D8%B9%D8%A7%D9%85%D9%84_%D9%BE%DB%8C%D8%B4%D8%B1%D9%81%D8%AA%D9%87_%D8%B1%D8%A7%D8%B3%D8%AA_%DA%86%DB%8C%D9%86.pdf' },
+      { title: 'برنامه هفتگی و آرشیو جلسات', url: 'file:///Users/ali/Desktop/%D8%A8%D8%B1%D9%86%D8%A7%D9%85%D9%87%20%D9%87%D9%81%D8%AA%DA%AF%DB%8C%20%D9%88%20%D8%A7%D9%93%D8%B1%D8%B4%DB%8C%D9%88%20%D8%AC%D9%84%D8%B3%D8%A7%D8%AA.mhtml' },
     ];
 
     console.log('\n=== DIAGNOSTIC INSPECTION OF ANOMALOUS TABS ===');
@@ -246,6 +257,27 @@ describe('Real-World Tab Export Baseline Evaluation', () => {
       console.log(`  prompt: "${meta.semanticPrompt}"`);
       console.log(`  isLowInfo: ${meta.isLowInformation}, informativeness: ${meta.informativeness}`);
     }
+
+    const osiClusterTabs = [
+      anomalousTabs[12], // Baseus mouse
+      anomalousTabs[13], // OSI model
+      { title: 'آموزش جمع‌آوری و تحلیل اطلاعات منبع باز با OSINT', url: 'https://maktabkhooneh.org/course/%D8%AF%D9%88%D8%B1%D9%87-%D8%AA%D8%AD%D9%84%DB%8C%D9%84-%D8%A7%D8%B7%D9%84%D8%A7%D8%B9%D8%A7%D8%AA-osint-mk13232/' }
+    ];
+    const osiResult = generateGroupName(osiClusterTabs);
+    console.log('\n=== OSI CLUSTER GENERATE GROUP NAME ===');
+    console.log(`Generated Name: "${osiResult.name}"`);
+    console.log(`maxCandidateDf: ${osiResult.maxCandidateDf}`);
+    console.log(`topCandidate:`, osiResult.topCandidate);
+
+    const metas = osiClusterTabs.map(t => normalizeTab(t));
+    const allCands = extractCandidatePhrases(metas, osiClusterTabs);
+    const osiCand = allCands.find(c => c.raw === 'osi');
+    console.log('osi candidate details:', osiCand);
+    console.log('Tab 2 title tokens and chunks:');
+    const chunks2 = segmentTitleChunks(metas[2].cleanTitle);
+    console.log('cleanTitle:', metas[2].cleanTitle);
+    console.log('chunks:', chunks2);
+    console.log('tokens:', chunks2[0].match(/[a-zA-Z0-9\u4e00-\u9fa5]+(?:-[a-zA-Z0-9\u4e00-\u9fa5]+)*(?:['’][a-zA-Z]+)?/g));
   });
 
   it('diagnoses fragmented clusters with same name', async (ctx) => {

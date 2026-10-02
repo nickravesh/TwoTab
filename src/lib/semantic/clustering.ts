@@ -27,8 +27,8 @@ import {
   DEFAULT_MINIMUM_GROUP_SIZE,
 } from './constants';
 import { computeCosineSimilarity, l2Normalize } from './similarity';
-import { normalizeTab } from './normalization';
-import { generateGroupName } from './naming';
+import { normalizeTab, MULTI_TOPIC_PLATFORMS } from './normalization';
+import { generateGroupName, extractCandidatePhrases, GENERIC_CONTAINER_NOUNS } from './naming';
 
 interface ActiveCluster {
   id: string;
@@ -188,17 +188,19 @@ function runSecondStageMerge(
         const topicMatch = areCompatibleTopics(c1.name, c2.name);
         if (!nameMatch && !topicMatch) continue;
 
-        const isGenericName =
-          c1.name.trim().length <= 3 ||
-          ['ai', 'ui', 'mac', 'web', 'internal'].includes(c1.name.toLowerCase().trim());
-        const isSpecificNameMatch = nameMatch && !isGenericName;
+        const isMultiWordSpecific =
+          nameMatch &&
+          c1.name.split(/\s+/).length >= 2 &&
+          !GENERIC_CONTAINER_NOUNS.has(c1.name.toLowerCase().trim()) &&
+          !['internal server', 'saved collection', 'search results', 'google search'].includes(c1.name.toLowerCase().trim());
 
         // Dynamic thresholds based on evidence strength:
-        // 1. Identical synthesized group name (specific): overwhelming evidence of same concept
-        // 2. Compatible canonical topic: strong evidence of same franchise / system
-        const requiredCentroidSim = isSpecificNameMatch ? 0.62 : topicMatch ? 0.68 : 0.80;
-        const requiredCrossMean = isSpecificNameMatch ? 0.58 : topicMatch ? 0.60 : threshold;
-        const requiredCrossMin = isSpecificNameMatch ? 0.42 : topicMatch ? 0.45 : 0.58;
+        // 1. Identical synthesized group name (multi-word specific): overwhelming evidence of same franchise/concept (e.g. Hermes Agent, The Last of Us)
+        // 2. Compatible canonical topic: strong evidence of same franchise / system, requires >= 0.58 cross-min
+        // 3. Single-word / broad category matches: strict anti-chaining threshold
+        const requiredCentroidSim = isMultiWordSpecific ? 0.65 : topicMatch ? 0.68 : 0.80;
+        const requiredCrossMean = isMultiWordSpecific ? 0.58 : topicMatch ? 0.58 : threshold;
+        const requiredCrossMin = isMultiWordSpecific ? 0.45 : topicMatch ? 0.45 : 0.60;
 
         // 1. High centroid similarity required
         const centroidSim = computeCosineSimilarity(c1.centroid, c2.centroid);
@@ -371,9 +373,9 @@ function runCompleteLinkageHAC(
     }
 
     if (c.indices.length >= minSize || totalTabsInCluster >= minSize) {
-      const clusterTabs: Tab[] = [];
-      const clusterMetas: NormalizedTabMetadata[] = [];
-      const clusterEmbeddings: Float32Array[] = [];
+      let clusterTabs: Tab[] = [];
+      let clusterMetas: NormalizedTabMetadata[] = [];
+      let clusterEmbeddings: Float32Array[] = [];
 
       for (const idx of c.indices) {
         clusterTabs.push(subItems[idx].tab);
@@ -385,15 +387,15 @@ function runCompleteLinkageHAC(
         }
       }
 
-      const centroid = computeClusterCentroid(clusterEmbeddings);
-      const nameResult = generateGroupName(clusterTabs, clusterMetas, {
+      let centroid = computeClusterCentroid(clusterEmbeddings);
+      let nameResult = generateGroupName(clusterTabs, clusterMetas, {
         clusterCentroid: centroid,
         tabEmbeddings: clusterEmbeddings,
       });
-      const name = nameResult.name;
-      const color = nameResult.color;
+      let name = nameResult.name;
+      let color = nameResult.color;
 
-      const metrics = computePurityMetrics(
+      let metrics = computePurityMetrics(
         c.indices,
         simMatrix,
         subItems,
@@ -401,27 +403,216 @@ function runCompleteLinkageHAC(
         clusterTabs
       );
 
-      // Multi-domain coherence check:
-      // If a candidate cluster spans tabs from high domain diversity (>= 0.70 across 3+ tabs),
-      // it must demonstrate either:
-      // 1. A shared lexical/thematic candidate or synthesized concept (maxCandidateDf >= 2 || isSynthesizedConcept), or
-      // 2. High pairwise coherence (minPairwiseSimilarity >= 0.85)
-      const isMultiDomainGrabBag =
-        clusterTabs.length >= 3 &&
-        metrics.domainDiversity >= 0.70 &&
-        !nameResult.isSynthesizedConcept &&
-        nameResult.maxCandidateDf < 2 &&
-        metrics.minPairwiseSimilarity < 0.85;
+      // Grab-Bag Quarantine:
+      // If a cluster has NO shared candidate phrase (maxCandidateDf < 2),
+      // is not a recognized synthesized concept,
+      // and either lives on a multi-topic platform (e.g. YouTube, Google, Reddit)
+      // or has low coherence (< 0.85 on single domain, or spans multiple domains):
+      // Disband into ungroupedTabs rather than presenting a low-value or spurious group to the user!
+      if (nameResult.maxCandidateDf < 2 && !nameResult.isSynthesizedConcept) {
+        const distinctHosts = new Set(clusterMetas.map((m) => m.domain).filter(Boolean));
+        const isMultiTopic = distinctHosts.size === 1 && MULTI_TOPIC_PLATFORMS.has([...distinctHosts][0]);
+        const isHeterogeneous = distinctHosts.size >= 2;
 
-      if (isMultiDomainGrabBag) {
+        if (isMultiTopic || isHeterogeneous || metrics.meanPairwiseSimilarity < 0.85) {
+          for (const idx of c.indices) {
+            ungroupedTabs.push(subItems[idx].tab);
+            const dupes = dedupMap.get(idx);
+            if (dupes) ungroupedTabs.push(...dupes);
+          }
+          continue;
+        }
+      }
+
+      // Multi-domain coherence check:
+      // If a candidate cluster spans tabs from multiple distinct root domains:
+      const getRoot = (dom: string) => {
+        const parts = (dom || '').split('.');
+        return parts.length >= 2 ? `${parts[parts.length - 2]}.${parts[parts.length - 1]}` : dom || 'unknown';
+      };
+
+      const domainMap = new Map<string, number[]>();
+      for (const idx of c.indices) {
+        const d = getRoot(subItems[idx].meta.domain);
+        if (!domainMap.has(d)) domainMap.set(d, []);
+        domainMap.get(d)!.push(idx);
+      }
+
+      if (domainMap.size >= 2) {
+        const allCandidates = extractCandidatePhrases(clusterMetas, clusterTabs);
+
+        // 1. Prune isolated singleton domain outliers that share ZERO substantive candidate phrases
+        // or fail to match a synthesized concept
+        const outlierOrigIndices: number[] = [];
+        const keptOrigIndices: number[] = [];
+
+        for (let tabPos = 0; tabPos < c.indices.length; tabPos++) {
+          const origIdx = c.indices[tabPos];
+          const dom = getRoot(subItems[origIdx].meta.domain);
+          const domCount = domainMap.get(dom)?.length || 0;
+
+          if (domCount === 1 && domainMap.size >= 2) {
+            const hasSharedCandidate = allCandidates.some(
+              (cand) =>
+                cand.docIndices.size >= 2 &&
+                cand.docIndices.has(tabPos) &&
+                !cand.words.every((w) => GENERIC_CONTAINER_NOUNS.has(w.toLowerCase()))
+            );
+            const matchesSynthesizedConcept =
+              nameResult.isSynthesizedConcept &&
+              nameResult.name.toLowerCase().split(/\s+/).some((w) =>
+                subItems[origIdx].meta.cleanTitle.toLowerCase().includes(w)
+              );
+
+            if (!hasSharedCandidate && !matchesSynthesizedConcept) {
+              outlierOrigIndices.push(origIdx);
+              continue;
+            }
+          }
+          keptOrigIndices.push(origIdx);
+        }
+
+        if (outlierOrigIndices.length > 0) {
+          for (const oIdx of outlierOrigIndices) {
+            ungroupedTabs.push(subItems[oIdx].tab);
+            const dupes = dedupMap.get(oIdx);
+            if (dupes) ungroupedTabs.push(...dupes);
+          }
+
+          if (keptOrigIndices.length < minSize) {
+            for (const kIdx of keptOrigIndices) {
+              ungroupedTabs.push(subItems[kIdx].tab);
+              const dupes = dedupMap.get(kIdx);
+              if (dupes) ungroupedTabs.push(...dupes);
+            }
+            continue;
+          }
+
+          c.indices = keptOrigIndices;
+          clusterTabs = [];
+          clusterMetas = [];
+          clusterEmbeddings = [];
+          for (const idx of c.indices) {
+            clusterTabs.push(subItems[idx].tab);
+            clusterMetas.push(subItems[idx].meta);
+            clusterEmbeddings.push(subItems[idx].embedding);
+            const dupes = dedupMap.get(idx);
+            if (dupes) clusterTabs.push(...dupes);
+          }
+
+          centroid = computeClusterCentroid(clusterEmbeddings);
+          const newNameRes = generateGroupName(clusterTabs, clusterMetas, {
+            clusterCentroid: centroid,
+            tabEmbeddings: clusterEmbeddings,
+          });
+          name = newNameRes.name;
+          color = newNameRes.color;
+          nameResult = newNameRes;
+          metrics = computePurityMetrics(
+            c.indices,
+            simMatrix,
+            subItems,
+            centroid,
+            clusterTabs
+          );
+        }
+
+        // 2. Check if remaining multi-domain cluster still has substantive cross-domain candidate support
+        const remainingDomainMap = new Map<string, number[]>();
         for (const idx of c.indices) {
-          ungroupedTabs.push(subItems[idx].tab);
-          const dupes = dedupMap.get(idx);
-          if (dupes) {
-            ungroupedTabs.push(...dupes);
+          const d = getRoot(subItems[idx].meta.domain);
+          if (!remainingDomainMap.has(d)) remainingDomainMap.set(d, []);
+          remainingDomainMap.get(d)!.push(idx);
+        }
+
+        const hasCrossDomainSupport = nameResult.isSynthesizedConcept
+          ? (() => {
+              const conceptWords = nameResult.name.toLowerCase().split(/\s+/);
+              const domainsMatchingConcept = new Set<string>();
+              for (let i = 0; i < clusterMetas.length; i++) {
+                const titleLower = clusterMetas[i].cleanTitle.toLowerCase();
+                if (conceptWords.some((w) => titleLower.includes(w))) {
+                  domainsMatchingConcept.add(getRoot(clusterMetas[i].domain));
+                }
+              }
+              return domainsMatchingConcept.size >= 2;
+            })()
+          : false;
+
+        if (remainingDomainMap.size >= 2 && !hasCrossDomainSupport) {
+          const remainingCandidates = extractCandidatePhrases(clusterMetas, clusterTabs);
+          const hasCrossDomainCandidate = remainingCandidates.some((cand) => {
+            if (cand.docIndices.size < 2) return false;
+            if (cand.words.every((w) => GENERIC_CONTAINER_NOUNS.has(w.toLowerCase()))) {
+              return false;
+            }
+            const candidateDomains = new Set<string>();
+            for (const tabIdx of cand.docIndices) {
+              const meta = clusterMetas[tabIdx];
+              if (meta) {
+                candidateDomains.add(getRoot(meta.domain));
+              }
+            }
+            return candidateDomains.size >= 2;
+          });
+
+          // If no substantive candidate spans across distinct domains, and pairwise coherence across domains isn't >= 0.85:
+          if (!hasCrossDomainCandidate && metrics.minPairwiseSimilarity < 0.85) {
+            // Partition tabs by domain so coherent single-domain cores are preserved
+            for (const [dom, domIndices] of remainingDomainMap.entries()) {
+              let totalDomTabs = domIndices.length;
+              for (const idx of domIndices) {
+                totalDomTabs += (dedupMap.get(idx)?.length || 0);
+              }
+
+              if (domIndices.length >= minSize || totalDomTabs >= minSize) {
+                const domTabs: Tab[] = [];
+                const domMetas: NormalizedTabMetadata[] = [];
+                const domEmbeddings: Float32Array[] = [];
+
+                for (const idx of domIndices) {
+                  domTabs.push(subItems[idx].tab);
+                  domMetas.push(subItems[idx].meta);
+                  domEmbeddings.push(subItems[idx].embedding);
+                  const dupes = dedupMap.get(idx);
+                  if (dupes) domTabs.push(...dupes);
+                }
+
+                const domCentroid = computeClusterCentroid(domEmbeddings);
+                const domNameRes = generateGroupName(domTabs, domMetas, {
+                  clusterCentroid: domCentroid,
+                  tabEmbeddings: domEmbeddings,
+                });
+                const domMetrics = computePurityMetrics(
+                  domIndices,
+                  simMatrix,
+                  subItems,
+                  domCentroid,
+                  domTabs
+                );
+
+                stagedClusters.push({
+                  indices: domIndices,
+                  clusterTabs: domTabs,
+                  clusterMetas: domMetas,
+                  clusterEmbeddings: domEmbeddings,
+                  centroid: domCentroid,
+                  name: domNameRes.name,
+                  color: domNameRes.color,
+                  coherenceScore: domMetrics.meanPairwiseSimilarity,
+                  metrics: domMetrics,
+                });
+              } else {
+                for (const idx of domIndices) {
+                  ungroupedTabs.push(subItems[idx].tab);
+                  const dupes = dedupMap.get(idx);
+                  if (dupes) ungroupedTabs.push(...dupes);
+                }
+              }
+            }
+            continue;
           }
         }
-        continue;
       }
 
       stagedClusters.push({

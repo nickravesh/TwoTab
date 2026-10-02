@@ -15,7 +15,7 @@
 
 import type { Tab, TabGroupColor } from '../storage';
 import type { NormalizedTabMetadata, GroupNameOptions } from './types';
-import { normalizeTab } from './normalization';
+import { normalizeTab, GENERIC_PAGE_TITLES } from './normalization';
 import { BRANDED_DOMAINS } from '../domainOrganizer';
 import { computeCosineSimilarity } from './similarity';
 
@@ -38,6 +38,16 @@ export const STOPWORDS: ReadonlySet<string> = new Set([
   'yours', 'yourself', 'yourselves',
   // Common connective words
   'vs', 'versus', 'with', 'without', 'via', 'per',
+  // Universal commercial action stopwords
+  'buy', 'price', 'pricing', 'shop', 'store', 'order', 'cart', 'checkout', 'discount', 'cheap', 'free', 'sale',
+  'خرید', 'قیمت', 'فروش', 'فروشگاه', 'سفارش', 'ارزان', 'تخفیف', 'رایگان', 'آنلاین', 'اینترنتی', 'جدیدترین', 'بهترین', 'برتر',
+  // Universal multilingual / Persian grammatical connectors, prepositions, and auxiliaries
+  'بدون', 'با', 'بی', 'در', 'از', 'به', 'برای', 'تا', 'بر', 'روی', 'زیر', 'بین',
+  'درباره', 'مورد', 'چون', 'اگر', 'که', 'این', 'آن', 'هم', 'نیز', 'یا', 'و',
+  'اما', 'ولی', 'باید', 'شاید', 'دیگر', 'همه', 'هر', 'هیچ', 'چند', 'بیشتر', 'کمتر',
+  'خیلی', 'زیاد', 'چرا', 'چگونه', 'چطور', 'کجا', 'کی', 'چه', 'کدام', 'وقتی',
+  'شدن', 'شد', 'شده', 'کردن', 'کرد', 'کرده', 'بودن', 'بود', 'بوده',
+  'داشتن', 'داشت', 'داشته', 'است', 'هست', 'نیست', 'های',
 ]);
 
 /**
@@ -48,9 +58,12 @@ export const TLD_AND_URL_STOPWORDS: ReadonlySet<string> = new Set([
   'http', 'https', 'ftp', 'www', 'com', 'org', 'net', 'edu', 'gov', 'mil', 'int',
   'xyz', 'info', 'biz', 'tv', 'cc',
   'html', 'htm', 'php', 'asp', 'aspx', 'jsp', 'do', 'action', 'cgi',
+  // Archive, packaging, and binary file extensions
+  'pdf', 'zip', 'rar', 'tar', 'gz', '7z', 'mhtml', 'dmg', 'pkg', 'iso', 'exe', 'bin', 'apk', 'ipa',
   // Common URL path segment noise
   'watch', 'wiki', 'view', 'index', 'search', 'default', 'main',
-  'questions', 'item', 'items', 'file', 'files',
+  'questions', 'item', 'items', 'file', 'files', 'dump', 'tools', 'upload', 'dl',
+  'category', 'categories',
 ]);
 
 /**
@@ -196,6 +209,10 @@ export const GENERIC_CONTAINER_NOUNS: ReadonlySet<string> = new Set([
   'approach', 'approaches', 'algorithm', 'algorithms',
   'architecture', 'architectures', 'technique', 'techniques',
   'method', 'methods', 'mechanism', 'mechanisms',
+  // Multilingual / Persian generic container and commercial/system nouns
+  'مدل', 'مدل‌های', 'مدلها', 'سیستم', 'سیستم‌های', 'روش', 'روش‌های',
+  'سامانه', 'سامانه‌های', 'برنامه', 'برنامه‌های', 'فایل', 'فایل‌ها',
+  'خرید', 'قیمت', 'فروش', 'فروشگاه',
 ]);
 
 /**
@@ -241,17 +258,17 @@ export function isContentWord(word: string): boolean {
 
   // Single characters: valid only if CJK ideographs
   if (lower.length === 1) {
-    return /[\u4e00-\u9fa5\u3040-\u30ff]/.test(lower);
+    return /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}]/u.test(lower);
   }
 
   // 2-character tokens: check meaningful short token allowlist or digit combinations (v2, 3b)
   if (lower.length === 2) {
     if (MEANINGFUL_SHORT_TOKENS.has(lower)) return true;
-    return /\d/.test(lower) && /[a-z]/i.test(lower);
+    return /\d/.test(lower) && /\p{L}/u.test(lower);
   }
 
-  // 3+ character tokens: must contain at least one letter or CJK ideograph
-  return /[a-z\u4e00-\u9fa5]/i.test(lower);
+  // 3+ character tokens: must contain at least one letter across any language
+  return /\p{L}/u.test(lower);
 }
 
 /**
@@ -303,6 +320,8 @@ export const MINOR_TITLE_WORDS: ReadonlySet<string> = new Set([
   'and', 'but', 'or', 'nor', 'for', 'yet', 'so',
   'as', 'at', 'by', 'for', 'in', 'of', 'on', 'per', 'to', 'via', 'with', 'without',
   'within', 'over', 'is', 'vs', 'versus',
+  // Multilingual / Persian minor connectors
+  'و', 'یا', 'در', 'از', 'به', 'با', 'برای', 'تا',
 ]);
 
 /**
@@ -314,6 +333,10 @@ export const TERMINAL_CONNECTORS: ReadonlySet<string> = new Set([
   'through', 'throughout', 'after', 'before', 'under', 'between', 'and', 'or', 'but',
   'is', 'are', 'was', 'were', 'be', 'been', 'being', 'the', 'a', 'an', 'as',
   'vs', 'versus', 'via', 'over', 'off', 'out',
+  // Multilingual / Persian terminal connectors
+  'و', 'یا', 'در', 'از', 'به', 'با', 'برای', 'تا', 'های',
+  'بدون', 'بی', 'بر', 'روی', 'زیر', 'بین', 'درباره', 'مورد', 'چون', 'اگر', 'که',
+  'این', 'آن', 'هم', 'نیز', 'اما', 'ولی', 'است', 'هست', 'نیست',
 ]);
 
 /**
@@ -389,6 +412,11 @@ export const DISALLOWED_LEADING_TOKENS: ReadonlySet<string> = new Set([
   'you', 'your', "you're", 'you’re', 'we', 'our', "we're", 'i', 'my', 'me',
   'why', 'how', 'when', 'where', 'what', 'who', 'which',
   'hour', 'hours', 'minute', 'minutes',
+  // Multilingual / Persian functional connectors and question words
+  'و', 'یا', 'در', 'از', 'به', 'با', 'برای', 'تا', 'های',
+  'بدون', 'بی', 'بر', 'روی', 'زیر', 'بین', 'درباره', 'مورد', 'چون', 'اگر', 'که',
+  'این', 'آن', 'هم', 'نیز', 'اما', 'ولی',
+  'چرا', 'چطور', 'چگونه', 'کجا', 'کی', 'چه', 'کدام',
 ]);
 
 /**
@@ -556,14 +584,14 @@ export function synthesizeClusterConcepts(
     const t = (m.cleanTitle || '').toLowerCase();
     const u = (m.cleanUrl || '').toLowerCase();
     return (
-      /download|downloads|torrent|dmg|pkg|install|installer|app|apps|software|client/.test(t) ||
-      /download|releases|macapp/.test(u)
+      /\b(download|downloads|torrent|dmg|pkg|install|installer|client)\b/i.test(t) ||
+      /\b(download|downloads|releases|macapp)\b/i.test(u)
     );
   }).length;
 
   const isMacOs =
-    titles.some((t) => /mac|macos|osx/.test(t)) ||
-    metas.some((m) => /mac/.test(m.cleanUrl || ''));
+    titles.some((t) => /\b(mac|macos|osx)\b/i.test(t)) ||
+    metas.some((m) => /\b(mac|macos|osx)\b/i.test(m.cleanUrl || ''));
   if (downloadSignalCount >= Math.ceil(totalTabs * 0.5) && isMacOs) {
     const conceptWords = ['Mac', 'Software', 'Downloads'];
     results.push({
@@ -578,36 +606,83 @@ export function synthesizeClusterConcepts(
     });
   }
 
+  // 2b. macOS System Settings & Shortcuts Guides
+  const macGuideSignalCount = metas.filter((m) => {
+    const t = (m.cleanTitle || '').toLowerCase();
+    return (
+      /\b(mac|macos|osx)\b/i.test(t) &&
+      /\b(shortcut|shortcuts|screenshot|folder|dock|behavior|quit|hide|tips|guide)\b/i.test(t)
+    );
+  }).length;
+
+  if (macGuideSignalCount >= Math.ceil(totalTabs * 0.5) && isMacOs) {
+    const hasShortcuts = titles.some((t) => /\b(shortcut|shortcuts|screenshot)\b/i.test(t));
+    const conceptWords = hasShortcuts ? ['macOS', 'Shortcuts'] : ['macOS', 'Settings'];
+    results.push({
+      raw: conceptWords.map((w) => w.toLowerCase()).join(' '),
+      display: formatPhrase(conceptWords),
+      words: conceptWords,
+      docIndices: new Set(Array.from({ length: totalTabs }, (_, i) => i)),
+      firstChunkOccurrences: totalTabs,
+      avgPositionRatio: 0.0,
+      isChunkExact: false,
+      isSynthesizedConcept: true,
+    });
+  }
+
   // 3. Shopping & Products
+  const shoppingDomainCount = domains.filter((d) =>
+    /digikala|torob|amazon|ebay|aliexpress|shop|store|amachap|shekiva|patanjameh|bagnet/.test(d)
+  ).length;
+  const shoppingKeywordCount = titles.filter((t) =>
+    /\b(t-shirt|shirt|tee|hoodie|monitor|backpack|bag|sleeve|case)\b|تیشرت|تی شرت|کوله|مانیتور/i.test(t)
+  ).length;
+
   const isShoppingCluster =
-    domains.some((d) => /digikala|torob|amazon|ebay|aliexpress|shop|store/.test(d)) ||
-    titles.filter((t) =>
-      /خرید|قیمت|مدل|کوله|کیف|کاور|t-shirt|shirt|tee|monitor|backpack|bag|sleeve/.test(t)
-    ).length >= Math.ceil(totalTabs * 0.5);
+    shoppingDomainCount >= Math.max(2, Math.ceil(totalTabs * 0.5)) ||
+    shoppingKeywordCount >= Math.max(2, Math.ceil(totalTabs * 0.5));
 
   if (isShoppingCluster) {
-    let brand = '';
+    const brandCounts = new Map<string, number>();
     for (const t of titles) {
       const match = t.match(/\b(bange|metallica|jcpal|asus|samsung|sony|apple|logitech|anker|nike|adidas)\b/i);
       if (match) {
-        brand = formatWord(match[1]);
+        const b = formatWord(match[1]);
+        brandCounts.set(b, (brandCounts.get(b) || 0) + 1);
+      }
+    }
+    let brand = '';
+    for (const [b, count] of brandCounts.entries()) {
+      if (count >= Math.max(2, Math.ceil(totalTabs * 0.5)) || (totalTabs === 2 && count >= 1)) {
+        brand = b;
         break;
       }
     }
 
     let category = '';
-    const hasLaptopBag =
-      titles.some((t) => /کوله|کیف|کاور|backpack|bag|sleeve|case/.test(t)) &&
-      (titles.some((t) => /لپ\s*تاپ|laptop|notebook/.test(t)) || /bange|jcpal/.test(allText));
-    const hasTShirt = titles.some((t) => /تیشرت|لباس|t-shirt|shirt|tee|hoodie/.test(t));
-    const hasMonitor = titles.some((t) => /مانیتور|monitor|display|screen/.test(t));
+    const laptopBagCount = titles.filter((t) =>
+      /\b(backpack|bag|sleeve|case)\b|کوله|کیف|کاور/i.test(t) &&
+      (/\b(laptop|notebook)\b|لپ\s*تاپ/i.test(t) || /bange|jcpal/i.test(t))
+    ).length;
+    const hasLaptopBag = laptopBagCount >= Math.max(2, Math.ceil(totalTabs * 0.5));
+
+    const tShirtCount = titles.filter((t) =>
+      /\b(t-shirt|shirt|tee|hoodie)\b|تیشرت|تی شرت/i.test(t)
+    ).length;
+    const hasTShirt = tShirtCount >= Math.max(2, Math.ceil(totalTabs * 0.5));
+
+    const monitorCount = titles.filter((t) =>
+      /\b(monitor|display|screen)\b|مانیتور/i.test(t)
+    ).length;
+    const hasMonitor = monitorCount >= Math.max(2, Math.ceil(totalTabs * 0.5));
 
     if (hasLaptopBag) {
       category = 'Laptop Bags';
     } else if (hasTShirt) {
       category = 'T-Shirts';
     } else if (hasMonitor) {
-      category = titles.some((t) => /gaming|گیمینگ/.test(t)) ? 'Gaming Monitors' : 'Monitors';
+      const gamingCount = titles.filter((t) => /\bgaming\b|گیمینگ/i.test(t)).length;
+      category = gamingCount >= Math.ceil(monitorCount * 0.5) ? 'Gaming Monitors' : 'Monitors';
     }
 
     if (brand && category) {
@@ -744,7 +819,11 @@ export function extractCandidatePhrases(
     // Handle URL-only titles
     if (!rawTitle || isUrlLike(rawTitle)) {
       const domainLabel = extractCleanDomainLabel(rawTitle || meta.domain);
-      if (domainLabel) {
+      if (
+        domainLabel &&
+        !TLD_AND_URL_STOPWORDS.has(domainLabel.toLowerCase()) &&
+        !GENERIC_PAGE_TITLES.has(domainLabel.toLowerCase())
+      ) {
         registerCandidate([domainLabel], tabIdx, true, 0.0, true);
       }
       continue;
@@ -759,7 +838,7 @@ export function extractCandidatePhrases(
 
       // Extract alphanumeric word tokens with apostrophe and hyphen support (e.g. Max's, LSM-Tree, End-to-End)
       const allTokens = (
-        chunk.match(/[a-zA-Z0-9\u4e00-\u9fa5]+(?:-[a-zA-Z0-9\u4e00-\u9fa5]+)*(?:['’][a-zA-Z]+)?/g) || []
+        chunk.match(/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*(?:['’][\p{L}]+)?/gu) || []
       ).map((w) => w.replace(/\u2019/g, "'"));
       // Filter out pure numbers (e.g. "3", "7", "2026") while preserving alphanumeric terms like "4K", "9Router"
       const rawTokens = allTokens.filter((w) => !/^\d+$/.test(w));
@@ -774,6 +853,12 @@ export function extractCandidatePhrases(
 
           // Skip if any token is a top-level domain or URL noise word
           if (slice.some((w) => TLD_AND_URL_STOPWORDS.has(w.toLowerCase()))) {
+            continue;
+          }
+
+          // Skip if candidate phrase is in generic page titles (e.g. "Get Started", "Search Results", "Category")
+          const rawCandidate = slice.map((w) => w.toLowerCase()).join(' ');
+          if (GENERIC_PAGE_TITLES.has(rawCandidate)) {
             continue;
           }
 
@@ -794,7 +879,7 @@ export function extractCandidatePhrases(
           if (
             /^\d+$/.test(firstWordLower) ||
             DISALLOWED_LEADING_TOKENS.has(firstWordLower) ||
-            (slice[0].length === 1 && !/[\u4e00-\u9fa5\u3040-\u30ff]/.test(slice[0]) && !['c'].includes(firstWordLower))
+            (slice[0].length === 1 && !/[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}]/u.test(slice[0]) && !['c'].includes(firstWordLower))
           ) {
             continue;
           }
@@ -897,7 +982,7 @@ export function extractCandidatePhrases(
         if (chunk0Tokens.length === 1 && chunk0Tokens[0]) {
           const nextChunk = chunks[1];
           const nextChunkTokens = nextChunk
-            ? nextChunk.match(/[a-zA-Z0-9\u4e00-\u9fa5]+(?:'[a-zA-Z]+)?/g) || []
+            ? nextChunk.match(/[\p{L}\p{N}]+(?:'[\p{L}]+)?/gu) || []
             : [];
           const nextContent = nextChunkTokens.filter((w) => isContentWord(w));
           const firstNext = nextContent[0];
@@ -919,29 +1004,18 @@ export function extractCandidatePhrases(
     }
   }
 
-  // Cross-tab verification: check if each candidate phrase exists in other tabs
+  // Cross-tab verification: check if each candidate phrase exists as a whole phrase in other tabs
   const candidates = Array.from(candidateMap.values());
   for (const c of candidates) {
     const phraseLower = c.raw;
+    const escaped = phraseLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const wholePhraseRegex = new RegExp(`(?:^|[^\\p{L}\\p{N}])${escaped}(?:$|[^\\p{L}\\p{N}])`, 'u');
+
     for (let tabIdx = 0; tabIdx < metas.length; tabIdx++) {
       if (c.docIndices.has(tabIdx)) continue;
       const titleLower = (metas[tabIdx].cleanTitle || '').toLowerCase();
-      if (titleLower.includes(phraseLower)) {
+      if (wholePhraseRegex.test(titleLower)) {
         c.docIndices.add(tabIdx);
-      } else if (c.words.length > 1) {
-        let lastIdx = -1;
-        let allFound = true;
-        for (const w of c.words) {
-          const found = titleLower.indexOf(w.toLowerCase(), lastIdx + 1);
-          if (found === -1) {
-            allFound = false;
-            break;
-          }
-          lastIdx = found;
-        }
-        if (allFound) {
-          c.docIndices.add(tabIdx);
-        }
       }
     }
   }
@@ -1142,12 +1216,15 @@ export function scoreCandidate(c: CandidatePhrase, totalTabs: number): number {
     }
   }
 
-  // Heavy penalty if candidate consists ENTIRELY of boilerplate
-  const allBoilerplate = c.words.every(
-    (w) => BOILERPLATE_WORDS.has(w.toLowerCase()) || DESCRIPTOR_SUFFIXES.has(w.toLowerCase())
+  // Heavy penalty if candidate consists ENTIRELY of boilerplate or generic container nouns
+  const allBoilerplateOrContainer = c.words.every(
+    (w) =>
+      BOILERPLATE_WORDS.has(w.toLowerCase()) ||
+      DESCRIPTOR_SUFFIXES.has(w.toLowerCase()) ||
+      GENERIC_CONTAINER_NOUNS.has(w.toLowerCase())
   );
-  if (allBoilerplate && !c.isSynthesizedConcept) {
-    score -= 8.0;
+  if (allBoilerplateOrContainer && !c.isSynthesizedConcept) {
+    score -= 25.0;
   }
 
   // 12. Information Gain bonus for cluster-wide synthesized concepts
@@ -1538,7 +1615,7 @@ export function generateGroupName(
   }
 
   // Final sanity check: if the name is empty or pure punctuation, fallback to domain
-  if (!generatedName || !/[a-zA-Z0-9\u4e00-\u9fa5]/.test(generatedName)) {
+  if (!generatedName || !/[\p{L}\p{N}]/u.test(generatedName)) {
     if (brandEntry) {
       generatedName = brandEntry.name;
     } else if (dominantDomain) {
