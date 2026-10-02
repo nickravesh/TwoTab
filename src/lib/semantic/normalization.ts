@@ -368,10 +368,22 @@ export function decodeHtmlEntities(text: string): string {
 const NOTIFICATION_BADGE_REGEX = /^(\([0-9+]+\)|\[[0-9+]+\]|\*[ ]*)\s*/;
 
 const COMMON_BRAND_SUFFIX_REGEX =
-  /\s*[-–—|•/·:]\s*(youtube|github|wikipedia|reddit|medium|twitter|x|amazon|stackoverflow|google search|substack|linkedin|facebook|instagram|notion|figma|confluence|jira)$/i;
+  /\s*[-–—|•/·:]\s*(youtube|github|wikipedia|reddit|medium|twitter|x|amazon|stackoverflow|google search|substack|linkedin|facebook|instagram|notion|figma|confluence|jira|pinterest|bing|ieeexplore|ieee xplore|acm digital library|arxiv|maktabkhooneh|مکتب\s*خونه|مکتب‌خونه|آپارات|دیجی‌کالا|ورزش سه)$/i;
 
 const COMMON_BRAND_PREFIX_REGEX =
   /^(youtube|github|wikipedia|amazon(?:\.com)?|google)\s*[-–—|•/·:]\s*/i;
+
+const COMMON_TUTORIAL_PREFIX_REGEX =
+  /^(?:آموزش(?:\s+مفاهیم|\s+جامع|\s+مقدماتی|\s+کامل|\s+تخصصی)?\s*[-–—|•/·:]?\s*|دوره(?:\s+آموزش(?:\s+جامع|\s+کامل)?)?\s*[-–—|•/·:]?\s*|tutorial:\s*|course:\s*)/i;
+
+const ECOMMERCE_PREFIX_REGEX =
+  /^(?:مشخصات[،,\s]+)?(?:قیمت\s+و\s+خرید|خرید\s+و\s+قیمت|خرید\s+اینترنتی|قیمت|مشخصات)\s*[-–—|•/·:]?\s*/i;
+
+const ENGLISH_SHOPPING_PREFIX_REGEX =
+  /^(?:buy\s+|shop\s+(?:for\s+)?|order\s+)/i;
+
+const PINTEREST_PIN_PREFIX_REGEX =
+  /^pin\s+(?:by\s+[^|–—]+?\s+)?on\s+/i;
 
 /**
  * Cleans a tab title by decoding HTML entities, stripping notification badges,
@@ -384,11 +396,18 @@ export function cleanTabTitle(rawTitle?: string, domain?: string): string {
   let title = rawTitle.trim();
   if (!title) return '';
 
-  // 1. Decode HTML entities
+  // 1. Decode HTML entities and normalize typographic curly quotes
   title = decodeHtmlEntities(title);
+  title = title.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
 
   // 2. Strip notification badge prefixes like (3) or [99+]
   title = title.replace(NOTIFICATION_BADGE_REGEX, '');
+
+  // 2b. Strip trailing reddit subreddit suffixes (e.g. ": r/applehelp" or "- r/openclaw")
+  title = title.replace(/\s*[-–—|•/·:]\s*r\/[a-zA-Z0-9_]+$/i, '').trim();
+
+  // 2c. Normalize inline subreddit mentions (e.g. "r/openclaw" -> "openclaw")
+  title = title.replace(/\br\/([a-zA-Z0-9_]+)\b/g, '$1');
 
   // 3. Strip common brand suffixes (only if remaining text is at least 2 chars)
   const strippedSuffix = title.replace(COMMON_BRAND_SUFFIX_REGEX, '').trim();
@@ -402,7 +421,29 @@ export function cleanTabTitle(rawTitle?: string, domain?: string): string {
     title = strippedPrefix;
   }
 
-  // 5. Strip domain-specific brand suffix if domain provided
+  // 5. Strip generic course/tutorial prefixes (only if remaining text is at least 2 chars)
+  const strippedTutorial = title.replace(COMMON_TUTORIAL_PREFIX_REGEX, '').trim();
+  if (strippedTutorial.length >= 2) {
+    title = strippedTutorial;
+  }
+
+  // 5a. Strip e-commerce transactional prefixes
+  const strippedEcommerce = title.replace(ECOMMERCE_PREFIX_REGEX, '').trim();
+  if (strippedEcommerce.length >= 2) {
+    title = strippedEcommerce;
+  }
+  const strippedEnglishShop = title.replace(ENGLISH_SHOPPING_PREFIX_REGEX, '').trim();
+  if (strippedEnglishShop.length >= 2) {
+    title = strippedEnglishShop;
+  }
+
+  // 5b. Strip Pinterest pin prefix ("Pin by Sarah on ...")
+  const strippedPin = title.replace(PINTEREST_PIN_PREFIX_REGEX, '').trim();
+  if (strippedPin.length >= 2) {
+    title = strippedPin;
+  }
+
+  // 6. Strip domain-specific brand suffix if domain provided
   if (domain) {
     const baseName = domain.replace(/^(www\.|m\.)/, '').split('.')[0];
     if (baseName && baseName.length > 2 && !['chrome', 'local', 'data', 'about'].includes(baseName)) {
@@ -414,7 +455,7 @@ export function cleanTabTitle(rawTitle?: string, domain?: string): string {
     }
   }
 
-  // 6. Collapse whitespace and trim hanging punctuation
+  // 7. Collapse whitespace and trim hanging punctuation
   title = title.replace(/\s+/g, ' ').replace(/^[-–—|•/·:\s]+|[-–—|•/·:\s]+$/g, '').trim();
 
   return title;
@@ -430,6 +471,15 @@ const PURE_NUMERIC_REGEX = /^\d+$/;
 const WEB_EXT_REGEX = /\.(html?|php|aspx?|jsp|do|action|cgi)$/i;
 const HASH_SLUG_SUFFIX_REGEX = /-[0-9a-f]{8,12}$/i;
 const LANGUAGE_CODE_REGEX = /^(en|en-us|en-gb|es|fr|de|ja|zh|zh-cn|ru|ko|pt|it)$/i;
+
+export const GENERIC_PATH_ROUTING_TOKENS: ReadonlySet<string> = new Set([
+  'watch', 'pin', 'pins', 'course', 'courses', 'document', 'documents',
+  'feed', 'trending', 'video', 'videos',
+  // E-commerce catalog routing tokens
+  'product', 'products', 'goods', 'kala', 'dp', 'gp',
+  // Navigation routing tokens
+  'detail', 'details', 'view', 'show',
+]);
 
 /**
  * Extracts and cleans meaningful path tokens, filtering out UUIDs, commit hashes,
@@ -459,6 +509,16 @@ export function extractSanitizedPathSegments(
 
       // Skip trivial or index segments
       if (!s || s.toLowerCase() === 'index') continue;
+
+      // Filter generic routing noise tokens (e.g. /watch, /pin, /course, /document, /product)
+      if (GENERIC_PATH_ROUTING_TOKENS.has(s.toLowerCase())) {
+        continue;
+      }
+
+      // Filter product catalog IDs like dkp-123456
+      if (/^dkp[-_]?\d+$/i.test(s)) {
+        continue;
+      }
 
       // Filter UUIDs, hex commit hashes, and numeric database IDs
       if (UUID_REGEX.test(s) || HEX_HASH_REGEX.test(s) || PURE_NUMERIC_REGEX.test(s)) {
@@ -521,9 +581,26 @@ export function extractSanitizedPathSegments(
 // 7. Structured Semantic Prompt Synthesis
 // -----------------------------------------------------------------------------
 
+export const MULTI_TOPIC_PLATFORMS: ReadonlySet<string> = new Set([
+  // Video & streaming
+  'youtube.com', 'vimeo.com', 'dailymotion.com', 'aparat.com',
+  // Search & social
+  'google.com', 'bing.com', 'pinterest.com', 'reddit.com',
+  'twitter.com', 'x.com', 'facebook.com', 'instagram.com',
+  // Mega e-commerce platforms (products of wildly different categories)
+  'digikala.com', 'torob.com', 'emalls.ir', 'amazon.com', 'ebay.com',
+  'aliexpress.com', 'walmart.com', 'target.com', 'etsy.com',
+  // Content & blogging platforms
+  'medium.com', 'substack.com', 'wordpress.com', 'blogspot.com', 'quora.com',
+  // Online education & mega course hubs
+  'maktabkhooneh.org', 'coursera.org', 'udemy.com', 'edx.org',
+]);
+
 /**
  * Builds the deterministic natural language prompt for the embedding model.
  * Format: "Title: <title>. Domain: <domain>. Path: <path>."
+ * For multi-topic mega platforms where the platform name does not indicate the topic,
+ * the domain token is suppressed to prevent artificial cross-topic domain clustering.
  * Capped to MAX_SEMANTIC_PROMPT_LENGTH (512 chars).
  */
 export function buildSemanticPrompt(
@@ -532,10 +609,21 @@ export function buildSemanticPrompt(
   pathSegments: string[]
 ): string {
   const title = (cleanTitle || cleanHost || 'Untitled').trim().replace(/\s+/g, ' ');
-  const domain = (cleanHost || 'unknown').trim();
+  const hostLower = (cleanHost || '').toLowerCase();
+  const root = hostLower.split('.').slice(-2).join('.');
+  const isMultiTopic = MULTI_TOPIC_PLATFORMS.has(hostLower) || MULTI_TOPIC_PLATFORMS.has(root);
+  const domain = isMultiTopic ? '' : (cleanHost || 'unknown').trim();
   const pathStr = (pathSegments || []).join(' ').trim();
 
-  const prompt = `Title: ${title}. Domain: ${domain}. Path: ${pathStr}.`.trim();
+  const parts: string[] = [`Title: ${title}`];
+  if (domain) {
+    parts.push(`Domain: ${domain}`);
+  }
+  if (pathStr) {
+    parts.push(`Path: ${pathStr}`);
+  }
+
+  const prompt = parts.join('. ') + '.';
 
   return prompt.length > MAX_SEMANTIC_PROMPT_LENGTH
     ? prompt.slice(0, MAX_SEMANTIC_PROMPT_LENGTH).trim()
@@ -566,7 +654,184 @@ export function hashString(str: string): string {
 }
 
 // -----------------------------------------------------------------------------
-// 9. Master Normalization Function
+// 9. Semantic Information Quality (SIQ) Evaluator
+// -----------------------------------------------------------------------------
+
+export const LOW_INFORMATION_THRESHOLD = 0.35;
+
+export const GENERIC_PAGE_TITLES: ReadonlySet<string> = new Set([
+  'home', 'homepage', 'welcome', 'official site', 'dashboard', 'new tab', 'untitled',
+  'login', 'signin', 'sign in', 'signup', 'sign up', 'register', 'portal', 'index',
+  'search', 'feed', 'explore', 'notifications', 'messages', 'settings', 'account',
+  'profile', 'inbox', 'activity', 'overview', 'main', 'start', 'getting started',
+  'watch later', 'subscriptions', 'history', 'library', 'trending',
+  'error', 'error 403', '403 forbidden', 'error 403 (forbidden)', '403', '404',
+  '404 not found', 'page not found', 'domain blocked', 'blocked', 'access denied',
+  'pin', 'pins', 'quick saves',
+  'pricing', 'plans', 'pricing plans', 'privacy policy', 'terms', 'terms of service',
+  'terms of use', 'about', 'about us', 'contact', 'contact us', 'faq',
+]);
+
+export const INFRASTRUCTURE_STOPWORDS: ReadonlySet<string> = new Set([
+  'com', 'org', 'net', 'edu', 'gov', 'mil', 'io', 'ai', 'co', 'app', 'dev', 'ir', 'uk', 'de', 'fr', 'nl', 'ca', 'au', 'jp', 'cn', 'ru', 'ch', 'se', 'no', 'es', 'it', 'br', 'in', 'me', 'tv', 'cc', 'xyz', 'info', 'biz', 'online', 'site', 'store', 'tech',
+  'www', 'm', 'mobile', 'api', 'web', 'mail', 'static', 'cdn', 'assets', 'img', 'media', 'download', 'downloads', 'index', 'html', 'php', 'aspx', 'jsp',
+  'http', 'https', 'pin', 'pins', 'post', 'posts', 'view', 'views', 'photo', 'photos', 'item', 'items', 'product', 'products', 'watch', 'video', 'videos', 'channel',
+]);
+
+const INFORMATIVENESS_STOPWORDS: ReadonlySet<string> = new Set([
+  'a', 'an', 'the', 'and', 'or', 'in', 'of', 'to', 'for', 'with', 'on', 'at', 'by',
+  'from', 'about', 'is', 'are', 'was', 'were', 'it', 'its', 'as', 'vs',
+]);
+
+/**
+ * Deterministically calculates the Semantic Information Quality (SIQ) score for a tab.
+ * Returns a score between 0.0 (generic platform boilerplate) and 1.0 (rich topical content).
+ */
+export function calculateTabInformativeness(
+  tab: Tab,
+  domainInfo: CleanDomainInfo,
+  cleanTitle: string,
+  pathSegments: string[],
+  cleanUrl: string
+): { informativeness: number; isLowInformation: boolean } {
+  const titleLower = (cleanTitle || '').toLowerCase().trim();
+  const domainLower = (domainInfo.cleanHost || domainInfo.rootDomain || '').toLowerCase();
+  const rootBase = (domainInfo.rootDomain || '').split('.')[0]?.toLowerCase() || '';
+
+  // 1a. Explicit HTTP Error and Browser Access Failure detection
+  const isErrorPattern =
+    /\b(401|403|404|500|502|503|504)\b/i.test(titleLower) &&
+    /\b(error|forbidden|not found|bad gateway|service unavailable|access denied|permission|that's an error|that’s an error)\b/i.test(titleLower);
+
+  const isBlockedPattern =
+    /\b(domain blocked|access denied|site blocked|blocked by administrator)\b/i.test(titleLower);
+
+  const isBrowserErrorPattern =
+    /\b(this site can't be reached|this site can’t be reached|connection refused|network error|dns probe|err_connection|privacy error|your connection is not private|connection not secure|certificate error|ssl error|err_cert)\b/i.test(titleLower);
+
+  if (isErrorPattern || isBlockedPattern || isBrowserErrorPattern) {
+    return { informativeness: 0.05, isLowInformation: true };
+  }
+
+  // 1b. Direct platform/brand match check (including slogans on root URLs like "reddit: the front page")
+  const isPlatformTitle =
+    titleLower === rootBase ||
+    titleLower === domainLower ||
+    titleLower.startsWith(`${rootBase}.`) ||
+    titleLower.startsWith(`www.${rootBase}`) ||
+    titleLower.startsWith(`${rootBase}:`) ||
+    titleLower.startsWith(`${rootBase} -`) ||
+    titleLower.startsWith(`${rootBase} –`) ||
+    titleLower.startsWith(`${rootBase} —`) ||
+    titleLower.startsWith(`${rootBase} |`);
+
+  // 2. Generic navigation boilerplate check
+  const isGenericTitle = GENERIC_PAGE_TITLES.has(titleLower);
+
+  // 3. Check if URL is root or near-root
+  let isRootUrl = false;
+  try {
+    const parsed = new URL(cleanUrl);
+    isRootUrl = parsed.pathname === '/' || parsed.pathname === '';
+  } catch {
+    isRootUrl = false;
+  }
+
+  const isPersianPlatformHomepage =
+    isRootUrl &&
+    (/\b(دیجی‌کالا|مکتب‌خونه|آپارات|اسنپ)\b/i.test(titleLower) ||
+      /\b(فروشگاه اینترنتی|آکادمی آنلاین|صفحه اصلی)\b/i.test(titleLower));
+
+  // Count distinct substantive content words in cleanTitle (excluding pure numbers, hex hashes, and infrastructure words)
+  const titleTokens = titleLower.match(/[a-zA-Z0-9\u4e00-\u9fa5]+/g) || [];
+  const contentWords = titleTokens.filter(
+    (w) =>
+      w.length >= 2 &&
+      !INFORMATIVENESS_STOPWORDS.has(w) &&
+      !INFRASTRUCTURE_STOPWORDS.has(w) &&
+      !/^\d+$/.test(w) &&
+      !HEX_HASH_REGEX.test(w) &&
+      w !== rootBase &&
+      !GENERIC_PAGE_TITLES.has(w)
+  );
+  const distinctContentWords = new Set(contentWords).size;
+
+  // Pinterest pin check: minimal user pins without topical substance
+  const isPinterestPin =
+    (domainLower.includes('pinterest.com') || rootBase === 'pinterest') &&
+    (cleanUrl.includes('/pin/') || cleanUrl.includes('/pin'));
+  if (isPinterestPin && (distinctContentWords <= 1 || titleLower === 'pin' || titleLower === 'pins')) {
+    return { informativeness: 0.05, isLowInformation: true };
+  }
+
+  // Bare media, catalog, or internal file URLs without substantive non-platform content
+  const isBareMediaOrCatalog =
+    (cleanUrl.includes('/pin/') ||
+      cleanUrl.includes('/photo/') ||
+      cleanUrl.includes('/image/') ||
+      cleanUrl.includes('/watch') ||
+      cleanUrl.includes('/product/') ||
+      cleanUrl.includes('/item/')) &&
+    (distinctContentWords === 0 || isPlatformTitle || cleanTitle.toLowerCase() === domainLower);
+  if (isBareMediaOrCatalog && pathSegments.length === 0) {
+    return { informativeness: 0.05, isLowInformation: true };
+  }
+
+  let score = 0.0;
+
+  if ((isPlatformTitle && isRootUrl) || isPersianPlatformHomepage) {
+    // Pure platform homepage or homepage with slogan (e.g. youtube.com, reddit.com, digikala.com)
+    score = 0.05;
+  } else if (isGenericTitle) {
+    score = 0.1;
+  } else if (distinctContentWords === 0) {
+    score = 0.1;
+  } else if (distinctContentWords === 1) {
+    score = 0.40;
+  } else if (distinctContentWords === 2) {
+    score = 0.70;
+  } else {
+    score = 0.90;
+  }
+
+  // Path segments signal: if title is minimal/boilerplate, path may supply rich context
+  if (pathSegments.length > 0) {
+    const pathContentTokens = pathSegments
+      .join(' ')
+      .toLowerCase()
+      .match(/[a-zA-Z0-9\u4e00-\u9fa5]+/g) || [];
+    const distinctPathWords = new Set(
+      pathContentTokens.filter(
+        (w) =>
+          w.length >= 3 &&
+          !INFORMATIVENESS_STOPWORDS.has(w) &&
+          !INFRASTRUCTURE_STOPWORDS.has(w) &&
+          !/^\d+$/.test(w) &&
+          !HEX_HASH_REGEX.test(w) &&
+          w !== rootBase &&
+          !GENERIC_PAGE_TITLES.has(w)
+      )
+    ).size;
+
+    if (distinctContentWords <= 1 && distinctPathWords >= 2) {
+      score = Math.max(score, 0.45);
+    }
+  }
+
+  // Penalize platform title match if any remains
+  if (isPlatformTitle && !isRootUrl) {
+    score = Math.min(score, 0.20);
+  }
+
+  // Clamp score to [0.0, 1.0]
+  const clampedScore = Math.max(0.0, Math.min(1.0, Math.round(score * 100) / 100));
+  const isLowInformation = clampedScore < LOW_INFORMATION_THRESHOLD;
+
+  return { informativeness: clampedScore, isLowInformation };
+}
+
+// -----------------------------------------------------------------------------
+// 10. Master Normalization Function
 // -----------------------------------------------------------------------------
 
 /**
@@ -632,6 +897,15 @@ export function normalizeTab(
   // 7. Compute deterministic cyrb53 hash
   const hash = hashString(`${cleanUrl}::${cleanTitle}`);
 
+  // 8. Compute Semantic Information Quality (SIQ)
+  const { informativeness, isLowInformation } = calculateTabInformativeness(
+    tab,
+    domainInfo,
+    cleanTitle,
+    pathSegments,
+    cleanUrl
+  );
+
   return {
     rawTab: tab,
     cleanUrl,
@@ -640,5 +914,7 @@ export function normalizeTab(
     pathSegments,
     semanticPrompt,
     hash,
+    informativeness,
+    isLowInformation,
   };
 }

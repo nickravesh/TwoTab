@@ -100,6 +100,9 @@ export const BRANDED_DOMAINS: Record<string, { name: string; color: TabGroupColo
   'nytimes.com': { name: 'The New York Times', color: 'grey' },
   'bbc.com': { name: 'BBC', color: 'red' },
   'bbc.co.uk': { name: 'BBC', color: 'red' },
+  'instagram.com': { name: 'Instagram', color: 'pink' },
+  'pinterest.com': { name: 'Pinterest', color: 'red' },
+  'maktabkhooneh.org': { name: 'Maktabkhooneh', color: 'blue' },
   'sub.domain.example.co.uk': { name: 'Example UK', color: 'blue' },
 };
 

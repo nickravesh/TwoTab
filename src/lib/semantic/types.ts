@@ -29,6 +29,10 @@ export interface NormalizedTabMetadata {
   semanticPrompt: string;
   /** Deterministic 64-bit cyrb53 hex hash string for ephemeral embedding cache lookup */
   hash: string;
+  /** Semantic Information Quality score between 0.0 (generic/boilerplate) and 1.0 (highly informative) */
+  informativeness?: number;
+  /** True if the tab is classified as low-information / platform-dominated */
+  isLowInformation?: boolean;
 }
 
 /**
@@ -79,12 +83,21 @@ export interface SanitizedUrlResult {
 // Milestone 2: Clustering & Naming Contracts
 // -----------------------------------------------------------------------------
 
+export interface ClusterPurityMetrics {
+  meanPairwiseSimilarity: number;
+  minPairwiseSimilarity: number;
+  maxSemanticDistance: number;
+  centroidSimilarity: number;
+  domainDiversity: number;
+}
+
 export interface ClusterGroup {
   id: string;
   name: string;
   color: TabGroupColor;
   tabs: Tab[];
   coherenceScore: number;
+  metrics?: ClusterPurityMetrics;
 }
 
 export interface ClusteringResult {
@@ -95,6 +108,15 @@ export interface ClusteringResult {
 export interface ClusteringOptions {
   similarityThreshold?: number; // Default 0.70
   minimumGroupSize?: number;    // Default 2
+  enableInformationTiering?: boolean; // Default true
+  lowInformationThreshold?: number;   // Default 0.35
+  enableSecondStageMerge?: boolean;   // Default true
+  deduplicateTabs?: boolean;          // Default true
+}
+
+export interface GroupNameOptions {
+  clusterCentroid?: Float32Array;
+  tabEmbeddings?: Float32Array[];
 }
 
 // -----------------------------------------------------------------------------

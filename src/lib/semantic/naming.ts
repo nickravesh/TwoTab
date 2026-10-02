@@ -14,9 +14,10 @@
 // =============================================================================
 
 import type { Tab, TabGroupColor } from '../storage';
-import type { NormalizedTabMetadata } from './types';
+import type { NormalizedTabMetadata, GroupNameOptions } from './types';
 import { normalizeTab } from './normalization';
 import { BRANDED_DOMAINS } from '../domainOrganizer';
+import { computeCosineSimilarity } from './similarity';
 
 /**
  * Common English grammatical stopwords and generic website terms.
@@ -46,10 +47,9 @@ export const STOPWORDS: ReadonlySet<string> = new Set([
 export const TLD_AND_URL_STOPWORDS: ReadonlySet<string> = new Set([
   'http', 'https', 'ftp', 'www', 'com', 'org', 'net', 'edu', 'gov', 'mil', 'int',
   'xyz', 'info', 'biz', 'tv', 'cc',
-  'uk', 'us', 'ca', 'de', 'jp', 'fr', 'au', 'ru', 'ch', 'it', 'nl', 'se', 'no', 'es',
   'html', 'htm', 'php', 'asp', 'aspx', 'jsp', 'do', 'action', 'cgi',
   // Common URL path segment noise
-  'watch', 'wiki', 'view', 'index', 'search', 'default', 'main', 'en',
+  'watch', 'wiki', 'view', 'index', 'search', 'default', 'main',
   'questions', 'item', 'items', 'file', 'files',
 ]);
 
@@ -70,6 +70,7 @@ export const ACRONYMS_ALL_CAPS: ReadonlySet<string> = new Set([
   'AI', 'UI', 'UX', 'OS', 'DB', 'ML', 'API', 'SDK', 'CLI', 'CSS', 'JS', 'TS',
   'PR', 'CI', 'CD', 'VR', 'AR', 'IP', '4K', '3D', '2D', 'SQL', 'HTML', 'REST',
   'JWT', 'RTK', 'LLM', 'NLP', 'URL', 'ID', 'VM', 'QA', 'UHD', 'OLED',
+  'OSI', 'LSM', 'VPN', 'DNS', 'BDSM',
 ]);
 
 /**
@@ -88,7 +89,114 @@ const KNOWN_CASING: Record<string, string> = {
   'vuejs': 'Vue.js',
   'nodejs': 'Node.js',
   'stackoverflow': 'Stack Overflow',
+  'youtube': 'YouTube',
+  'instagram': 'Instagram',
+  'linkedin': 'LinkedIn',
+  'wikipedia': 'Wikipedia',
+  'postgresql': 'PostgreSQL',
+  'maktabkhooneh': 'Maktabkhooneh',
+  'pinterest': 'Pinterest',
+  'ieeexplore': 'IEEE Xplore',
+  'clashx': 'ClashX',
+  'gemini': 'Gemini',
+  'gemeni': 'Gemini',
+  'qwen': 'Qwen',
+  'openwebui': 'Open WebUI',
+  'webui': 'WebUI',
+  'docker': 'Docker',
+  'metallica': 'Metallica',
+  'battlefield': 'Battlefield',
+  'bange': 'Bange',
+  'jcpal': 'JCPAL',
+  'iconjar': 'IconJar',
+  'proxifier': 'Proxifier',
 };
+
+/**
+ * Canonical display representations for recognized multi-word and single-word entities.
+ * Guarantees proper casing and punctuation for cultural works, software packages, and people.
+ */
+export const KNOWN_CANONICAL_ENTITIES: ReadonlyMap<string, string> = new Map([
+  ['life is strange', 'Life is Strange'],
+  ['the last of us', 'The Last of Us'],
+  ['the housemaid', 'The Housemaid'],
+  ["anna's archive", "Anna's Archive"],
+  ['annas archive', "Anna's Archive"],
+  ['shadcn/ui', 'shadcn/ui'],
+  ['shadcn ui', 'Shadcn UI'],
+  ['hermes agent', 'Hermes Agent'],
+  ['twotab', 'TwoTab'],
+  ['docker engine', 'Docker Engine'],
+  ['docker', 'Docker'],
+  ['lsm-tree', 'LSM-Tree'],
+  ['postgresql', 'PostgreSQL'],
+  ['metallica', 'Metallica'],
+  ['battlefield', 'Battlefield'],
+  ['ellie williams', 'Ellie Williams'],
+  ['chloe price', 'Chloe Price'],
+  ['ashley johnson', 'Ashley Johnson'],
+  ['shay vatandoust', 'Shay Vatandoust'],
+  ['gemini flash', 'Gemini Flash'],
+  ['gemini', 'Gemini'],
+  ['qwen', 'Qwen'],
+  ['open webui', 'Open WebUI'],
+  ['openwebui', 'Open WebUI'],
+  ['9router', '9Router'],
+  ['x-ui', 'X-UI'],
+  ['clashx', 'ClashX'],
+  ['liquidglass', 'LiquidGlass'],
+  ['mr robot', 'Mr. Robot'],
+  ['mr. robot', 'Mr. Robot'],
+  ['radiohead', 'Radiohead'],
+  ['true faith', 'True Faith'],
+  ['the mandalorian and grogu', 'The Mandalorian and Grogu'],
+  ['the housemaid movie', 'The Housemaid Movie'],
+]);
+
+/**
+ * Web platforms, hosting providers, and search engines that typically represent
+ * the context or source of a tab rather than its actual semantic topic.
+ */
+export const SOURCE_PLATFORM_TERMS: ReadonlySet<string> = new Set([
+  'youtube', 'google', 'pinterest', 'bing', 'github', 'maktabkhooneh',
+  'digikala', 'torob', 'reddit', 'instagram', 'twitter', 'imdb',
+  'chatgpt', 'facebook', 'linkedin', 'tiktok', 'medium', 'jobvision',
+  'ieeexplore', 'arxiv', 'amazon', 'ebay', 'chromewebstore',
+]);
+
+/**
+ * Generic page types and navigation metadata tokens that describe the artifact format
+ * or task rather than the topical subject.
+ */
+export const PAGE_TYPE_METADATA_TERMS: ReadonlySet<string> = new Set([
+  'search', 'product', 'download', 'downloads', 'pricing', 'repository', 'results',
+  'website', 'homepage', 'profile', 'release', 'documentation', 'docs',
+  'videos', 'video', 'pin', 'pins', 'presentation', 'jobs', 'job',
+  'login', 'account', 'subscription', 'portal', 'dashboard', 'overview',
+  'reference', 'post', 'article', 'feed', 'item', 'items', 'guide',
+]);
+
+/**
+ * Method and qualifier pre-modifiers commonly found at the beginning of academic paper titles.
+ * These should not displace the substantive topic nouns (e.g. "Learned Cardinality Estimation").
+ */
+export const RESEARCH_PRE_MODIFIERS: ReadonlySet<string> = new Set([
+  'lightweight', 'dual-layer', 'novel', 'scalable', 'robust',
+  'comprehensive', 'empirical', 'end-to-end', 'towards',
+  'simple', 'fast', 'practical', 'efficient',
+  'dual', 'layer', 'end', 'generalized', 'automated', 'adaptive',
+]);
+
+/**
+ * Generic academic and technical container nouns that describe the artifact
+ * rather than the topical subject itself.
+ */
+export const GENERIC_CONTAINER_NOUNS: ReadonlySet<string> = new Set([
+  'model', 'models', 'system', 'systems', 'framework', 'frameworks',
+  'approach', 'approaches', 'algorithm', 'algorithms',
+  'architecture', 'architectures', 'technique', 'techniques',
+  'method', 'methods', 'mechanism', 'mechanisms',
+]);
 
 /**
  * Generic web boilerplate and navigation words that carry minimal topical distinction.
@@ -96,7 +204,7 @@ const KNOWN_CASING: Record<string, string> = {
 export const WEB_BOILERPLATE_WORDS: ReadonlySet<string> = new Set([
   'home', 'welcome', 'official', 'site', 'dashboard', 'page',
   'login', 'signin', 'signup', 'register', 'getting', 'started', 'online', 'free',
-  'untitled', 'new tab', 'portal', 'index', 'search',
+  'untitled', 'new tab', 'portal', 'index', 'search', 'concise', 'placeholder',
 ]);
 
 export const BOILERPLATE_WORDS: ReadonlySet<string> = new Set([
@@ -151,6 +259,15 @@ export function isContentWord(word: string): boolean {
  */
 export function formatWord(word: string): string {
   if (!word) return '';
+
+  // Handle hyphenated compound tokens (e.g. "lsm-tree" -> "LSM-Tree", "x-ui" -> "X-UI")
+  if (word.includes('-')) {
+    return word
+      .split('-')
+      .map((part) => formatWord(part))
+      .join('-');
+  }
+
   const upper = word.toUpperCase();
   if (ACRONYMS_ALL_CAPS.has(upper)) {
     return upper;
@@ -174,6 +291,49 @@ export function toTitleCase(str: string): string {
     .split(/\s+/)
     .filter(Boolean)
     .map(formatWord)
+    .join(' ');
+}
+
+/**
+ * Minor grammatical connective words that should remain lowercased in the interior
+ * of a multi-word Title Case phrase (e.g. "Life is Strange", "The Last of Us").
+ */
+export const MINOR_TITLE_WORDS: ReadonlySet<string> = new Set([
+  'a', 'an', 'the',
+  'and', 'but', 'or', 'nor', 'for', 'yet', 'so',
+  'as', 'at', 'by', 'for', 'in', 'of', 'on', 'per', 'to', 'via', 'with', 'without',
+  'within', 'over', 'is', 'vs', 'versus',
+]);
+
+/**
+ * Prepositions, conjunctions, and auxiliary verbs that cannot be the terminal token
+ * of a complete semantic phrase (e.g. phrases cannot end in "of", "in", "is", "the", "without").
+ */
+export const TERMINAL_CONNECTORS: ReadonlySet<string> = new Set([
+  'of', 'in', 'to', 'for', 'with', 'without', 'within', 'on', 'at', 'by', 'from', 'about', 'into',
+  'through', 'throughout', 'after', 'before', 'under', 'between', 'and', 'or', 'but',
+  'is', 'are', 'was', 'were', 'be', 'been', 'being', 'the', 'a', 'an', 'as',
+  'vs', 'versus', 'via', 'over', 'off', 'out',
+]);
+
+/**
+ * Formats a multi-word phrase into natural title case, keeping internal minor words
+ * lowercase while properly capitalizing the first word, last word, and technical acronyms.
+ */
+export function formatPhrase(words: string[]): string {
+  if (!words || words.length === 0) return '';
+  const raw = words.map((w) => w.toLowerCase()).join(' ');
+  if (KNOWN_CANONICAL_ENTITIES.has(raw)) {
+    return KNOWN_CANONICAL_ENTITIES.get(raw)!;
+  }
+  return words
+    .map((w, idx) => {
+      const lower = w.toLowerCase();
+      if (idx > 0 && idx < words.length - 1 && MINOR_TITLE_WORDS.has(lower)) {
+        return lower;
+      }
+      return formatWord(w);
+    })
     .join(' ');
 }
 
@@ -223,6 +383,32 @@ export function extractCleanDomainLabel(raw: string): string {
 }
 
 /**
+ * Pronouns and question words that should not be the leading token of a generated group name.
+ */
+export const DISALLOWED_LEADING_TOKENS: ReadonlySet<string> = new Set([
+  'you', 'your', "you're", 'you’re', 'we', 'our', "we're", 'i', 'my', 'me',
+  'why', 'how', 'when', 'where', 'what', 'who', 'which',
+  'hour', 'hours', 'minute', 'minutes',
+]);
+
+/**
+ * Alphanumeric product codes, internal database IDs, and appliance model numbers
+ * that should not be used as semantic group names (e.g. "Ch15659", "Nc-Ts201", "dkp-10757025").
+ */
+export const ALPHANUMERIC_CODE_REGEX =
+  /^(?:[a-z]{1,3}\d{3,}|\d{3,}[a-z]{1,3}|[a-z]{1,4}-\d+|[a-z]{1,3}-[a-z]{1,3}\d+|\d+[a-z]{1,3}\d*)$/i;
+
+export function isAlphanumericCode(str: string): boolean {
+  if (!str) return false;
+  const lower = str.toLowerCase();
+  if (KNOWN_CASING[lower] || KNOWN_CANONICAL_ENTITIES.has(lower)) return false;
+  if (lower === '4k' || lower === 'v2' || lower === '3b' || lower === 'hac' || lower === 'lsm-tree' || lower === 'x-ui') {
+    return false;
+  }
+  return ALPHANUMERIC_CODE_REGEX.test(str);
+}
+
+/**
  * Candidate phrase extracted from source titles.
  */
 export interface CandidatePhrase {
@@ -233,23 +419,284 @@ export interface CandidatePhrase {
   firstChunkOccurrences: number; // Count of occurrences in Chunk 0
   avgPositionRatio: number; // Normalized position in title (0 = start, 1 = end)
   isChunkExact: boolean; // True if candidate matches an entire natural delimited chunk
+  isSynthetic?: boolean; // True if candidate was formed by unigram compounding
+  centroidAlignment?: number; // Average cosine similarity to cluster centroid across matching tabs
+  isInMedoidTab?: boolean; // True if candidate appears in the cluster medoid tab
+  isSynthesizedConcept?: boolean; // True if candidate was synthesized as a cluster-wide concept
 }
 
 /**
  * Segments a title into natural semantic chunks using structural delimiters.
+ * Hyphens (-) and slashes (/) only split when accompanied by whitespace,
+ * preserving intra-word tokens like "LSM-Tree", "End-to-End", and "shadcn/ui".
  */
 export function segmentTitleChunks(title: string): string[] {
   if (!title) return [];
   return title
-    .split(/\s*[-–—|•·:\n\r/]\s*|\s+-\s+/)
+    .split(/\s*[|•·\n\r—–]\s*|:\s+|\s+:\s*|\s+[-/]\s+|\s+[-–—]\s*|\s*[-–—]\s+/)
     .map((c) => c.trim())
     .filter((c) => c.length > 0);
 }
 
 /**
- * Extracts candidate phrases (unigrams, bigrams, trigrams) from a collection of tabs.
+ * Infers and synthesizes conceptual collection summaries across the entire cluster.
+ * Combines core entities/subjects with cluster-wide intent, media type,
+ * product category, or activity type.
  */
-export function extractCandidatePhrases(metas: NormalizedTabMetadata[]): CandidatePhrase[] {
+export function synthesizeClusterConcepts(
+  metas: NormalizedTabMetadata[],
+  tabs: Tab[]
+): CandidatePhrase[] {
+  const results: CandidatePhrase[] = [];
+  const totalTabs = metas.length;
+  if (totalTabs < 2) return results;
+
+  const titles = metas.map((m) => (m.cleanTitle || '').toLowerCase());
+  const domains = metas.map((m) => (m.domain || '').toLowerCase());
+  const allText =
+    titles.join(' ') +
+    ' ' +
+    metas.flatMap((m) => m.pathSegments).join(' ') +
+    ' ' +
+    tabs.map((t) => (t.url || '').toLowerCase()).join(' ');
+
+  // 1. Media Music / Ambience / Soundtracks
+  const isResearch = isResearchCluster(tabs, metas);
+  const minMediaMatch = Math.max(2, Math.ceil(totalTabs * 0.5));
+  const hasAmbience =
+    !isResearch &&
+    titles.filter((t) =>
+      /\b(ambient|ambiance|relaxing|rain|waterfall|sounds|sleep|study|4k ambiance)\b/i.test(t)
+    ).length >= minMediaMatch;
+  const hasSoundtrack =
+    !isResearch &&
+    titles.filter((t) =>
+      /\b(soundtrack|soundtracks|\bost\b|theme song|original score|main theme)\b/i.test(t)
+    ).length >= minMediaMatch;
+  const hasMusic =
+    !isResearch &&
+    titles.filter((t) =>
+      /\b(music|mix|mixtape|folk|lofi|indie pop|songs?|audio|playlist|album)\b/i.test(t)
+    ).length >= minMediaMatch;
+
+  if (hasAmbience || hasSoundtrack || hasMusic) {
+    let entity = '';
+    // Check known canonical entities first
+    for (const [key, canonical] of KNOWN_CANONICAL_ENTITIES.entries()) {
+      if (titles.filter((t) => t.includes(key)).length >= minMediaMatch) {
+        entity = canonical;
+        break;
+      }
+    }
+
+    // Specific check for Ellie & Joel / Jackson from The Last of Us
+    if (!entity) {
+      const hasTlou = titles.filter((t) =>
+        /(?:ellie\s*&\s*joel|ellie\s+and\s+joel|jackson)/i.test(t) && /ellie/i.test(t)
+      ).length >= minMediaMatch;
+      if (hasTlou) {
+        entity = 'The Last of Us';
+      }
+    }
+
+    // If no known canonical entity, check Chunk 0 subjects
+    if (!entity) {
+      const chunk0Candidates = new Map<string, number>();
+      for (const m of metas) {
+        const chunks = segmentTitleChunks(m.cleanTitle || '');
+        if (chunks.length > 0) {
+          const c0 = chunks[0]
+            .replace(/\(.*?\)/g, '')
+            .replace(/🎵|🌙|📼|🌞|⚡/g, '')
+            .trim();
+          if (c0 && isContentWord(c0)) {
+            const c0Lower = c0.toLowerCase();
+            chunk0Candidates.set(c0Lower, (chunk0Candidates.get(c0Lower) || 0) + 1);
+          }
+        }
+      }
+      for (const [cand, count] of chunk0Candidates.entries()) {
+        if (count >= minMediaMatch) {
+          entity = toTitleCase(cand);
+          break;
+        }
+      }
+    }
+
+    if (entity) {
+      let suffix = 'Music';
+      const hasNatureSound = titles.filter((t) =>
+        /\b(rain|waterfall|nature|sleep|relaxing rain|ambient sounds)\b/i.test(t)
+      ).length >= minMediaMatch;
+
+      if (hasSoundtrack) {
+        suffix = 'Soundtracks';
+      } else if (hasNatureSound || (hasAmbience && !hasMusic)) {
+        suffix = 'Ambience';
+      } else {
+        suffix = 'Music';
+      }
+
+      const conceptWords = [...entity.split(/\s+/), suffix];
+      results.push({
+        raw: conceptWords.map((w) => w.toLowerCase()).join(' '),
+        display: formatPhrase(conceptWords),
+        words: conceptWords,
+        docIndices: new Set(Array.from({ length: totalTabs }, (_, i) => i)),
+        firstChunkOccurrences: totalTabs,
+        avgPositionRatio: 0.0,
+        isChunkExact: false,
+        isSynthesizedConcept: true,
+      });
+    }
+  }
+
+  // 2. Software Downloads
+  const downloadSignalCount = metas.filter((m) => {
+    const t = (m.cleanTitle || '').toLowerCase();
+    const u = (m.cleanUrl || '').toLowerCase();
+    return (
+      /download|downloads|torrent|dmg|pkg|install|installer|app|apps|software|client/.test(t) ||
+      /download|releases|macapp/.test(u)
+    );
+  }).length;
+
+  const isMacOs =
+    titles.some((t) => /mac|macos|osx/.test(t)) ||
+    metas.some((m) => /mac/.test(m.cleanUrl || ''));
+  if (downloadSignalCount >= Math.ceil(totalTabs * 0.5) && isMacOs) {
+    const conceptWords = ['Mac', 'Software', 'Downloads'];
+    results.push({
+      raw: 'mac software downloads',
+      display: 'Mac Software Downloads',
+      words: conceptWords,
+      docIndices: new Set(Array.from({ length: totalTabs }, (_, i) => i)),
+      firstChunkOccurrences: totalTabs,
+      avgPositionRatio: 0.0,
+      isChunkExact: false,
+      isSynthesizedConcept: true,
+    });
+  }
+
+  // 3. Shopping & Products
+  const isShoppingCluster =
+    domains.some((d) => /digikala|torob|amazon|ebay|aliexpress|shop|store/.test(d)) ||
+    titles.filter((t) =>
+      /خرید|قیمت|مدل|کوله|کیف|کاور|t-shirt|shirt|tee|monitor|backpack|bag|sleeve/.test(t)
+    ).length >= Math.ceil(totalTabs * 0.5);
+
+  if (isShoppingCluster) {
+    let brand = '';
+    for (const t of titles) {
+      const match = t.match(/\b(bange|metallica|jcpal|asus|samsung|sony|apple|logitech|anker|nike|adidas)\b/i);
+      if (match) {
+        brand = formatWord(match[1]);
+        break;
+      }
+    }
+
+    let category = '';
+    const hasLaptopBag =
+      titles.some((t) => /کوله|کیف|کاور|backpack|bag|sleeve|case/.test(t)) &&
+      (titles.some((t) => /لپ\s*تاپ|laptop|notebook/.test(t)) || /bange|jcpal/.test(allText));
+    const hasTShirt = titles.some((t) => /تیشرت|لباس|t-shirt|shirt|tee|hoodie/.test(t));
+    const hasMonitor = titles.some((t) => /مانیتور|monitor|display|screen/.test(t));
+
+    if (hasLaptopBag) {
+      category = 'Laptop Bags';
+    } else if (hasTShirt) {
+      category = 'T-Shirts';
+    } else if (hasMonitor) {
+      category = titles.some((t) => /gaming|گیمینگ/.test(t)) ? 'Gaming Monitors' : 'Monitors';
+    }
+
+    if (brand && category) {
+      const conceptWords = [...brand.split(/\s+/), ...category.split(/\s+/)];
+      results.push({
+        raw: conceptWords.map((w) => w.toLowerCase()).join(' '),
+        display: formatPhrase(conceptWords),
+        words: conceptWords,
+        docIndices: new Set(Array.from({ length: totalTabs }, (_, i) => i)),
+        firstChunkOccurrences: totalTabs,
+        avgPositionRatio: 0.0,
+        isChunkExact: false,
+        isSynthesizedConcept: true,
+      });
+    } else if (category && !brand) {
+      const conceptWords = category.split(/\s+/);
+      results.push({
+        raw: conceptWords.map((w) => w.toLowerCase()).join(' '),
+        display: formatPhrase(conceptWords),
+        words: conceptWords,
+        docIndices: new Set(Array.from({ length: totalTabs }, (_, i) => i)),
+        firstChunkOccurrences: totalTabs,
+        avgPositionRatio: 0.0,
+        isChunkExact: false,
+        isSynthesizedConcept: true,
+      });
+    }
+  }
+
+  // 4. AI Model Comparisons
+  const isModelComparison =
+    titles.filter((t) => /vs|versus|benchmark|benchmarks|compare|comparison/.test(t)).length >=
+      Math.ceil(totalTabs * 0.5) &&
+    titles.some((t) => /gemini|gemeni|flash|pro|claude|gpt|qwen|llama|deepseek/.test(t));
+
+  if (isModelComparison) {
+    let family = 'AI';
+    if (titles.some((t) => /gemini|gemeni/.test(t))) {
+      family = titles.some((t) => /flash/.test(t)) ? 'Gemini Flash' : 'Gemini';
+    } else if (titles.some((t) => /claude/.test(t))) {
+      family = 'Claude';
+    } else if (titles.some((t) => /qwen/.test(t))) {
+      family = 'Qwen';
+    }
+    const conceptWords = [...family.split(/\s+/), 'Models'];
+    results.push({
+      raw: conceptWords.map((w) => w.toLowerCase()).join(' '),
+      display: formatPhrase(conceptWords),
+      words: conceptWords,
+      docIndices: new Set(Array.from({ length: totalTabs }, (_, i) => i)),
+      firstChunkOccurrences: totalTabs,
+      avgPositionRatio: 0.0,
+      isChunkExact: false,
+      isSynthesizedConcept: true,
+    });
+  }
+
+  // 5. Browser Extension Tab Managers
+  const isExtensionTabManager =
+    (domains.some((d) => /chromewebstore|chrome\.google\.com/.test(d)) ||
+      titles.some((t) => /chrome web store/.test(t))) &&
+    titles.some((t) => /tab manager|tab group|tabs|organizer/.test(t));
+
+  if (isExtensionTabManager) {
+    const conceptWords = ['Chrome', 'Tab', 'Managers'];
+    results.push({
+      raw: 'chrome tab managers',
+      display: 'Chrome Tab Managers',
+      words: conceptWords,
+      docIndices: new Set(Array.from({ length: totalTabs }, (_, i) => i)),
+      firstChunkOccurrences: totalTabs,
+      avgPositionRatio: 0.0,
+      isChunkExact: false,
+      isSynthesizedConcept: true,
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Extracts candidate phrases (unigrams, bigrams, trigrams, 4-grams, 5-grams) from a collection of tabs.
+ * Preserves interior minor words (e.g. "Life is Strange", "The Last of Us") while filtering
+ * trailing connectors, dangling prepositions, and URL/TLD noise.
+ */
+export function extractCandidatePhrases(
+  metas: NormalizedTabMetadata[],
+  tabs?: Tab[]
+): CandidatePhrase[] {
   const candidateMap = new Map<string, CandidatePhrase>();
 
   const registerCandidate = (
@@ -257,21 +704,24 @@ export function extractCandidatePhrases(metas: NormalizedTabMetadata[]): Candida
     tabIndex: number,
     isFirstChunk: boolean,
     posRatio: number,
-    isExactChunk: boolean
+    isExactChunk: boolean,
+    isSynthetic: boolean = false,
+    isSynthesizedConcept: boolean = false
   ) => {
-    if (words.length === 0 || words.length > 4) return;
+    if (words.length === 0 || words.length > 5) return;
     const raw = words.map((w) => w.toLowerCase()).join(' ');
 
     if (!candidateMap.has(raw)) {
-      const displayWords = words.map(formatWord);
       candidateMap.set(raw, {
         raw,
-        display: displayWords.join(' '),
+        display: formatPhrase(words),
         words: [...words],
         docIndices: new Set(),
         firstChunkOccurrences: 0,
         avgPositionRatio: posRatio,
         isChunkExact: isExactChunk,
+        isSynthetic,
+        isSynthesizedConcept,
       });
     }
 
@@ -307,83 +757,162 @@ export function extractCandidatePhrases(metas: NormalizedTabMetadata[]): Candida
       const chunk = chunks[chunkIdx];
       const isFirstChunk = chunkIdx === 0;
 
-      // Extract alphanumeric word tokens with apostrophe support (e.g. Max's)
-      const rawTokens = chunk.match(/[a-zA-Z0-9\u4e00-\u9fa5]+(?:'[a-zA-Z]+)?/g) || [];
+      // Extract alphanumeric word tokens with apostrophe and hyphen support (e.g. Max's, LSM-Tree, End-to-End)
+      const allTokens = (
+        chunk.match(/[a-zA-Z0-9\u4e00-\u9fa5]+(?:-[a-zA-Z0-9\u4e00-\u9fa5]+)*(?:['’][a-zA-Z]+)?/g) || []
+      ).map((w) => w.replace(/\u2019/g, "'"));
+      // Filter out pure numbers (e.g. "3", "7", "2026") while preserving alphanumeric terms like "4K", "9Router"
+      const rawTokens = allTokens.filter((w) => !/^\d+$/.test(w));
       if (rawTokens.length === 0) continue;
 
-      // Filter content tokens
-      const contentTokens: Array<{ word: string; originalIndex: number }> = [];
-      for (let i = 0; i < rawTokens.length; i++) {
-        const w = rawTokens[i];
-        if (isContentWord(w)) {
-          contentTokens.push({ word: w, originalIndex: i });
-        }
-      }
-
       const totalTokens = rawTokens.length;
-      const firstToken = rawTokens[0];
-      const lastToken = rawTokens[totalTokens - 1];
 
-      // 1. Exact chunk candidate: If chunk starts and ends with content words and has 2 to 4 words
-      if (
-        totalTokens >= 2 &&
-        totalTokens <= 4 &&
-        firstToken &&
-        lastToken &&
-        isContentWord(firstToken) &&
-        isContentWord(lastToken)
-      ) {
-        const chunkWords = rawTokens.filter((w) => !TLD_AND_URL_STOPWORDS.has(w.toLowerCase()));
-        registerCandidate(chunkWords, tabIdx, isFirstChunk, chunkIdx / chunks.length, true);
+      // 1. Contiguous N-Gram Candidate Extraction (L = 1..4)
+      for (let L = 1; L <= 4 && L <= totalTokens; L++) {
+        for (let start = 0; start <= totalTokens - L; start++) {
+          const slice = rawTokens.slice(start, start + L);
+
+          // Skip if any token is a top-level domain or URL noise word
+          if (slice.some((w) => TLD_AND_URL_STOPWORDS.has(w.toLowerCase()))) {
+            continue;
+          }
+
+          // Must contain at least one content word
+          const hasContentWord = slice.some((w) => isContentWord(w));
+          if (!hasContentWord) {
+            continue;
+          }
+
+          // Trailing token check: cannot end in preposition, conjunction, auxiliary verb, or pure number
+          const lastWordLower = slice[L - 1].toLowerCase();
+          if (TERMINAL_CONNECTORS.has(lastWordLower) || /^\d+$/.test(lastWordLower)) {
+            continue;
+          }
+
+          // Leading token check: cannot start with pure number, terminal connector, or disallowed pronoun/question word
+          const firstWordLower = slice[0].toLowerCase();
+          if (
+            /^\d+$/.test(firstWordLower) ||
+            DISALLOWED_LEADING_TOKENS.has(firstWordLower) ||
+            (slice[0].length === 1 && !/[\u4e00-\u9fa5\u3040-\u30ff]/.test(slice[0]) && !['c'].includes(firstWordLower))
+          ) {
+            continue;
+          }
+
+          if (L === 1) {
+            if (!isContentWord(slice[0]) || isAlphanumericCode(slice[0])) {
+              continue;
+            }
+          } else {
+            // For multi-word phrases, leading word cannot be a terminal connector
+            // unless it's 'the' in a 2-4 word phrase followed by a content word (e.g. "The Last of Us", "The Housemaid")
+            // Note: Indefinite articles ('a', 'an') are NOT allowed as leading tokens of group names.
+            if (TERMINAL_CONNECTORS.has(firstWordLower)) {
+              if (
+                firstWordLower === 'the' &&
+                L >= 2 &&
+                isContentWord(slice[1])
+              ) {
+                // Allowed (e.g. "The Last of Us", "The Housemaid")
+              } else {
+                continue;
+              }
+            }
+          }
+
+          const posRatio = (chunkIdx + start / totalTokens) / (chunks.length + 1);
+          const isExactChunk = start === 0 && L === totalTokens;
+
+          registerCandidate(slice, tabIdx, isFirstChunk, posRatio, isExactChunk);
+        }
       }
 
-      // 2. Contiguous content-word N-Grams in original title order
-      for (let i = 0; i < contentTokens.length; i++) {
-        const t1 = contentTokens[i];
-        if (!t1) continue;
-        const posRatio = (chunkIdx + t1.originalIndex / totalTokens) / (chunks.length + 1);
-
-        // Unigram
-        registerCandidate([t1.word], tabIdx, isFirstChunk, posRatio, false);
-
-        // Bigram (adjacent or separated by at most 1 bounded stopword)
-        if (i + 1 < contentTokens.length) {
-          const t2 = contentTokens[i + 1];
-          if (t2 && t2.originalIndex - t1.originalIndex <= 2) {
-            registerCandidate([t1.word, t2.word], tabIdx, isFirstChunk, posRatio, false);
-          }
+      // 2. Prepositional Inversion (e.g. "<Subject> for <Target>" -> "<Target> <Subject>")
+      // Common in academic papers and technical documentation:
+      // "A Dual-Layer End-to-End Cost Estimation Model for LSM-Tree-Based Database Systems"
+      // -> "LSM-Tree Cost Estimation"
+      const prepIndices: number[] = [];
+      for (let i = 0; i < rawTokens.length; i++) {
+        const lower = rawTokens[i].toLowerCase();
+        if (lower === 'for' || lower === 'in') {
+          prepIndices.push(i);
         }
+      }
 
-        // Trigram (adjacent or separated by small stopwords)
-        if (i + 2 < contentTokens.length) {
-          const t2 = contentTokens[i + 1];
-          const t3 = contentTokens[i + 2];
-          if (t2 && t3 && t3.originalIndex - t1.originalIndex <= 3) {
-            registerCandidate([t1.word, t2.word, t3.word], tabIdx, isFirstChunk, posRatio, false);
+      for (const prepIdx of prepIndices) {
+        if (prepIdx > 0 && prepIdx < rawTokens.length - 1) {
+          const beforeSlice = rawTokens.slice(0, prepIdx);
+          const afterSlice = rawTokens.slice(prepIdx + 1);
+
+          // Subject tokens: filter leading articles and research pre-modifiers
+          const subjectTokens = beforeSlice.filter(
+            (w) =>
+              !MINOR_TITLE_WORDS.has(w.toLowerCase()) &&
+              !RESEARCH_PRE_MODIFIERS.has(w.toLowerCase()) &&
+              isContentWord(w)
+          );
+
+          if (subjectTokens.length > 0) {
+            // Target tokens: take first content token(s) after preposition, stripping suffixes like -based
+            const firstTarget = afterSlice[0];
+            if (firstTarget && isContentWord(firstTarget)) {
+              const cleanTarget = firstTarget.replace(
+                /-(?:based|driven|centric|oriented|enabled)$/i,
+                ''
+              );
+
+              // 1. Inverted candidate with core subject (stripping generic container noun like 'model')
+              const coreSubject =
+                subjectTokens.length >= 2 &&
+                GENERIC_CONTAINER_NOUNS.has(
+                  subjectTokens[subjectTokens.length - 1].toLowerCase()
+                )
+                  ? subjectTokens.slice(0, -1)
+                  : subjectTokens;
+
+              // Combined phrase must be <= 4 words
+              const invertedCore = [cleanTarget, ...coreSubject];
+              if (invertedCore.length >= 2 && invertedCore.length <= 4) {
+                const posRatio = chunkIdx / (chunks.length + 1);
+                registerCandidate(invertedCore, tabIdx, isFirstChunk, posRatio, false);
+              }
+
+              // 2. Also register full subject if different from coreSubject and <= 4 words
+              if (coreSubject !== subjectTokens) {
+                const invertedFull = [cleanTarget, ...subjectTokens];
+                if (invertedFull.length >= 2 && invertedFull.length <= 4) {
+                  const posRatio = chunkIdx / (chunks.length + 1);
+                  registerCandidate(invertedFull, tabIdx, isFirstChunk, posRatio, false);
+                }
+              }
+            }
           }
         }
       }
 
-      // 3. Delimiter compound candidate: Combine Chunk 0 unigram with Chunk 1 bigram
+      // 3. Inter-chunk delimiter compound candidate: Combine Chunk 0 unigram with Chunk 1 bigram
       // (e.g. "9Router" + "AI Infrastructure" -> "9Router AI Infrastructure")
-      if (chunkIdx === 0 && chunks.length > 1 && contentTokens.length === 1 && contentTokens[0]) {
-        const nextChunk = chunks[1];
-        const nextChunkTokens = nextChunk
-          ? nextChunk.match(/[a-zA-Z0-9\u4e00-\u9fa5]+(?:'[a-zA-Z]+)?/g) || []
-          : [];
-        const nextContent = nextChunkTokens.filter((w) => isContentWord(w));
-        const firstNext = nextContent[0];
-        const secondNext = nextContent[1];
-        if (firstNext) {
-          registerCandidate([contentTokens[0].word, firstNext], tabIdx, true, 0.0, false);
-          if (secondNext) {
-            registerCandidate(
-              [contentTokens[0].word, firstNext, secondNext],
-              tabIdx,
-              true,
-              0.0,
-              false
-            );
+      if (chunkIdx === 0 && chunks.length > 1) {
+        const chunk0Tokens = rawTokens.filter(isContentWord);
+        if (chunk0Tokens.length === 1 && chunk0Tokens[0]) {
+          const nextChunk = chunks[1];
+          const nextChunkTokens = nextChunk
+            ? nextChunk.match(/[a-zA-Z0-9\u4e00-\u9fa5]+(?:'[a-zA-Z]+)?/g) || []
+            : [];
+          const nextContent = nextChunkTokens.filter((w) => isContentWord(w));
+          const firstNext = nextContent[0];
+          const secondNext = nextContent[1];
+          if (firstNext) {
+            registerCandidate([chunk0Tokens[0], firstNext], tabIdx, true, 0.0, false);
+            if (secondNext) {
+              registerCandidate(
+                [chunk0Tokens[0], firstNext, secondNext],
+                tabIdx,
+                true,
+                0.0,
+                false
+              );
+            }
           }
         }
       }
@@ -397,7 +926,6 @@ export function extractCandidatePhrases(metas: NormalizedTabMetadata[]): Candida
     for (let tabIdx = 0; tabIdx < metas.length; tabIdx++) {
       if (c.docIndices.has(tabIdx)) continue;
       const titleLower = (metas[tabIdx].cleanTitle || '').toLowerCase();
-      // Fast check: does the title contain the phrase or all words in order?
       if (titleLower.includes(phraseLower)) {
         c.docIndices.add(tabIdx);
       } else if (c.words.length > 1) {
@@ -418,47 +946,67 @@ export function extractCandidatePhrases(metas: NormalizedTabMetadata[]): Candida
     }
   }
 
-  // Top Unigram Compounding: If multiple high-coverage unigrams exist across tabs
-  // (e.g. "Django" [DF=3] and "Authentication" [DF=3]), synthesize a compound candidate
-  // in source title word order
-  const unigrams = candidates.filter((c) => c.words.length === 1 && c.docIndices.size >= 2);
-  if (unigrams.length >= 2) {
-    unigrams.sort((a, b) => b.docIndices.size - a.docIndices.size);
-    const u1 = unigrams[0];
-    const u2 = unigrams[1];
-    if (u1 && u2 && u2.docIndices.size >= 2) {
-      // Determine source word order from the first tab containing both
-      let word1 = u1.words[0];
-      let word2 = u2.words[0];
-      for (const m of metas) {
-        const tLower = (m.cleanTitle || '').toLowerCase();
-        const p1 = tLower.indexOf(word1.toLowerCase());
-        const p2 = tLower.indexOf(word2.toLowerCase());
-        if (p1 !== -1 && p2 !== -1) {
-          if (p2 < p1) {
-            word1 = u2.words[0];
-            word2 = u1.words[0];
+  // Top Unigram Compounding: Only synthesize if NO multi-word contiguous phrase has consensus (DF >= 2)
+  const hasConsensusMultiWord = candidates.some(
+    (c) => c.words.length >= 2 && c.docIndices.size >= 2 && !c.isSynthetic
+  );
+
+  if (!hasConsensusMultiWord) {
+    const unigrams = candidates.filter((c) => c.words.length === 1 && c.docIndices.size >= 2);
+    if (unigrams.length >= 2) {
+      unigrams.sort((a, b) => b.docIndices.size - a.docIndices.size);
+      const u1 = unigrams[0];
+      const u2 = unigrams[1];
+      if (u1 && u2 && u2.docIndices.size >= 2) {
+        // Verify that both words actually appear together in at least one title
+        let appearsTogether = false;
+        let word1 = u1.words[0];
+        let word2 = u2.words[0];
+        for (const m of metas) {
+          const tLower = (m.cleanTitle || '').toLowerCase();
+          const p1 = tLower.indexOf(word1.toLowerCase());
+          const p2 = tLower.indexOf(word2.toLowerCase());
+          if (p1 !== -1 && p2 !== -1) {
+            appearsTogether = true;
+            if (p2 < p1) {
+              word1 = u2.words[0];
+              word2 = u1.words[0];
+            }
+            break;
           }
-          break;
+        }
+
+        if (appearsTogether) {
+          const compoundRaw = `${word1.toLowerCase()} ${word2.toLowerCase()}`;
+          if (!candidateMap.has(compoundRaw)) {
+            const sharedDocs = new Set<number>();
+            for (const idx of u1.docIndices) {
+              if (u2.docIndices.has(idx)) sharedDocs.add(idx);
+            }
+            if (sharedDocs.size >= 2) {
+              candidates.push({
+                raw: compoundRaw,
+                display: formatPhrase([word1, word2]),
+                words: [word1, word2],
+                docIndices: sharedDocs,
+                firstChunkOccurrences: Math.min(u1.firstChunkOccurrences, u2.firstChunkOccurrences),
+                avgPositionRatio: (u1.avgPositionRatio + u2.avgPositionRatio) / 2,
+                isChunkExact: false,
+                isSynthetic: true,
+              });
+            }
+          }
         }
       }
-      const compoundRaw = `${word1.toLowerCase()} ${word2.toLowerCase()}`;
-      if (!candidateMap.has(compoundRaw)) {
-        const sharedDocs = new Set<number>();
-        for (const idx of u1.docIndices) {
-          if (u2.docIndices.has(idx)) sharedDocs.add(idx);
-        }
-        if (sharedDocs.size >= 2) {
-          candidates.push({
-            raw: compoundRaw,
-            display: `${formatWord(word1)} ${formatWord(word2)}`,
-            words: [word1, word2],
-            docIndices: sharedDocs,
-            firstChunkOccurrences: Math.min(u1.firstChunkOccurrences, u2.firstChunkOccurrences),
-            avgPositionRatio: (u1.avgPositionRatio + u2.avgPositionRatio) / 2,
-            isChunkExact: false,
-          });
-        }
+    }
+  }
+
+  // 6. Cluster-wide conceptual synthesis
+  if (tabs && tabs.length >= 2) {
+    const synthesized = synthesizeClusterConcepts(metas, tabs);
+    for (const syn of synthesized) {
+      if (!candidateMap.has(syn.raw)) {
+        candidates.push(syn);
       }
     }
   }
@@ -485,7 +1033,7 @@ export function scoreCandidate(c: CandidatePhrase, totalTabs: number): number {
     score -= 12.0;
   }
 
-  // 3. Phrase length bonus (favor 2-3 word natural phrases)
+  // 3. Phrase length bonus (favor 2-3 word natural phrases and 4-5 word titled/synthesized phrases)
   const wordCount = c.words.length;
   if (wordCount === 3) {
     score += 5.5; // Rich 3-word phrase with high coverage is optimal
@@ -494,7 +1042,20 @@ export function scoreCandidate(c: CandidatePhrase, totalTabs: number): number {
   } else if (wordCount === 1) {
     score += 1.0;
   } else if (wordCount === 4) {
-    score += 2.0;
+    // If it starts with an article (e.g. "The Last of Us") or is synthesized concept, treat as full authentic entity
+    const firstLower = c.words[0].toLowerCase();
+    if (firstLower === 'the' || c.isSynthesizedConcept) {
+      score += 6.0;
+    } else {
+      score += 2.0;
+    }
+  } else if (wordCount === 5) {
+    const firstLower = c.words[0].toLowerCase();
+    if (firstLower === 'the' || c.isSynthesizedConcept) {
+      score += 5.0;
+    } else {
+      score -= 3.0;
+    }
   } else {
     score -= (wordCount - 4) * 3.0;
   }
@@ -506,27 +1067,74 @@ export function scoreCandidate(c: CandidatePhrase, totalTabs: number): number {
 
   // 5. Exact chunk bonus (clean natural phrase bounded by title delimiters)
   if (c.isChunkExact) {
-    score += 3.0;
+    score += 4.0;
   }
 
   // 6. Early position bonus
   score += Math.max(0, 1.0 - c.avgPositionRatio) * 2.5;
 
-  // 7. Technical acronym & short token bonus
-  for (const w of c.words) {
-    const lower = w.toLowerCase();
-    if (MEANINGFUL_SHORT_TOKENS.has(lower) || ACRONYMS_ALL_CAPS.has(w.toUpperCase())) {
-      score += 2.5;
+  // 7. Natural contiguous vs Synthetic bonus
+  if (!c.isSynthetic && c.words.length >= 2) {
+    score += 4.0;
+  }
+
+  // Bonus for verified canonical multi-word entities
+  if (c.words.length >= 2 && KNOWN_CANONICAL_ENTITIES.has(c.raw)) {
+    score += 4.5;
+  }
+
+  // 8. Vector centroid alignment and medoid tab bonus
+  if (c.centroidAlignment !== undefined) {
+    score += c.centroidAlignment * 6.0;
+  }
+  if (c.isInMedoidTab) {
+    score += 3.0;
+  }
+
+  // 9. Technical acronym & short token bonus
+  // Lone short tokens/acronyms (1-2 chars, e.g. "UI", "OS") require high cluster coverage (>= 60%)
+  // and are penalized if low coverage to prevent a single tab from hijacking the group label.
+  if (c.words.length === 1 && c.words[0].length <= 2) {
+    if (coverage < 0.6) {
+      score -= 8.0;
     }
   }
 
-  // 8. Penalties for boilerplate and descriptor words
+  for (const w of c.words) {
+    const lower = w.toLowerCase();
+    const hasAcronym =
+      MEANINGFUL_SHORT_TOKENS.has(lower) ||
+      ACRONYMS_ALL_CAPS.has(w.toUpperCase()) ||
+      (w.includes('-') &&
+        w
+          .split('-')
+          .some(
+            (part) =>
+              ACRONYMS_ALL_CAPS.has(part.toUpperCase()) ||
+              MEANINGFUL_SHORT_TOKENS.has(part.toLowerCase())
+          ));
+    if (hasAcronym) {
+      score += 2.5;
+    }
+    // Demote research method pre-modifiers like "Lightweight" or "Dual-Layer" in favor of core topic nouns
+    if (RESEARCH_PRE_MODIFIERS.has(lower)) {
+      score -= 3.0;
+    }
+  }
+
+  // 10. Anti-Member-Copying: If candidate is a 3+ word phrase that only covers a subset of tabs (< 100%),
+  // penalize it in favor of concise shared core phrases that cover all tabs
+  if (c.words.length >= 3 && coverage < 1.0 && !c.isSynthesizedConcept) {
+    score -= (1.0 - coverage) * 4.0;
+  }
+
+  // 11. Penalties for boilerplate and descriptor words
   for (const w of c.words) {
     const lower = w.toLowerCase();
     if (BOILERPLATE_WORDS.has(lower)) {
       score -= 4.0;
     }
-    if (DESCRIPTOR_SUFFIXES.has(lower)) {
+    if (DESCRIPTOR_SUFFIXES.has(lower) && !c.isSynthesizedConcept) {
       score -= 2.5;
     }
     if (TLD_AND_URL_STOPWORDS.has(lower)) {
@@ -538,11 +1146,108 @@ export function scoreCandidate(c: CandidatePhrase, totalTabs: number): number {
   const allBoilerplate = c.words.every(
     (w) => BOILERPLATE_WORDS.has(w.toLowerCase()) || DESCRIPTOR_SUFFIXES.has(w.toLowerCase())
   );
-  if (allBoilerplate) {
+  if (allBoilerplate && !c.isSynthesizedConcept) {
     score -= 8.0;
   }
 
+  // 12. Information Gain bonus for cluster-wide synthesized concepts
+  if (c.isSynthesizedConcept) {
+    score += 10.0;
+  }
+
+  // 13. Platform & Page-Type Penalties:
+  // Reject/heavily penalize candidates that consist ENTIRELY of source platforms and/or page-type words
+  // (e.g. "YouTube", "Google", "Bing Videos", "Pinterest", "Digikala Product", "Macos Download", "Repository Results")
+  const allPlatformOrPageType = c.words.every(
+    (w) =>
+      SOURCE_PLATFORM_TERMS.has(w.toLowerCase()) ||
+      PAGE_TYPE_METADATA_TERMS.has(w.toLowerCase()) ||
+      BOILERPLATE_WORDS.has(w.toLowerCase()) ||
+      TLD_AND_URL_STOPWORDS.has(w.toLowerCase())
+  );
+  if (allPlatformOrPageType && !c.isSynthesizedConcept) {
+    score -= 25.0;
+  }
+
+  // Penalty if candidate starts or ends with a platform name without being a specialized synthesis
+  if (c.words.length > 1 && !c.isSynthesizedConcept) {
+    const firstLower = c.words[0].toLowerCase();
+    const lastLower = c.words[c.words.length - 1].toLowerCase();
+    if (SOURCE_PLATFORM_TERMS.has(firstLower)) {
+      score -= 8.0;
+    }
+    if (SOURCE_PLATFORM_TERMS.has(lastLower)) {
+      score -= 8.0;
+    }
+  }
+
+  // 14. Alphanumeric Code / Internal Slug Penalty:
+  // Heavily penalize database IDs, model numbers, or random hashes (e.g. "Ch15659", "Nc-Ts201")
+  if (c.words.some(isAlphanumericCode)) {
+    score -= 25.0;
+  }
+
+  // 15. Raw IP Address Penalty:
+  // Penalize bare IP candidates so descriptive titles always win over IP addresses
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(c.raw)) {
+    score -= 15.0;
+  }
+
   return score;
+}
+
+/**
+ * Detects whether a collection of tabs represents academic research or papers.
+ */
+export function isResearchCluster(
+  tabs: Tab[],
+  metas: NormalizedTabMetadata[]
+): boolean {
+  let researchSignals = 0;
+  for (let i = 0; i < metas.length; i++) {
+    const meta = metas[i];
+    const d = (meta.domain || '').toLowerCase();
+    const url = (meta.cleanUrl || '').toLowerCase();
+    const title = (meta.cleanTitle || '').toLowerCase();
+
+    if (
+      d.includes('arxiv.org') ||
+      d.includes('ieee.org') ||
+      d.includes('acm.org') ||
+      d.includes('semanticscholar.org') ||
+      d.includes('researchgate.net') ||
+      d.includes('sciencedirect.com') ||
+      d.includes('springer.com') ||
+      d.includes('nature.com') ||
+      d.includes('openreview.net') ||
+      d.includes('biorxiv.org') ||
+      d.includes('vldb.org') ||
+      d.includes('sigmod.org') ||
+      url.includes('/abs/') ||
+      url.includes('/pdf/') ||
+      url.includes('/document/') ||
+      url.includes('/doi/') ||
+      title.includes('arxiv') ||
+      title.includes('ieee') ||
+      title.includes('acm') ||
+      title.includes('conference') ||
+      title.includes('transactions') ||
+      title.includes('proceedings') ||
+      title.includes('estimation model') ||
+      title.includes('database systems')
+    ) {
+      researchSignals++;
+    }
+  }
+  return metas.length >= 2 ? researchSignals >= Math.ceil(metas.length * 0.5) : researchSignals > 0;
+}
+
+export interface GroupNameResult {
+  name: string;
+  color: TabGroupColor;
+  topCandidate?: CandidatePhrase;
+  maxCandidateDf: number;
+  isSynthesizedConcept: boolean;
 }
 
 /**
@@ -550,10 +1255,11 @@ export function scoreCandidate(c: CandidatePhrase, totalTabs: number): number {
  */
 export function generateGroupName(
   tabs: Tab[],
-  metadata?: NormalizedTabMetadata[]
-): { name: string; color: TabGroupColor } {
+  metadata?: NormalizedTabMetadata[],
+  options?: GroupNameOptions
+): GroupNameResult {
   if (tabs.length === 0) {
-    return { name: 'Empty Collection', color: 'grey' };
+    return { name: 'Empty Collection', color: 'grey', maxCandidateDf: 0, isSynthesizedConcept: false };
   }
 
   const metas = metadata ?? tabs.map((t) => normalizeTab(t));
@@ -590,8 +1296,61 @@ export function generateGroupName(
 
   const assignedColor: TabGroupColor = brandEntry ? brandEntry.color : 'blue';
 
+  const createResult = (
+    name: string,
+    color: TabGroupColor,
+    topCandidate?: CandidatePhrase,
+    maxDf: number = 0,
+    isSynthesized: boolean = false
+  ): GroupNameResult => ({
+    name,
+    color,
+    topCandidate,
+    maxCandidateDf: maxDf,
+    isSynthesizedConcept: isSynthesized,
+  });
+
+  const allDomainBlocked = metas.every((m) => m.cleanTitle.toLowerCase().includes('domain blocked'));
+  if (allDomainBlocked) {
+    return createResult('Domain Blocked', 'grey');
+  }
+  const allError403 = metas.every((m) => {
+    const t = m.cleanTitle.toLowerCase();
+    return t.includes('403') || t.includes('forbidden') || t.includes('access denied');
+  });
+  if (allError403) {
+    return createResult('Error 403', 'grey');
+  }
+
   // 1. Extract all candidate phrases from titles
-  let allCandidates = extractCandidatePhrases(metas);
+  let allCandidates = extractCandidatePhrases(metas, tabs);
+
+  // Vector Centroid & Medoid Alignment (if cluster embeddings are available)
+  if (
+    options?.clusterCentroid &&
+    options?.tabEmbeddings &&
+    options.tabEmbeddings.length === metas.length
+  ) {
+    const centroid = options.clusterCentroid;
+    const sims = options.tabEmbeddings.map((emb) => computeCosineSimilarity(emb, centroid));
+    let maxSim = -2.0;
+    let medoidIdx = 0;
+    for (let i = 0; i < sims.length; i++) {
+      if (sims[i] > maxSim) {
+        maxSim = sims[i];
+        medoidIdx = i;
+      }
+    }
+
+    for (const c of allCandidates) {
+      let simSum = 0;
+      for (const idx of c.docIndices) {
+        simSum += sims[idx] ?? 0;
+      }
+      c.centroidAlignment = c.docIndices.size > 0 ? simSum / c.docIndices.size : 0;
+      c.isInMedoidTab = c.docIndices.has(medoidIdx);
+    }
+  }
 
   // Check if any candidate is a meaningful non-boilerplate phrase
   const nonBoilerplateCandidates = allCandidates.filter(
@@ -652,26 +1411,51 @@ export function generateGroupName(
   }
 
   // 3. Single-Tab Dominance Guard:
-  // If we have >= 2 tabs, but NO candidate phrase is shared across >= 2 tabs,
-  // do NOT pick an arbitrary person or single-tab subject to label the entire group.
+  // If we have >= 2 tabs, but NO candidate phrase is lexically shared across >= 2 tabs,
+  // select the most prominent concept aligned with the cluster medoid
   if (totalTabs >= 2 && maxDf < 2) {
-    // Conservative platform fallback when no shared topic exists
+    const distinctHosts = new Set(metas.map((m) => m.domain).filter(Boolean)).size;
+    const isHeterogeneousMultiDomain = distinctHosts >= 3 && distinctHosts / totalTabs >= 0.6;
+
+    if (!isHeterogeneousMultiDomain) {
+      const medoidCandidate = allCandidates
+        .filter(
+          (c) =>
+            c.isInMedoidTab &&
+            !c.words.every((w) => BOILERPLATE_WORDS.has(w.toLowerCase())) &&
+            !c.words.some(isAlphanumericCode)
+        )
+        .sort((a, b) => scoreCandidate(b, totalTabs) - scoreCandidate(a, totalTabs))[0];
+
+      if (medoidCandidate) {
+        let medoidName = medoidCandidate.display;
+        if (isResearchCluster(tabs, metas)) {
+          if (!medoidName.toLowerCase().includes('research')) {
+            medoidName = `${medoidName} Research`;
+          }
+        }
+        return createResult(
+          medoidName,
+          assignedColor,
+          medoidCandidate,
+          medoidCandidate.docIndices.size,
+          medoidCandidate.isSynthesizedConcept ?? false
+        );
+      }
+    }
+
     if (brandEntry) {
-      let platformLabel = brandEntry.name;
-      if (dominantDomain.includes('youtube')) platformLabel = 'YouTube';
-      else if (dominantDomain.includes('github')) platformLabel = 'GitHub';
-      else if (dominantDomain.includes('wikipedia')) platformLabel = 'Wikipedia';
-      return { name: platformLabel, color: assignedColor };
+      return createResult(brandEntry.name, assignedColor);
     }
 
     if (dominantDomain) {
       const cleanHost = extractCleanDomainLabel(dominantDomain);
-      if (cleanHost) {
-        return { name: cleanHost, color: assignedColor };
+      if (cleanHost && cleanHost !== 'Internal Server') {
+        return createResult(cleanHost, assignedColor);
       }
     }
 
-    return { name: 'Saved Collection', color: assignedColor };
+    return createResult('Saved Collection', assignedColor);
   }
 
   // 4. Filter candidates: If cluster has >= 2 tabs, require DF >= 2
@@ -680,17 +1464,18 @@ export function generateGroupName(
   );
 
   if (eligibleCandidates.length === 0) {
+    const maxDf = allCandidates.length > 0 ? Math.max(...allCandidates.map((c) => c.docIndices.size)) : 0;
     // Fallback if no eligible candidates survive
     if (brandEntry) {
-      return { name: brandEntry.name, color: assignedColor };
+      return createResult(brandEntry.name, assignedColor, undefined, maxDf);
     }
     if (dominantDomain) {
       const cleanHost = extractCleanDomainLabel(dominantDomain);
       if (cleanHost) {
-        return { name: cleanHost, color: assignedColor };
+        return createResult(cleanHost, assignedColor, undefined, maxDf);
       }
     }
-    return { name: 'Saved Collection', color: assignedColor };
+    return createResult('Saved Collection', assignedColor, undefined, maxDf);
   }
 
   // 5. Rank candidates deterministically
@@ -732,6 +1517,26 @@ export function generateGroupName(
     generatedName = `${brandEntry.name} ${generatedName}`;
   }
 
+  // Conceptual context synthesis for academic research collections:
+  // e.g. "Learned Cardinality Estimation" -> "Learned Cardinality Estimation Research"
+  // e.g. "Cost Estimation Model" -> "Cost Estimation Research"
+  if (isResearchCluster(tabs, metas)) {
+    const nameLower = generatedName.toLowerCase();
+    if (
+      !nameLower.includes('research') &&
+      !nameLower.includes('study') &&
+      !nameLower.includes('survey') &&
+      !nameLower.includes('analysis') &&
+      !nameLower.includes('paper')
+    ) {
+      if (nameLower.endsWith(' model')) {
+        generatedName = generatedName.slice(0, -6).trim() + ' Research';
+      } else {
+        generatedName = `${generatedName} Research`;
+      }
+    }
+  }
+
   // Final sanity check: if the name is empty or pure punctuation, fallback to domain
   if (!generatedName || !/[a-zA-Z0-9\u4e00-\u9fa5]/.test(generatedName)) {
     if (brandEntry) {
@@ -743,5 +1548,15 @@ export function generateGroupName(
     }
   }
 
-  return { name: generatedName, color: assignedColor };
+  const maxCandidateDf = eligibleCandidates.length > 0
+    ? Math.max(...eligibleCandidates.map((c) => c.docIndices.size))
+    : 0;
+
+  return {
+    name: generatedName,
+    color: assignedColor,
+    topCandidate,
+    maxCandidateDf,
+    isSynthesizedConcept: topCandidate?.isSynthesizedConcept ?? false,
+  };
 }

@@ -11,6 +11,7 @@ import {
   buildSemanticPrompt,
   hashString,
   isTrackingParameter,
+  calculateTabInformativeness,
 } from './normalization';
 
 describe('Normalization Engine (src/lib/semantic/normalization.ts)', () => {
@@ -330,7 +331,12 @@ describe('Normalization Engine (src/lib/semantic/normalization.ts)', () => {
 
     it('handles empty path segments gracefully', () => {
       const prompt = buildSemanticPrompt('Home', 'example.com', []);
-      expect(prompt).toBe('Title: Home. Domain: example.com. Path: .');
+      expect(prompt).toBe('Title: Home. Domain: example.com.');
+    });
+
+    it('suppresses domain on multi-topic platforms without trailing placeholders', () => {
+      const prompt = buildSemanticPrompt("Max's Mixtape", 'youtube.com', []);
+      expect(prompt).toBe("Title: Max's Mixtape.");
     });
 
     it('enforces maximum character length bound (512 chars)', () => {
@@ -420,6 +426,114 @@ describe('Normalization Engine (src/lib/semantic/normalization.ts)', () => {
       expect(norm1.cleanUrl).toBe('https://example.com/page');
       expect(norm2.cleanUrl).toBe('https://example.com/page');
       expect(norm1.hash).toBe(norm2.hash);
+    });
+  });
+
+  describe('10. Semantic Information Quality (SIQ) Evaluator', () => {
+    it('flags platform root homepages as low-information', () => {
+      const ytTab: Tab = { title: 'YouTube', url: 'https://www.youtube.com/' };
+      const igTab: Tab = { title: 'Instagram', url: 'https://www.instagram.com/' };
+      const gptTab: Tab = { title: 'ChatGPT', url: 'https://chatgpt.com/' };
+      const redditTab: Tab = { title: 'reddit: the front page of the internet', url: 'https://www.reddit.com/' };
+
+      const ytMeta = normalizeTab(ytTab);
+      const igMeta = normalizeTab(igTab);
+      const gptMeta = normalizeTab(gptTab);
+      const redditMeta = normalizeTab(redditTab);
+
+      expect(ytMeta.isLowInformation).toBe(true);
+      expect(ytMeta.informativeness).toBeLessThan(0.35);
+
+      expect(igMeta.isLowInformation).toBe(true);
+      expect(igMeta.informativeness).toBeLessThan(0.35);
+
+      expect(gptMeta.isLowInformation).toBe(true);
+      expect(gptMeta.informativeness).toBeLessThan(0.35);
+
+      expect(redditMeta.isLowInformation).toBe(true);
+      expect(redditMeta.informativeness).toBeLessThan(0.35);
+    });
+
+    it('flags generic boilerplate navigation titles as low-information', () => {
+      const homeTab: Tab = { title: 'Home', url: 'https://example.com/home' };
+      const loginTab: Tab = { title: 'Login - Portal', url: 'https://example.com/login' };
+      const untitledTab: Tab = { title: 'Untitled', url: 'https://example.com/page' };
+
+      const homeMeta = normalizeTab(homeTab);
+      const loginMeta = normalizeTab(loginTab);
+      const untitledMeta = normalizeTab(untitledTab);
+
+      expect(homeMeta.isLowInformation).toBe(true);
+      expect(loginMeta.isLowInformation).toBe(true);
+      expect(untitledMeta.isLowInformation).toBe(true);
+    });
+
+    it('recognizes rich, topic-specific titles as high-information', () => {
+      const tlouTab: Tab = {
+        title: 'The Last of Us Part 1 — Ellie & Joel Walkthrough Chapter 1',
+        url: 'https://youtube.com/watch?v=123',
+      };
+      const lisTab: Tab = {
+        title: "Life is Strange: Max's Mixtape | Folk & Indie Pop Mix",
+        url: 'https://youtube.com/watch?v=456',
+      };
+      const dockerTab: Tab = {
+        title: 'Docker Engine Container Runtime Architecture Guide',
+        url: 'https://docs.docker.com/engine',
+      };
+
+      const tlouMeta = normalizeTab(tlouTab);
+      const lisMeta = normalizeTab(lisTab);
+      const dockerMeta = normalizeTab(dockerTab);
+
+      expect(tlouMeta.isLowInformation).toBe(false);
+      expect(tlouMeta.informativeness).toBeGreaterThanOrEqual(0.70);
+
+      expect(lisMeta.isLowInformation).toBe(false);
+      expect(lisMeta.informativeness).toBeGreaterThanOrEqual(0.70);
+
+      expect(dockerMeta.isLowInformation).toBe(false);
+      expect(dockerMeta.informativeness).toBeGreaterThanOrEqual(0.70);
+    });
+
+    it('supplements boilerplate titles with informative path segments', () => {
+      const tab: Tab = {
+        title: 'Documentation',
+        url: 'https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/',
+      };
+      const meta = normalizeTab(tab);
+
+      // Path segments ("tutorial", "security", "oauth2", "jwt") elevate SIQ above threshold
+      expect(meta.isLowInformation).toBe(false);
+      expect(meta.informativeness).toBeGreaterThanOrEqual(0.35);
+    });
+
+    it('quarantines bare Pinterest pins with numeric URLs and no substantive titles', () => {
+      const pinTab1: Tab = {
+        title: '',
+        url: 'https://nl.pinterest.com/pin/1052294269198576897/',
+      };
+      const pinTab2: Tab = {
+        title: 'nl.pinterest.com/pin/1052294269198576898/',
+        url: 'https://nl.pinterest.com/pin/1052294269198576898/',
+      };
+      const pinTab3: Tab = {
+        title: 'Pin',
+        url: 'https://www.pinterest.com/pin/987654321/',
+      };
+
+      const meta1 = normalizeTab(pinTab1);
+      const meta2 = normalizeTab(pinTab2);
+      const meta3 = normalizeTab(pinTab3);
+
+      expect(meta1.isLowInformation).toBe(true);
+      expect(meta1.informativeness).toBeLessThan(0.35);
+
+      expect(meta2.isLowInformation).toBe(true);
+      expect(meta2.informativeness).toBeLessThan(0.35);
+
+      expect(meta3.isLowInformation).toBe(true);
+      expect(meta3.informativeness).toBeLessThan(0.35);
     });
   });
 });

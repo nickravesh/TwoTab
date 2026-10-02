@@ -18,3 +18,10 @@ coverage/
 # Agent guidelines and local configuration
 AGENTS.md
 .agents/
+
+# Real-world export datasets and evaluation artifacts
+twotab-export-*.json
+*.export.json
+.cache/
+eval_results/
+
