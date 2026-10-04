@@ -160,6 +160,9 @@ import {
   normalizeTab,
   getEmbeddingProvider,
   applyReorganization,
+  getCachedSemanticScan,
+  saveSemanticScanCache,
+  clearSemanticScanCache,
   type ClusterGroup,
   type ModelDownloadProgress,
 } from '@/lib/semantic';
@@ -1153,10 +1156,12 @@ function AppContent() {
   const [aiPreviewOpen, setAiPreviewOpen] = useState(false);
   const [aiProposalClusters, setAiProposalClusters] = useState<ClusterGroup[]>([]);
   const [aiProposalUngrouped, setAiProposalUngrouped] = useState<Tab[]>([]);
+  const [aiProposalItems, setAiProposalItems] = useState<Array<{ tab: Tab; embedding: Float32Array }>>([]);
   const [aiTargetGroups, setAiTargetGroups] = useState<TabGroup[]>([]);
+  const [aiCachedScanTimestamp, setAiCachedScanTimestamp] = useState<number | null>(null);
   const aiCancelledRef = useRef<boolean>(false);
 
-  const handleOpenIntelligentGrouping = async (targetGroups?: TabGroup[]) => {
+  const handleOpenIntelligentGrouping = async (targetGroups?: TabGroup[], forceFresh = false) => {
     const targets = targetGroups || groups;
     if (targets.length === 0) {
       showMessage('No saved tab groups to organize', 'error');
@@ -1171,6 +1176,25 @@ function AppContent() {
 
     setAiTargetGroups(targets);
     aiCancelledRef.current = false;
+
+    // Fast-path: Check 24-hour persistent scan cache if not explicitly forcing fresh scan
+    if (!forceFresh) {
+      const allTabs: Tab[] = targets.flatMap((g) => g.tabs || []);
+      const cached = await getCachedSemanticScan(allTabs);
+      if (cached) {
+        // Reconstruct items with Float32Array embeddings for instant in-memory granularity
+        const items = cached.serializedItems.map((item) => ({
+          tab: item.tab,
+          embedding: new Float32Array(item.embedding),
+        }));
+        setAiProposalItems(items);
+        setAiProposalClusters(cached.clusters);
+        setAiProposalUngrouped(cached.ungroupedTabs);
+        setAiCachedScanTimestamp(cached.timestamp);
+        setAiPreviewOpen(true);
+        return;
+      }
+    }
 
     const isCached = await getEmbeddingProvider().isModelCached();
     if (!isCached) {
@@ -1238,10 +1262,22 @@ function AppContent() {
 
       if (aiCancelledRef.current) return;
 
+      // Save to 24-hour persistent cache
+      const now = Date.now();
+      await saveSemanticScanCache({
+        tabs: allTabs,
+        clusters: clusteringResult.clusters,
+        ungroupedTabs: clusteringResult.ungroupedTabs,
+        items,
+        targetGroupIds: targets.map((g) => g.id),
+      });
+
       setAiProgressOpen(false);
+      setAiProposalItems(items);
       setAiProposalClusters(clusteringResult.clusters);
       setAiProposalUngrouped(clusteringResult.ungroupedTabs);
       setAiTargetGroups(targets);
+      setAiCachedScanTimestamp(now);
       setAiPreviewOpen(true);
     } catch (err: any) {
       if (aiCancelledRef.current) {
@@ -1273,6 +1309,9 @@ function AppContent() {
     });
 
     if (result.success) {
+      // Invalidate scan cache on successful organization
+      await clearSemanticScanCache();
+      setAiCachedScanTimestamp(null);
       await loadData();
       showMessage('Intelligent grouping applied successfully!');
     } else {
@@ -1978,6 +2017,12 @@ function AppContent() {
         onOpenChange={setAiPreviewOpen}
         clusters={aiProposalClusters}
         ungroupedTabs={aiProposalUngrouped}
+        items={aiProposalItems}
+        cachedTimestamp={aiCachedScanTimestamp}
+        onRescan={() => {
+          setAiPreviewOpen(false);
+          handleOpenIntelligentGrouping(aiTargetGroups, true);
+        }}
         onApply={handleApplySemanticGrouping}
         onCancel={() => setAiPreviewOpen(false)}
       />

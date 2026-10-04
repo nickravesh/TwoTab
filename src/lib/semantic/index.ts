@@ -10,3 +10,5 @@ export * from './clustering';
 export * from './naming';
 export * from './embeddingProvider';
 export * from './reorganizer';
+export * from './projection';
+export * from './scanCache';
