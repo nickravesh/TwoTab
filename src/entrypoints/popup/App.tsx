@@ -270,7 +270,7 @@ function PopupContent() {
     <div className="relative w-[360px] max-w-[360px] min-h-[440px] max-h-[580px] bg-background text-foreground flex flex-col font-sans select-none overflow-hidden">
       {/* Decorative ambient background glows */}
       <div className="absolute -top-10 -right-10 w-28 h-28 bg-primary/15 rounded-full blur-2xl pointer-events-none" />
-      <div className="absolute -bottom-10 -left-10 w-28 h-28 bg-accent/15 rounded-full blur-2xl pointer-events-none" />
+      <div className="absolute -bottom-10 -left-10 w-28 h-28 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
@@ -308,7 +308,7 @@ function PopupContent() {
             alt="TwoTab" 
             className="w-6 h-6 object-contain shrink-0 drop-shadow-sm"
           />
-          <span className="font-extrabold text-sm bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent tracking-tight">
+          <span className="font-extrabold text-sm bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/80 tracking-tight">
             TwoTab
           </span>
         </div>

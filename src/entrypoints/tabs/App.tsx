@@ -1911,8 +1911,8 @@ function AppContent() {
           className="fixed inset-0 pointer-events-none z-0 transition-opacity duration-300"
           style={{
             background: userPreferences.ambientGlow === 'vibrant'
-              ? 'radial-gradient(circle 1000px at 50% -100px, hsl(var(--primary) / 0.30), transparent 70%), radial-gradient(circle 800px at 85% 95%, hsl(var(--accent) / 0.18), transparent 60%)'
-              : 'radial-gradient(circle 900px at 50% -100px, hsl(var(--primary) / 0.16), transparent 75%), radial-gradient(circle 700px at 85% 95%, hsl(var(--accent) / 0.08), transparent 65%)',
+              ? 'radial-gradient(circle 1000px at 50% -100px, hsl(var(--primary) / 0.10), transparent 70%), radial-gradient(circle 800px at 85% 95%, hsl(var(--primary) / 0.05), transparent 60%)'
+              : 'radial-gradient(circle 900px at 50% -100px, hsl(var(--primary) / 0.05), transparent 75%), radial-gradient(circle 700px at 85% 95%, hsl(var(--primary) / 0.025), transparent 65%)',
           }}
         />
       )}
@@ -2070,7 +2070,7 @@ function AppContent() {
               alt="TwoTab" 
               className="w-7 h-7 object-contain shrink-0 drop-shadow-sm"
             />
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent tracking-tight">
+            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/80 tracking-tight">
               TwoTab
             </span>
           </div>

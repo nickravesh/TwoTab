@@ -7,7 +7,7 @@
 @layer base {
   :root,
   [data-theme="light"] {
-    --background: 220 16% 95%; /* Soft Architectural Frosted Slate #f1f3f7 */
+    --background: 220 14% 96%; /* Soft Architectural Frosted Slate #f3f4f7 */
     --foreground: 222.2 47% 11%;
 
     --card: 0 0% 100%; /* Pure Luminous White Glass Surfaces #ffffff */
@@ -16,266 +16,347 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 47% 11%;
 
-    --primary: 243 75% 59%; /* Royal Studio Indigo #4f46e5 */
+    --primary: 243 75% 58%; /* Royal Studio Indigo #4b42e4 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 92%;
+    --secondary: 220 14% 93%;
     --secondary-foreground: 222.2 47% 11%;
 
-    --muted: 220 14% 92%;
+    --muted: 220 14% 93%;
     --muted-foreground: 220 10% 42%; /* WCAG AAA high contrast #5e6673 */
 
-    --accent: 243 75% 59%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 220 14% 92%;
+    --accent-foreground: 222.2 47% 11%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
+    --success: 152 68% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 44%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 212 90% 48%;
+    --info-foreground: 0 0% 100%;
+
     --border: 220 13% 86%;
     --input: 220 13% 86%;
-    --ring: 243 75% 59%;
+    --ring: 243 75% 58%;
 
     --radius: 0.75rem;
   }
 
   [data-theme="paper"] {
-    --background: 38 32% 93%; /* Organic Warm Linen Canvas #f6f1e8 */
-    --foreground: 28 35% 14%;
+    --background: 38 24% 94%; /* Organic Warm Linen Canvas #f5f1ea */
+    --foreground: 28 32% 14%;
 
-    --card: 40 30% 98%; /* Porcelain Cream Decks & Cards #fdfbf7 */
-    --card-foreground: 28 35% 14%;
+    --card: 40 30% 99%; /* Porcelain Cream Decks & Cards #fdfbf8 */
+    --card-foreground: 28 32% 14%;
 
-    --popover: 40 30% 98%;
-    --popover-foreground: 28 35% 14%;
+    --popover: 40 30% 99%;
+    --popover-foreground: 28 32% 14%;
 
-    --primary: 21 88% 48%; /* Artisanal Terracotta #ea580c */
+    --primary: 21 82% 41%; /* Artisanal Terracotta #bf4908 (5.0:1 WCAG AA) */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 38 25% 88%;
-    --secondary-foreground: 28 35% 14%;
+    --secondary: 38 22% 89%;
+    --secondary-foreground: 28 32% 14%;
 
-    --muted: 38 25% 88%;
-    --muted-foreground: 30 12% 40%; /* #6c5d51 */
+    --muted: 38 22% 89%;
+    --muted-foreground: 30 12% 42%; /* #706054 */
 
-    --accent: 21 88% 48%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 38 22% 88%;
+    --accent-foreground: 28 32% 14%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 38 18% 81%;
-    --input: 38 18% 81%;
-    --ring: 21 88% 48%;
+    --success: 152 68% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 44%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 212 90% 48%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 38 16% 82%;
+    --input: 38 16% 82%;
+    --ring: 21 82% 41%;
   }
 
   [data-theme="frost"] {
-    --background: 170 24% 93%; /* Sub-zero Glacial Mist Canvas #e7f2f0 */
-    --foreground: 175 40% 12%; /* Deep Slate Forest #122b27 */
+    --background: 170 18% 94%; /* Sub-zero Glacial Mist Canvas #edf4f3 */
+    --foreground: 175 36% 12%; /* Deep Slate Forest #122b27 */
 
-    --card: 170 20% 99%; /* Crystalline Glacier Surface #fafffe */
-    --card-foreground: 175 40% 12%;
+    --card: 170 18% 99%; /* Crystalline Glacier Surface */
+    --card-foreground: 175 36% 12%;
 
-    --popover: 170 20% 99%;
-    --popover-foreground: 175 40% 12%;
+    --popover: 170 18% 99%;
+    --popover-foreground: 175 36% 12%;
 
-    --primary: 174 84% 32%; /* Deep Pine Teal Emerald #0d9488 */
+    --primary: 174 84% 28%; /* Deep Pine Teal Emerald #0c7a70 (5.0:1 WCAG AA) */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 170 20% 87%;
-    --secondary-foreground: 175 40% 12%;
+    --secondary: 170 16% 88%;
+    --secondary-foreground: 175 36% 12%;
 
-    --muted: 170 20% 87%;
-    --muted-foreground: 172 15% 38%; /* #52706c */
+    --muted: 170 16% 88%;
+    --muted-foreground: 172 14% 40%; /* #55726e */
 
-    --accent: 174 84% 32%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 170 16% 87%;
+    --accent-foreground: 175 36% 12%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 170 18% 80%;
-    --input: 170 18% 80%;
-    --ring: 174 84% 32%;
+    --success: 152 68% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 44%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 212 90% 48%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 170 15% 82%;
+    --input: 170 15% 82%;
+    --ring: 174 84% 28%;
   }
 
   [data-theme="rose"] {
-    --background: 345 35% 94%; /* Soft Blushing Silk Canvas #f8edf0 */
-    --foreground: 345 35% 14%; /* Deep Plum #311720 */
+    --background: 345 22% 95%; /* Soft Blushing Silk Canvas #f7eff1 */
+    --foreground: 345 32% 14%; /* Deep Plum #311720 */
 
-    --card: 345 30% 99%; /* Pure Rose Quartz Surface #fffafd */
-    --card-foreground: 345 35% 14%;
+    --card: 345 22% 99%; /* Pure Rose Quartz Surface */
+    --card-foreground: 345 32% 14%;
 
-    --popover: 345 30% 99%;
-    --popover-foreground: 345 35% 14%;
+    --popover: 345 22% 99%;
+    --popover-foreground: 345 32% 14%;
 
-    --primary: 347 77% 50%; /* Vibrant Raspberry Rose #e11d48 */
+    --primary: 347 75% 48%; /* Vibrant Raspberry Rose #db1440 (5.2:1 WCAG AA) */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 345 28% 89%;
-    --secondary-foreground: 345 35% 14%;
+    --secondary: 345 20% 90%;
+    --secondary-foreground: 345 32% 14%;
 
-    --muted: 345 28% 89%;
-    --muted-foreground: 345 15% 40%; /* #755560 */
+    --muted: 345 20% 90%;
+    --muted-foreground: 345 12% 42%; /* #785863 */
 
-    --accent: 347 77% 50%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 345 20% 89%;
+    --accent-foreground: 345 32% 14%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 345 22% 83%;
-    --input: 345 22% 83%;
-    --ring: 347 77% 50%;
+    --success: 152 68% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 44%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 212 90% 48%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 345 16% 83%;
+    --input: 345 16% 83%;
+    --ring: 347 75% 48%;
   }
 
   .dark,
   [data-theme="midnight"] {
-    --background: 240 6% 7%; /* Titanium Graphite Slate #101013 */
+    --background: 240 5% 8%; /* Titanium Graphite Slate #131316 */
     --foreground: 0 0% 98%;
 
-    --card: 240 5% 12%; /* Elevated Frosted Deck #1d1d21 */
+    --card: 240 5% 12%; /* Elevated Frosted Deck #1e1e23 */
     --card-foreground: 0 0% 98%;
 
     --popover: 240 5% 12%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 239 84% 67%; /* Apple System Indigo #6366f1 */
+    --primary: 239 84% 64%; /* Apple System Indigo #585bf0 (5.1:1 WCAG AA) */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 5% 10%; /* #17171a */
+    --secondary: 240 4% 15%; /* #242429 */
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 5% 10%;
-    --muted-foreground: 240 5% 68%; /* High contrast #a8a8b2 */
+    --muted: 240 4% 15%;
+    --muted-foreground: 240 4% 65%; /* High contrast #a3a3ad */
 
-    --accent: 239 84% 67%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 240 4% 17%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 4% 20%;
-    --input: 240 4% 20%;
-    --ring: 239 84% 67%;
+    --success: 152 68% 46%;
+    --success-foreground: 152 60% 8%;
+
+    --warning: 38 92% 54%;
+    --warning-foreground: 38 60% 8%;
+
+    --info: 212 90% 60%;
+    --info-foreground: 212 60% 8%;
+
+    --border: 240 4% 18%;
+    --input: 240 4% 18%;
+    --ring: 239 84% 64%;
   }
 
   [data-theme="obsidian"] {
-    --background: 240 10% 3%; /* Raycast Pitch-Black OLED #070709 */
+    --background: 240 6% 4%; /* Raycast Pitch-Black OLED #0a0a0d */
     --foreground: 0 0% 98%;
 
-    --card: 240 8% 8%; /* Obsidian Surface #131317 */
+    --card: 240 5% 8%; /* Obsidian Surface #131317 */
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 8% 8%;
+    --popover: 240 5% 8%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 263 90% 66%; /* Electric Violet #8b5cf6 */
+    --primary: 263 84% 60%; /* Electric Violet #7c4deb (5.4:1 WCAG AA) */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 8% 6%;
+    --secondary: 240 5% 12%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 8% 6%;
-    --muted-foreground: 240 5% 65%;
+    --muted: 240 5% 12%;
+    --muted-foreground: 240 4% 64%;
 
-    --accent: 263 90% 66%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 240 5% 14%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 6% 16%;
-    --input: 240 6% 16%;
-    --ring: 263 90% 66%;
+    --success: 152 68% 46%;
+    --success-foreground: 152 60% 8%;
+
+    --warning: 38 92% 54%;
+    --warning-foreground: 38 60% 8%;
+
+    --info: 212 90% 60%;
+    --info-foreground: 212 60% 8%;
+
+    --border: 240 5% 16%;
+    --input: 240 5% 16%;
+    --ring: 263 84% 60%;
   }
 
   [data-theme="nord"] {
-    --background: 165 28% 5%; /* Nordic Sub-arctic Pine #09110e */
+    --background: 165 14% 7%; /* Nordic Sub-arctic Pine Slate #0f1513 */
     --foreground: 0 0% 98%;
 
-    --card: 165 22% 10%; /* Aurora Spruce Surface #13221d */
+    --card: 165 12% 11%; /* Aurora Spruce Surface #18221f */
     --card-foreground: 0 0% 98%;
 
-    --popover: 165 22% 10%;
+    --popover: 165 12% 11%;
     --popover-foreground: 0 0% 98%;
 
     --primary: 160 84% 42%; /* Aurora Emerald Mint #10b981 */
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 165 40% 6%; /* High contrast dark pine text #071711 */
 
-    --secondary: 165 24% 8%;
+    --secondary: 165 10% 15%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 165 24% 8%;
-    --muted-foreground: 165 12% 66%;
+    --muted: 165 10% 15%;
+    --muted-foreground: 165 8% 64%;
 
-    --accent: 160 84% 42%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 165 10% 17%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 165 18% 18%;
-    --input: 165 18% 18%;
+    --success: 152 68% 46%;
+    --success-foreground: 152 60% 8%;
+
+    --warning: 38 92% 54%;
+    --warning-foreground: 38 60% 8%;
+
+    --info: 212 90% 60%;
+    --info-foreground: 212 60% 8%;
+
+    --border: 165 10% 18%;
+    --input: 165 10% 18%;
     --ring: 160 84% 42%;
   }
 
   [data-theme="ocean"] {
-    --background: 222 55% 6%; /* Abyssal Deep Navy #070c17 */
+    --background: 222 24% 8%; /* Abyssal Deep Navy Slate #0f141c */
     --foreground: 0 0% 98%;
 
-    --card: 222 45% 12%; /* Marine Glass Surface #111d33 */
+    --card: 222 20% 12%; /* Marine Glass Surface #181f2a */
     --card-foreground: 0 0% 98%;
 
-    --popover: 222 45% 12%;
+    --popover: 222 20% 12%;
     --popover-foreground: 0 0% 98%;
 
     --primary: 188 95% 44%; /* Electric Oceanic Cyan #06b6d4 */
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 222 55% 8%; /* High contrast deep navy text #091322 */
 
-    --secondary: 222 50% 9%;
+    --secondary: 222 18% 16%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 222 50% 9%;
-    --muted-foreground: 215 22% 68%;
+    --muted: 222 18% 16%;
+    --muted-foreground: 215 14% 66%;
 
-    --accent: 188 95% 44%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 222 18% 18%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 222 35% 20%;
-    --input: 222 35% 20%;
+    --success: 152 68% 46%;
+    --success-foreground: 152 60% 8%;
+
+    --warning: 38 92% 54%;
+    --warning-foreground: 38 60% 8%;
+
+    --info: 212 90% 60%;
+    --info-foreground: 212 60% 8%;
+
+    --border: 222 16% 20%;
+    --input: 222 16% 20%;
     --ring: 188 95% 44%;
   }
 
   [data-theme="amber"] {
-    --background: 28 22% 6%; /* Warm Basalt Charcoal Slate #13100d */
+    --background: 28 12% 7%; /* Warm Basalt Charcoal Slate #141210 */
     --foreground: 0 0% 98%;
 
-    --card: 28 16% 11%; /* Smoky Stone Surface #211c17 */
+    --card: 28 10% 11%; /* Smoky Stone Surface #1f1c19 */
     --card-foreground: 0 0% 98%;
 
-    --popover: 28 16% 11%;
+    --popover: 28 10% 11%;
     --popover-foreground: 0 0% 98%;
 
     --primary: 38 92% 50%; /* Golden Sunset Amber #f59e0b */
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 28 35% 8%; /* High contrast dark amber-charcoal text #19140e */
 
-    --secondary: 28 20% 8%;
+    --secondary: 28 10% 16%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 28 20% 8%;
-    --muted-foreground: 28 12% 66%;
+    --muted: 28 10% 16%;
+    --muted-foreground: 28 8% 65%;
 
-    --accent: 38 92% 50%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 28 10% 18%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 28 14% 19%;
-    --input: 28 14% 19%;
+    --success: 152 68% 46%;
+    --success-foreground: 152 60% 8%;
+
+    --warning: 38 92% 54%;
+    --warning-foreground: 38 60% 8%;
+
+    --info: 212 90% 60%;
+    --info-foreground: 212 60% 8%;
+
+    --border: 28 10% 19%;
+    --input: 28 10% 19%;
     --ring: 38 92% 50%;
   }
 
@@ -287,10 +368,11 @@
   html.oled-true-black[data-theme="ocean"],
   html.oled-true-black[data-theme="amber"] {
     --background: 0 0% 0%;
-    --card: 240 4% 5%;
-    --popover: 240 4% 5%;
-    --secondary: 240 4% 4%;
-    --muted: 240 4% 6%;
+    --card: 240 4% 6%;
+    --popover: 240 4% 6%;
+    --secondary: 240 4% 10%;
+    --muted: 240 4% 10%;
+    --accent: 240 4% 12%;
     --border: 240 4% 14%;
     --input: 240 4% 14%;
   }
@@ -360,23 +442,41 @@ html[data-ui-scale="large"] {
 /* Apple-style multi-tier depth shadow system */
 .shadow-apple-card {
   box-shadow: 
-    0 1px 1px rgba(255, 255, 255, 0.08) inset,
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 16px -2px rgba(0, 0, 0, 0.06);
+}
+
+.dark .shadow-apple-card {
+  box-shadow: 
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
     0 2px 8px rgba(0, 0, 0, 0.25),
-    0 12px 28px -6px rgba(0, 0, 0, 0.45);
+    0 12px 24px -6px rgba(0, 0, 0, 0.45);
 }
 
 .shadow-apple-card-hover {
   box-shadow: 
-    0 1px 1px rgba(255, 255, 255, 0.15) inset,
+    0 2px 6px rgba(0, 0, 0, 0.05),
+    0 8px 24px -4px rgba(0, 0, 0, 0.09);
+}
+
+.dark .shadow-apple-card-hover {
+  box-shadow: 
+    0 1px 0 rgba(255, 255, 255, 0.10) inset,
     0 4px 14px rgba(0, 0, 0, 0.35),
-    0 20px 40px -8px rgba(0, 0, 0, 0.6);
+    0 20px 36px -8px rgba(0, 0, 0, 0.55);
 }
 
 .shadow-apple-popover {
   box-shadow: 
-    0 1px 1px rgba(255, 255, 255, 0.12) inset,
-    0 20px 40px -10px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(255, 255, 255, 0.08);
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 16px 36px -8px rgba(0, 0, 0, 0.12);
+}
+
+.dark .shadow-apple-popover {
+  box-shadow: 
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 20px 40px -10px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 @keyframes dashboardFadeIn {
@@ -396,76 +496,66 @@ html[data-ui-scale="large"] {
 
 /* macOS-Style Floating Acrylic Glass Panels */
 .glass-macos-sidebar {
-  background-color: hsl(var(--card) / 0.85);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
-  border: 1px solid hsl(var(--border) / 0.95);
+  background-color: hsl(var(--card) / 0.88);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid hsl(var(--border) / 0.85);
   transform: translate3d(0, 0, 0);
   isolation: isolate;
   box-shadow: 
-    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.85),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 2px 6px rgba(0, 0, 0, 0.04),
-    0 12px 32px -4px rgba(0, 0, 0, 0.10),
-    0 24px 60px -10px rgba(0, 0, 0, 0.14);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.6),
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 8px 24px -4px rgba(0, 0, 0, 0.07);
 }
 
 .dark .glass-macos-sidebar {
-  background-color: hsl(var(--card) / 0.70);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background-color: hsl(var(--card) / 0.75);
+  border: 1px solid hsl(var(--border) / 0.8);
   box-shadow: 
-    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 2px 6px rgba(0, 0, 0, 0.40),
-    0 16px 40px -6px rgba(0, 0, 0, 0.65),
-    0 32px 72px -12px rgba(0, 0, 0, 0.85);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.35),
+    0 16px 40px -6px rgba(0, 0, 0, 0.6);
 }
 
 .glass-macos-deck {
-  background-color: hsl(var(--card) / 0.80);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
-  border: 1px solid hsl(var(--border) / 0.95);
+  background-color: hsl(var(--card) / 0.85);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid hsl(var(--border) / 0.85);
   transform: translate3d(0, 0, 0);
   isolation: isolate;
   box-shadow: 
-    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.85),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 2px 6px rgba(0, 0, 0, 0.04),
-    0 12px 32px -4px rgba(0, 0, 0, 0.10),
-    0 24px 60px -10px rgba(0, 0, 0, 0.14);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.6),
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 8px 24px -4px rgba(0, 0, 0, 0.07);
 }
 
 .dark .glass-macos-deck {
-  background-color: hsl(var(--card) / 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background-color: hsl(var(--card) / 0.70);
+  border: 1px solid hsl(var(--border) / 0.8);
   box-shadow: 
-    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 2px 6px rgba(0, 0, 0, 0.40),
-    0 16px 40px -6px rgba(0, 0, 0, 0.65),
-    0 32px 72px -12px rgba(0, 0, 0, 0.85);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.35),
+    0 16px 40px -6px rgba(0, 0, 0, 0.6);
 }
 
 /* macOS-Style Window Chrome Header with Optical Ledge Shadow */
 .glass-macos-header {
   background-color: hsl(var(--muted) / 0.65);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
   border-bottom: 1px solid hsl(var(--border) / 0.85);
   box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.60),
-    0 1px 3px 0 rgba(0, 0, 0, 0.04),
-    0 4px 12px -2px rgba(0, 0, 0, 0.06);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.5),
+    0 1px 3px 0 rgba(0, 0, 0, 0.03);
 }
 
 .dark .glass-macos-header {
   background-color: hsl(var(--background) / 0.75);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  border-bottom: 1px solid hsl(var(--border) / 0.7);
   box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
-    0 2px 8px 0 rgba(0, 0, 0, 0.35),
-    0 8px 24px -4px rgba(0, 0, 0, 0.55);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 2px 8px 0 rgba(0, 0, 0, 0.3);
 }
 
 /* Ambient Lighting & Tactile Matte Micro-Grain (Hardware-Cached Seamless GPU Tile) */
@@ -475,8 +565,8 @@ html[data-ui-scale="large"] {
   pointer-events: none;
   z-index: 0;
   background: 
-    radial-gradient(circle 800px at 50% -80px, hsl(var(--primary) / 0.09), transparent 70%),
-    radial-gradient(circle 600px at 85% 95%, hsl(var(--accent) / 0.05), transparent 60%);
+    radial-gradient(circle 800px at 50% -80px, hsl(var(--primary) / 0.05), transparent 70%),
+    radial-gradient(circle 600px at 85% 95%, hsl(var(--primary) / 0.03), transparent 60%);
 }
 
 .bg-noise-grain {
@@ -485,11 +575,11 @@ html[data-ui-scale="large"] {
   width: 100vw;
   height: 100vh;
   pointer-events: none;
-  z-index: 40;
+  z-index: 1;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
   background-repeat: repeat;
   background-size: 160px 160px;
-  opacity: 0.24;
+  opacity: 0.035;
   mix-blend-mode: overlay;
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
@@ -497,7 +587,7 @@ html[data-ui-scale="large"] {
 }
 
 .dark .bg-noise-grain {
-  opacity: 0.40;
+  opacity: 0.045;
   mix-blend-mode: soft-light;
 }
 
@@ -596,28 +686,25 @@ html[data-ui-scale="large"] {
 
 /* Tactile Card Physics & Multi-Tier Elevation */
 .card-interactive {
-  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 260ms cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 260ms ease,
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 200ms ease,
               background-color 200ms ease;
   will-change: transform, box-shadow;
 }
 
 .card-interactive:hover {
-  transform: translateY(-3px);
+  transform: translateY(-1.5px);
   box-shadow: 
-    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.6),
-    0 4px 12px -2px rgba(0, 0, 0, 0.06),
-    0 12px 28px -6px hsl(var(--primary) / 0.14),
-    0 24px 48px -12px rgba(0, 0, 0, 0.12);
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    0 10px 24px -4px rgba(0, 0, 0, 0.08);
 }
 
 .dark .card-interactive:hover {
   box-shadow: 
-    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.20),
-    0 4px 12px -2px rgba(0, 0, 0, 0.40),
-    0 14px 32px -6px hsl(var(--primary) / 0.22),
-    0 28px 60px -12px rgba(0, 0, 0, 0.85);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+    0 4px 12px -2px rgba(0, 0, 0, 0.35),
+    0 12px 28px -6px rgba(0, 0, 0, 0.55);
 }
 
 /* Micro-Spring Tactile Click Physics */
