@@ -406,10 +406,10 @@ function ListCardItem({
       onMouseEnter={() => setIsCardHovered(true)}
       onMouseLeave={() => setIsCardHovered(false)}
       onDoubleClick={(e) => handleInspectGroup && handleInspectGroup(group, e.currentTarget)}
-      className="animate-card-cascade card-interactive border border-border/80 hover:border-primary/40 bg-card text-card-foreground shadow-apple-card rounded-xl overflow-hidden group/card cursor-default"
+      className="animate-card-cascade card-interactive card-surface-elevated border border-border/50 dark:border-border/70 hover:border-primary/40 text-card-foreground shadow-apple-card hover:shadow-apple-card-hover rounded-xl overflow-hidden group/card cursor-default"
     >
       <div 
-        className="p-3 bg-muted/30 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+        className="p-3 bg-muted/20 dark:bg-muted/25 border-b border-border/30 dark:border-border/30 backdrop-blur-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
         onDoubleClick={(e) => {
           e.stopPropagation();
           handleInspectGroup && handleInspectGroup(group, e.currentTarget.closest('[data-group-id]'));
@@ -460,7 +460,7 @@ function ListCardItem({
               </button>
             </div>
           )}
-          <Badge variant="outline" className="text-[11px] font-medium border-border/70 bg-background/80 text-muted-foreground shrink-0 whitespace-nowrap">
+          <Badge variant="outline" className="text-[11px] font-medium border-border/40 dark:border-border/60 bg-card/80 dark:bg-muted/60 text-muted-foreground shrink-0 whitespace-nowrap shadow-2xs">
             {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} • {getRelativeTime(group.date)}
           </Badge>
         </div>
@@ -646,11 +646,11 @@ function GridCardItem({
         '--stagger-index': staggerIndex,
         height: `${currentCardHeight}px`
       } as React.CSSProperties}
-      className="animate-card-cascade card-interactive flex flex-col justify-between overflow-hidden rounded-2xl border border-border/80 hover:border-primary/50 bg-card text-card-foreground shadow-apple-card hover:shadow-apple-card-hover group/card cursor-default"
+      className="animate-card-cascade card-interactive card-surface-elevated flex flex-col justify-between overflow-hidden rounded-2xl border border-border/50 dark:border-border/70 hover:border-primary/45 text-card-foreground shadow-apple-card hover:shadow-apple-card-hover group/card cursor-default"
     >
       {/* Card Header (flex-shrink-0) */}
       <CardHeader 
-        className={`${isCompact ? 'p-2.5 pb-1.5' : 'p-3.5 pb-2'} border-b border-border/60 bg-muted/30 flex items-center justify-between shrink-0`}
+        className={`${isCompact ? 'p-2.5 pb-1.5' : 'p-3.5 pb-2'} border-b border-border/30 dark:border-border/30 bg-muted/20 dark:bg-muted/25 backdrop-blur-xs flex items-center justify-between shrink-0`}
         onDoubleClick={(e) => {
           e.stopPropagation();
           handleInspectGroup && handleInspectGroup(group, e.currentTarget.closest('[data-group-id]'));
@@ -707,7 +707,7 @@ function GridCardItem({
               </button>
             </div>
           )}
-          <span className="shrink-0 text-xs bg-muted/70 text-muted-foreground border border-border/60 px-2 py-0.5 rounded-full font-normal whitespace-nowrap">
+          <span className="shrink-0 text-xs bg-card/80 dark:bg-muted/60 text-muted-foreground border border-border/40 dark:border-border/60 px-2 py-0.5 rounded-full font-normal whitespace-nowrap shadow-2xs">
             {group.tabs.length} {group.tabs.length === 1 ? 'tab' : 'tabs'} • {getRelativeTime(group.date)}
           </span>
         </div>
@@ -765,7 +765,7 @@ function GridCardItem({
       </CardContent>
 
       {/* Card Footer */}
-      <CardFooter className={`shrink-0 border-t border-border/60 bg-muted/20 ${isCompact ? 'p-2 pt-1.5' : 'p-2.5 pt-2'} flex items-center justify-between rounded-b-2xl relative z-10`}>
+      <CardFooter className={`shrink-0 border-t border-border/30 dark:border-border/30 bg-muted/10 dark:bg-card/95 backdrop-blur-xs ${isCompact ? 'p-2 pt-1.5' : 'p-2.5 pt-2'} flex items-center justify-between rounded-b-2xl relative z-10`}>
         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
           <Button 
             variant="ghost" 
@@ -2654,7 +2654,7 @@ function AppContent() {
                       <Card 
                         key={item.id} 
                         style={{ '--stagger-index': staggerIndex } as React.CSSProperties}
-                        className="animate-card-cascade card-interactive p-3 rounded-xl flex items-center justify-between border-border bg-card shadow-sm group"
+                        className="animate-card-cascade card-interactive card-surface-elevated p-3 rounded-xl flex items-center justify-between border border-border/50 dark:border-border/70 shadow-apple-card hover:shadow-apple-card-hover group"
                       >
                         <div className="flex items-center gap-3 truncate min-w-0 flex-1 mr-4">
                           <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0 border border-border">
@@ -2707,7 +2707,7 @@ function AppContent() {
               {activeTab === 'settings' && (
             <div className="max-w-3xl mx-auto space-y-6">
               {/* Appearance & Theme Settings */}
-              <Card style={{ '--stagger-index': 0 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-lg">
+              <Card style={{ '--stagger-index': 0 } as React.CSSProperties} className="animate-card-cascade card-interactive card-surface-elevated border-border/50 dark:border-border/70 shadow-apple-card hover:shadow-apple-card-hover">
                 <CardHeader>
                   <CardTitle className="text-foreground text-xl flex items-center gap-2">
                     <Palette className="w-5 h-5 text-primary" />
@@ -3060,7 +3060,7 @@ function AppContent() {
               </Card>
 
               {/* Tab Workflow & Restoration Settings */}
-              <Card style={{ '--stagger-index': 1 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-lg">
+              <Card style={{ '--stagger-index': 1 } as React.CSSProperties} className="animate-card-cascade card-interactive card-surface-elevated border-border/50 dark:border-border/70 shadow-apple-card hover:shadow-apple-card-hover">
                 <CardHeader>
                   <CardTitle className="text-foreground text-xl flex items-center gap-2">
                     <Sliders className="w-5 h-5 text-primary" />
@@ -3262,7 +3262,7 @@ function AppContent() {
               </Card>
 
               {/* Data Export Studio & Import Hub */}
-              <Card style={{ '--stagger-index': 2 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-lg">
+              <Card style={{ '--stagger-index': 2 } as React.CSSProperties} className="animate-card-cascade card-interactive card-surface-elevated border-border/50 dark:border-border/70 shadow-apple-card hover:shadow-apple-card-hover">
                 <CardHeader>
                   <CardTitle className="text-foreground text-xl flex items-center gap-2">
                     <Download className="w-5 h-5 text-primary" /> Multi-Format Data Hub & Backup
@@ -3526,7 +3526,7 @@ function AppContent() {
               </Card>
 
               {/* System & Storage Health Diagnostics */}
-              <Card style={{ '--stagger-index': 3 } as React.CSSProperties} className="animate-card-cascade card-interactive border-border bg-card shadow-lg">
+              <Card style={{ '--stagger-index': 3 } as React.CSSProperties} className="animate-card-cascade card-interactive card-surface-elevated border-border/50 dark:border-border/70 shadow-apple-card hover:shadow-apple-card-hover">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-foreground text-xl flex items-center gap-2">

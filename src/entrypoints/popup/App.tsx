@@ -503,7 +503,7 @@ function PopupContent() {
               <div
                 key={group.id}
                 style={{ '--stagger-index': idx } as React.CSSProperties}
-                className="animate-card-cascade card-interactive border border-border/60 rounded-xl bg-card/60 hover:bg-card hover:border-border/90 p-2.5 space-y-2 shadow-sm"
+                className="animate-card-cascade card-interactive card-surface-elevated border border-border/50 dark:border-border/70 hover:border-primary/40 rounded-xl p-2.5 space-y-2 shadow-apple-card hover:shadow-apple-card-hover"
               >
                 {/* Stash Header */}
                 <div className="flex items-center justify-between gap-2">

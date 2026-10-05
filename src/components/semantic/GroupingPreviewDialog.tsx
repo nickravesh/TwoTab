@@ -479,8 +479,8 @@ export const GroupingPreviewDialog: React.FC<GroupingPreviewDialogProps> = ({
           )}
         </DialogHeader>
 
-        {/* Tier 2: Scrollable Main Body (Spacious Card Deck with Generous Gaps) */}
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6 space-y-6 bg-muted/10">
+        {/* Tier 2: Scrollable Main Body (Spacious Card Deck on Recessed Bed) */}
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6 space-y-6 bg-muted/40 dark:bg-background/40 border-y border-border/40 dark:border-border/40">
           {filteredClusters.length === 0 ? (
             <div className="py-20 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-muted/40 flex items-center justify-center mx-auto text-muted-foreground/50">
@@ -544,10 +544,10 @@ export const GroupingPreviewDialog: React.FC<GroupingPreviewDialogProps> = ({
                 return (
                   <div
                     key={cluster.id}
-                    className="flex flex-col h-[380px] overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm hover:shadow-md hover:border-border transition-all group/card"
+                    className="flex flex-col h-[380px] overflow-hidden rounded-2xl border border-border/45 dark:border-border/70 hover:border-primary/40 card-surface-elevated shadow-apple-card hover:shadow-apple-card-hover transition-all duration-200 group/card"
                   >
                     {/* Card Tier 1: Fixed Header */}
-                    <div className="shrink-0 p-3.5 border-b border-border/40 bg-muted/15 space-y-2">
+                    <div className="shrink-0 p-3.5 border-b border-border/30 dark:border-border/30 bg-muted/20 dark:bg-muted/20 backdrop-blur-xs space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         {/* Title & Accent */}
                         <div className="flex items-center gap-2.5 flex-1 min-w-0 mr-1">
@@ -606,7 +606,7 @@ export const GroupingPreviewDialog: React.FC<GroupingPreviewDialogProps> = ({
                         <div className="flex items-center gap-1.5 shrink-0">
                           <Badge
                             variant="outline"
-                            className="text-[11px] font-medium shrink-0 rounded-full px-2 py-0.5 bg-card"
+                            className="text-[11px] font-medium shrink-0 rounded-full px-2 py-0.5 bg-card/80 dark:bg-muted/60 border-border/40 dark:border-border/60 shadow-2xs"
                           >
                             {tabCount} {tabCount === 1 ? 'tab' : 'tabs'}
                           </Badge>
@@ -691,7 +691,7 @@ export const GroupingPreviewDialog: React.FC<GroupingPreviewDialogProps> = ({
                         return (
                           <div
                             key={idx}
-                            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-muted/50 text-xs transition-colors group/item"
+                            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-muted/60 dark:hover:bg-muted/40 hover:shadow-2xs text-xs transition-all group/item"
                           >
                             {/* Local Favicon or Elegant Host Initial Token */}
                             {(tab as { favIconUrl?: string }).favIconUrl ? (
@@ -736,7 +736,7 @@ export const GroupingPreviewDialog: React.FC<GroupingPreviewDialogProps> = ({
                     </div>
 
                     {/* Card Tier 3: Fixed Footer */}
-                    <div className="shrink-0 bg-card border-t border-border/40 px-3.5 py-2 flex justify-between items-center text-[11px] text-muted-foreground">
+                    <div className="shrink-0 bg-muted/15 dark:bg-card/95 border-t border-border/30 dark:border-border/30 px-3.5 py-2.5 flex justify-between items-center text-[11px] text-muted-foreground backdrop-blur-xs">
                       <span>
                         {cleanSearch && visibleTabs.length !== tabCount
                           ? `${visibleTabs.length} of ${tabCount} tabs match`
