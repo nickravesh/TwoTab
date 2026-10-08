@@ -499,6 +499,35 @@ html[data-ui-scale="large"] {
     0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
+/* Precision compact elevation for extension popup cards */
+.shadow-popup-card {
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.95) inset,
+    0 1px 2px 0 rgba(15, 23, 42, 0.05),
+    0 3px 8px -1px rgba(15, 23, 42, 0.06);
+}
+
+.dark .shadow-popup-card {
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.10) inset,
+    0 1px 3px 0 rgba(0, 0, 0, 0.40),
+    0 4px 12px -2px rgba(0, 0, 0, 0.55);
+}
+
+.shadow-popup-card-hover {
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 1) inset,
+    0 2px 4px 0 rgba(15, 23, 42, 0.06),
+    0 6px 16px -2px rgba(15, 23, 42, 0.10);
+}
+
+.dark .shadow-popup-card-hover {
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.16) inset,
+    0 2px 6px 0 rgba(0, 0, 0, 0.45),
+    0 8px 18px -2px rgba(0, 0, 0, 0.65);
+}
+
 @keyframes dashboardFadeIn {
   from {
     opacity: 0;
@@ -516,16 +545,16 @@ html[data-ui-scale="large"] {
 
 /* macOS-Style Floating Acrylic Glass Panels */
 .glass-macos-sidebar {
-  background-color: hsl(var(--card) / 0.88);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  background-color: hsl(var(--card) / 0.85);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
   border: 1px solid hsl(var(--border) / 0.85);
   transform: translate3d(0, 0, 0);
   isolation: isolate;
   box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.6),
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 8px 24px -4px rgba(0, 0, 0, 0.07);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.8),
+    0 1px 3px rgba(15, 23, 42, 0.04),
+    0 12px 32px -4px rgba(15, 23, 42, 0.08);
 }
 
 .dark .glass-macos-sidebar {
@@ -538,16 +567,16 @@ html[data-ui-scale="large"] {
 }
 
 .glass-macos-deck {
-  background-color: hsl(var(--card) / 0.85);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  background-color: hsl(var(--card) / 0.78);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
   border: 1px solid hsl(var(--border) / 0.85);
   transform: translate3d(0, 0, 0);
   isolation: isolate;
   box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.6),
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 8px 24px -4px rgba(0, 0, 0, 0.07);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.8),
+    0 1px 3px rgba(15, 23, 42, 0.04),
+    0 12px 32px -4px rgba(15, 23, 42, 0.08);
 }
 
 .dark .glass-macos-deck {
@@ -561,21 +590,23 @@ html[data-ui-scale="large"] {
 
 /* macOS-Style Window Chrome Header with Optical Ledge Shadow */
 .glass-macos-header {
-  background-color: hsl(var(--muted) / 0.65);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  background-color: hsl(var(--card) / 0.85);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
   border-bottom: 1px solid hsl(var(--border) / 0.85);
   box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.5),
-    0 1px 3px 0 rgba(0, 0, 0, 0.03);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.8),
+    0 1px 2px 0 rgba(15, 23, 42, 0.05),
+    0 4px 12px -2px rgba(15, 23, 42, 0.04);
 }
 
 .dark .glass-macos-header {
-  background-color: hsl(var(--background) / 0.75);
-  border-bottom: 1px solid hsl(var(--border) / 0.7);
+  background-color: hsl(var(--card) / 0.80);
+  border-bottom: 1px solid hsl(var(--border) / 0.75);
   box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
-    0 2px 8px 0 rgba(0, 0, 0, 0.3);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+    0 2px 6px 0 rgba(0, 0, 0, 0.35),
+    0 8px 18px -2px rgba(0, 0, 0, 0.45);
 }
 
 /* Ambient Lighting & Tactile Matte Micro-Grain (Hardware-Cached Seamless GPU Tile) */

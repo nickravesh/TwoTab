@@ -2083,9 +2083,9 @@ function AppContent() {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`btn-spring w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-medium ${
+                  className={`btn-spring w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
                     isActive 
-                      ? 'bg-primary/15 text-primary font-semibold border border-primary/25 shadow-xs' 
+                      ? 'bg-primary/12 text-primary font-semibold border border-primary/25 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5),0_1px_2px_rgba(0,0,0,0.03)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_1px_2px_rgba(0,0,0,0.2)]' 
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                   }`}
                 >
@@ -2106,9 +2106,9 @@ function AppContent() {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`btn-spring w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-medium ${
+                  className={`btn-spring w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
                     isActive 
-                      ? 'bg-primary/15 text-primary font-semibold border border-primary/25 shadow-xs' 
+                      ? 'bg-primary/12 text-primary font-semibold border border-primary/25 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5),0_1px_2px_rgba(0,0,0,0.03)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_1px_2px_rgba(0,0,0,0.2)]' 
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                   }`}
                 >
@@ -2123,9 +2123,9 @@ function AppContent() {
         {/* Bottom Pinned: Workspace Stats & GitHub Repository Card */}
         <div className="pt-6 space-y-2.5">
           {/* Workspace Stats Card */}
-          <div className="p-2.5 rounded-xl border border-border bg-muted/60 dark:bg-muted/40 shadow-xs">
+          <div className="p-2.5 rounded-xl border border-border/70 bg-muted/30 dark:bg-muted/20 backdrop-blur-xs shadow-xs">
             <div className="flex items-center justify-between mb-2 px-0.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary ring-2 ring-primary/25 inline-block shrink-0" />
                 Workspace Stats
               </span>
@@ -2133,7 +2133,7 @@ function AppContent() {
 
             <div className="grid grid-cols-2 gap-1.5">
               {/* Stat 1: Saved Tabs */}
-              <div className="bg-background/80 dark:bg-background/60 border border-border/60 rounded-lg p-2 flex flex-col">
+              <div className="bg-card/90 dark:bg-card/60 border border-border/70 rounded-lg p-2 flex flex-col shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-foreground">{totalSavedTabs}</span>
                   <Bookmark className="w-3 h-3 text-primary/80" />
@@ -2142,7 +2142,7 @@ function AppContent() {
               </div>
 
               {/* Stat 2: RAM Saved */}
-              <div className="bg-background/80 dark:bg-background/60 border border-border/60 rounded-lg p-2 flex flex-col">
+              <div className="bg-card/90 dark:bg-card/60 border border-border/70 rounded-lg p-2 flex flex-col shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-foreground">{estRamSaved}</span>
                   <Zap className="w-3 h-3 text-amber-500/90 dark:text-amber-400" />
@@ -2151,7 +2151,7 @@ function AppContent() {
               </div>
 
               {/* Stat 3: Active Groups */}
-              <div className="bg-background/80 dark:bg-background/60 border border-border/60 rounded-lg p-2 flex flex-col">
+              <div className="bg-card/90 dark:bg-card/60 border border-border/70 rounded-lg p-2 flex flex-col shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-foreground">{allDashboardGroups.length}</span>
                   <Folder className="w-3 h-3 text-primary/80" />
@@ -2160,7 +2160,7 @@ function AppContent() {
               </div>
 
               {/* Stat 4: Archived Groups */}
-              <div className="bg-background/80 dark:bg-background/60 border border-border/60 rounded-lg p-2 flex flex-col">
+              <div className="bg-card/90 dark:bg-card/60 border border-border/70 rounded-lg p-2 flex flex-col shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-foreground">{archivedGroups.length}</span>
                   <Archive className="w-3 h-3 text-primary/80" />
@@ -2175,7 +2175,7 @@ function AppContent() {
             href="https://github.com/nickravesh/TwoTab"
             target="_blank"
             rel="noreferrer noopener"
-            className="block p-3 rounded-xl border border-border bg-muted/60 dark:bg-muted/40 hover:bg-muted/90 dark:hover:bg-muted/70 hover:border-primary/30 shadow-xs transition-all group"
+            className="block p-3 rounded-xl border border-border/70 bg-muted/30 dark:bg-muted/20 hover:bg-card/90 dark:hover:bg-card/60 hover:border-primary/40 shadow-xs hover:shadow-sm transition-all group"
             title="View TwoTab source code on GitHub"
           >
             <div className="flex items-center justify-between mb-1.5">
@@ -2185,7 +2185,7 @@ function AppContent() {
                 </svg>
                 <span>TwoTab</span>
               </div>
-              <Badge variant="outline" className="text-[10px] font-medium px-1.5 py-0 h-4 border-border/80 bg-background/80 text-muted-foreground shadow-xs">
+              <Badge variant="outline" className="text-[10px] font-medium px-1.5 py-0 h-4 border-border/80 bg-background/80 text-muted-foreground shadow-2xs">
                 {getAppVersion()}
               </Badge>
             </div>
@@ -2233,7 +2233,7 @@ function AppContent() {
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary pointer-events-none" />
                 <Input 
                   placeholder={activeTab === 'closed' ? "Search closed tabs..." : "Search saved tabs..."} 
-                  className="pl-9 pr-11 bg-background/80 dark:bg-background/60 border-border/80 text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary focus:border-primary h-9 text-xs shadow-2xs rounded-lg transition-all" 
+                  className="pl-9 pr-11 bg-background/90 dark:bg-background/80 border-border/80 text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary focus:border-primary h-9 text-xs shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-[inset_0_1px_2px_rgba(0,0,0,0.35)] rounded-lg transition-all" 
                   value={search} 
                   onChange={e => setSearch(e.target.value)} 
                   onKeyDown={e => e.key === 'Escape' && setSearch('')}
@@ -2262,10 +2262,10 @@ function AppContent() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`btn-spring h-9 px-2.5 gap-1.5 text-xs font-medium border shadow-2xs rounded-lg transition-colors cursor-pointer ${
+                    className={`btn-spring h-9 px-2.5 gap-1.5 text-xs font-medium border shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.04)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08),0_1px_2px_rgba(0,0,0,0.3)] rounded-lg transition-all cursor-pointer ${
                       selectedColorFilters.size > 0
                         ? 'bg-primary/10 border-primary/50 text-primary hover:bg-primary/20'
-                        : 'bg-background/80 dark:bg-background/60 border-border/80 text-muted-foreground hover:text-foreground hover:bg-background'
+                        : 'bg-card dark:bg-card/90 border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/70'
                     }`}
                     title="Filter by color tag"
                   >
@@ -2345,10 +2345,10 @@ function AppContent() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`btn-spring h-9 px-2.5 gap-1.5 text-xs font-medium border shadow-2xs rounded-lg transition-colors cursor-pointer ${
+                    className={`btn-spring h-9 px-2.5 gap-1.5 text-xs font-medium border shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.04)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08),0_1px_2px_rgba(0,0,0,0.3)] rounded-lg transition-all cursor-pointer ${
                       sortOption !== 'date-desc'
                         ? 'bg-primary/10 border-primary/50 text-primary hover:bg-primary/20'
-                        : 'bg-background/80 dark:bg-background/60 border-border/80 text-muted-foreground hover:text-foreground hover:bg-background'
+                        : 'bg-card dark:bg-card/90 border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/70'
                     }`}
                     title="Sort tab groups"
                   >
@@ -2392,7 +2392,7 @@ function AppContent() {
                 variant="outline" 
                 size="sm" 
                 onClick={() => setActiveTab('tools')} 
-                className="btn-spring h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border/80 bg-background/80 dark:bg-background/60 hover:bg-background shadow-2xs rounded-lg font-medium"
+                className="btn-spring h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border/80 bg-card hover:bg-muted/70 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.04)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08),0_1px_2px_rgba(0,0,0,0.3)] rounded-lg font-medium transition-all"
                 title="Open Power Tools to evaluate link health and optimize library"
               >
                 <Activity className="w-3.5 h-3.5 text-primary" />
@@ -2406,7 +2406,7 @@ function AppContent() {
                 variant="outline" 
                 size="sm" 
                 onClick={() => setRestoreAllConfirm(true)} 
-                className="btn-spring h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border/80 bg-background/80 dark:bg-background/60 hover:bg-background shadow-2xs rounded-lg font-medium"
+                className="btn-spring h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border/80 bg-card hover:bg-muted/70 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.04)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08),0_1px_2px_rgba(0,0,0,0.3)] rounded-lg font-medium transition-all"
               >
                 <RotateCcw className="w-3.5 h-3.5" /> Restore All
               </Button>
@@ -2418,7 +2418,7 @@ function AppContent() {
                 variant="outline" 
                 size="sm" 
                 onClick={() => handleOpenIntelligentGrouping()} 
-                className="btn-spring h-9 gap-1.5 text-xs text-primary hover:text-primary-foreground hover:bg-primary border-primary/40 bg-primary/5 hover:border-primary shadow-2xs rounded-lg font-medium transition-all"
+                className="btn-spring h-9 gap-1.5 text-xs text-primary hover:text-primary-foreground hover:bg-primary border-primary/40 bg-primary/5 hover:border-primary shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6),0_1px_2px_rgba(15,23,42,0.04)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_1px_2px_rgba(0,0,0,0.3)] rounded-lg font-medium transition-all"
                 title="Group saved tabs semantically using local on-device AI"
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -2432,7 +2432,7 @@ function AppContent() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="btn-spring h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-background border border-border/80 bg-background/80 dark:bg-background/60 shadow-2xs rounded-lg transition-colors group"
+                  className="btn-spring h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/70 border border-border/80 bg-card dark:bg-card/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.04)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08),0_1px_2px_rgba(0,0,0,0.3)] rounded-lg transition-all group"
                   title={`Theme: ${themeMode} (${resolvedTheme})`}
                 >
                   <Palette className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
@@ -2514,13 +2514,13 @@ function AppContent() {
             </DropdownMenu>
 
             {/* 4. Split Button: Save Window Actions Only */}
-            <div className="flex items-center shadow-xs rounded-lg overflow-hidden">
+            <div className="flex items-center rounded-lg shadow-sm shadow-primary/25 overflow-hidden">
               <Button 
                 onClick={handleSaveCurrentWindow} 
                 disabled={isSaving} 
                 variant="default"
                 group="splitLeft"
-                className="btn-spring h-9 px-3.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-l-lg transition-colors"
+                className="btn-spring h-9 px-3.5 text-xs font-semibold bg-gradient-to-b from-primary via-primary to-primary/95 text-primary-foreground rounded-l-lg shadow-[inset_0_1px_0_0_rgba(255,255,255,0.28)] hover:opacity-95 transition-all"
                 title="Save all open tabs in current window (⌘S)"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" /> {isSaving ? 'Saving...' : 'Save Window'}
@@ -2532,7 +2532,7 @@ function AppContent() {
                     size="icon" 
                     group="splitRight" 
                     disabled={isSaving}
-                    className="btn-spring h-9 w-7 bg-primary hover:bg-primary/90 text-primary-foreground rounded-r-lg border-l border-primary-foreground/20 transition-colors"
+                    className="btn-spring h-9 w-7 bg-gradient-to-b from-primary via-primary to-primary/95 text-primary-foreground rounded-r-lg border-l border-primary-foreground/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.28)] hover:opacity-95 transition-all"
                   >
                     <ChevronDown className="h-3.5 w-3.5" />
                   </Button>
