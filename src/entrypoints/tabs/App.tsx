@@ -2600,21 +2600,7 @@ function AppContent() {
               </DropdownMenu>
             )}
 
-            {/* 4. Link Health Inspector Action */}
-            {(activeTab === 'dashboard' || activeTab === 'archive') && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setActiveTab('tools')} 
-                className="btn-spring h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border/80 bg-card hover:bg-muted/70 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.04)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08),0_1px_2px_rgba(0,0,0,0.3)] rounded-lg font-medium transition-all"
-                title="Open Power Tools to evaluate link health and optimize library"
-              >
-                <Activity className="w-3.5 h-3.5 text-primary" />
-                <span className="hidden sm:inline">Link Health</span>
-              </Button>
-            )}
-
-            {/* 5. Restore All Action */}
+            {/* 4. Restore All Action */}
             {activeTab === 'dashboard' && groups.length > 0 && (
               <Button 
                 variant="outline" 
@@ -2626,7 +2612,7 @@ function AppContent() {
               </Button>
             )}
 
-            {/* 6. Intelligent Tab Grouping Action */}
+            {/* 5. Intelligent Tab Grouping Action */}
             {activeTab === 'dashboard' && groups.length > 0 && (
               <Button 
                 variant="outline" 
@@ -2640,7 +2626,7 @@ function AppContent() {
               </Button>
             )}
 
-            {/* 3. Visual Swatch Theme Toggle */}
+            {/* 6. Visual Swatch Theme Toggle */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
