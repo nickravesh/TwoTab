@@ -485,6 +485,14 @@ export const KEYBOARD_SHORTCUTS: ShortcutItem[] = [
 
   // Navigation & Search
   {
+    id: 'toggle-sidebar',
+    category: 'Navigation',
+    action: 'Toggle Sidebar Menu',
+    macKey: '⌘B / ⌘\\',
+    winKey: 'Ctrl+B',
+    description: 'Expands or collapses the dashboard sidebar to unlock maximum horizontal workspace for cards.',
+  },
+  {
     id: 'global-search',
     category: 'Navigation',
     action: 'Focus Global Search',

@@ -566,6 +566,22 @@ html[data-ui-scale="large"] {
     0 16px 40px -6px rgba(0, 0, 0, 0.6);
 }
 
+/* Fluid macOS Spring Sidebar Transition Curve */
+.transition-sidebar {
+  transition-property: width;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  will-change: width;
+  contain: layout;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transition-sidebar {
+    transition: none !important;
+  }
+}
+
+
 .glass-macos-deck {
   background-color: hsl(var(--card) / 0.78);
   backdrop-filter: blur(24px) saturate(140%);

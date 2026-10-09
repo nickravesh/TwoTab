@@ -152,6 +152,7 @@ export interface UserPreferences {
   oledBlack?: boolean;
   lazyLoadRestoration?: 'threshold' | 'always' | 'never';
   lazyLoadThreshold?: number;
+  sidebarCollapsed?: boolean;
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -167,6 +168,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   oledBlack: false,
   lazyLoadRestoration: 'threshold',
   lazyLoadThreshold: 10,
+  sidebarCollapsed: false,
 };
 
 export const PREFERENCES_STORAGE_KEY = 'twotab_user_preferences';

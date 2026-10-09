@@ -97,6 +97,7 @@ const mockChrome = {
 describe('React Component Rendering & Regression Smoke Test Suite', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     for (const k in mockStorageStore) delete mockStorageStore[k];
 
     mockStorageStore[PREFERENCES_STORAGE_KEY] = { ...DEFAULT_USER_PREFERENCES };
@@ -837,6 +838,60 @@ describe('React Component Rendering & Regression Smoke Test Suite', () => {
 
     expect(await screen.findByText('Enable Intelligent Tab Grouping')).toBeDefined();
     expect(screen.getByText(/~90 MB One-Time Download/i)).toBeDefined();
+  });
+
+  it('toggles sidebar collapse via header button and keyboard shortcut', async () => {
+    const { container } = render(<App />);
+
+    // Initially sidebar is expanded (has w-64 class and data-collapsed=false)
+    const aside = container.querySelector('aside');
+    expect(aside).toBeTruthy();
+    expect(aside?.className).toContain('w-64');
+    expect(aside?.getAttribute('data-collapsed')).toBe('false');
+
+    // When expanded, the main deck header is clean (no duplicate toolbar toggle)
+    expect(screen.queryByTestId('toolbar-sidebar-toggle')).toBeNull();
+
+    // Click collapse button in sidebar header
+    const collapseBtn = screen.getByTestId('sidebar-header-collapse');
+    fireEvent.click(collapseBtn);
+
+    // Sidebar should now have compact rail class (w-[68px], data-collapsed=true)
+    expect(aside?.className).toContain('w-[68px]');
+    expect(aside?.getAttribute('data-collapsed')).toBe('true');
+
+    // Toggle back via toolbar toggle button (which appears when collapsed)
+    const expandBtn = screen.getByTestId('toolbar-sidebar-toggle');
+    expect(expandBtn.getAttribute('aria-label')).toBe('Expand sidebar menu');
+    fireEvent.click(expandBtn);
+
+    // Sidebar should be expanded again
+    expect(aside?.className).toContain('w-64');
+    expect(aside?.getAttribute('data-collapsed')).toBe('false');
+
+    // Press ⌘B shortcut
+    fireEvent.keyDown(window, { key: 'b', metaKey: true });
+    expect(aside?.className).toContain('w-[68px]');
+
+    // Press Ctrl+B shortcut
+    fireEvent.keyDown(window, { key: 'b', ctrlKey: true });
+    expect(aside?.className).toContain('w-64');
+
+    // Press ⌘\ shortcut
+    fireEvent.keyDown(window, { key: '\\', metaKey: true });
+    expect(aside?.className).toContain('w-[68px]');
+  });
+
+  it('does not toggle sidebar when typing in inputs', async () => {
+    const { container } = render(<App />);
+    const aside = container.querySelector('aside');
+    expect(aside?.className).toContain('w-64');
+
+    const searchInput = screen.getByPlaceholderText(/Search saved tabs/i);
+    fireEvent.keyDown(searchInput, { key: 'b', metaKey: true });
+
+    // Should remain expanded
+    expect(aside?.className).toContain('w-64');
   });
 
   it('mounts <PopupApp /> extension popup cleanly', () => {
