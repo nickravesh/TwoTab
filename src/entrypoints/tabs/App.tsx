@@ -187,11 +187,19 @@ const MIN_CARD_WIDTH = 280;
 const ROW_HEIGHT = CARD_HEIGHT + CARD_GAP;
 const GRID_PADDING = 32; // p-8 = 32px
 
-function useContainerColumnCount(containerRef: React.RefObject<HTMLDivElement | null>, minCardWidth: number = 280, gap: number = 20) {
+function useContainerColumnCount(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  minCardWidth: number = 280,
+  gap: number = 20,
+  isSidebarCollapsed: boolean = false
+) {
   const [cols, setCols] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      const approxWidth = Math.max(0, window.innerWidth - 256 - GRID_PADDING * 2);
-      return Math.max(1, Math.floor((approxWidth + gap) / (minCardWidth + gap)));
+      const sidebarWidth = isSidebarCollapsed ? 68 : 256;
+      // p-3 (12px) padding on each side (24px) + gap-3 (12px) = 36px between root layout items
+      const approxDeckWidth = Math.max(0, window.innerWidth - sidebarWidth - 36);
+      const approxContentWidth = Math.max(0, approxDeckWidth - GRID_PADDING * 2);
+      return Math.max(1, Math.floor((approxContentWidth + gap) / (minCardWidth + gap)));
     }
     return 1;
   });
@@ -205,13 +213,17 @@ function useContainerColumnCount(containerRef: React.RefObject<HTMLDivElement | 
 
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries?.[0];
-      // Zero-reflow: read width directly from contentRect or fall back safely to clientWidth
-      const width = entry?.contentRect?.width ?? el.clientWidth ?? 0;
-      if (width <= 0) return;
+    const measureAndSyncCols = (contentWidth?: number) => {
+      let netWidth = 0;
+      // W3C ResizeObserver contentRect is already the content-box width (excludes p-8 padding)
+      if (typeof contentWidth === 'number' && contentWidth > 0) {
+        netWidth = contentWidth;
+      } else if (el.clientWidth > 0) {
+        // Fallback for direct DOM clientWidth which includes padding
+        netWidth = Math.max(0, el.clientWidth - GRID_PADDING * 2);
+      }
+      if (netWidth <= 0) return;
 
-      const netWidth = Math.max(0, width - GRID_PADDING * 2);
       const calculatedCols = Math.max(
         1,
         Math.floor((netWidth + gap) / (minCardWidth + gap))
@@ -219,22 +231,46 @@ function useContainerColumnCount(containerRef: React.RefObject<HTMLDivElement | 
 
       // Only schedule state updates when the column count actually changes
       if (calculatedCols !== latestColsRef.current) {
-        if (debounceTimer !== null) clearTimeout(debounceTimer);
-        // Debounce column re-layout by 100ms to allow CSS transitions to finish smoothly without frame drops
-        debounceTimer = setTimeout(() => {
-          latestColsRef.current = calculatedCols;
-          setCols(calculatedCols);
-        }, 100);
+        latestColsRef.current = calculatedCols;
+        setCols(calculatedCols);
       }
+    };
+
+    let lastObservedContentWidth: number | undefined;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries?.[0];
+      if (entry?.contentRect?.width) {
+        lastObservedContentWidth = entry.contentRect.width;
+      }
+
+      if (debounceTimer !== null) clearTimeout(debounceTimer);
+      // Debounce column re-layout by 100ms to allow CSS transitions to finish smoothly without frame drops
+      debounceTimer = setTimeout(() => {
+        const liveContentWidth = el.clientWidth > 0
+          ? Math.max(0, el.clientWidth - GRID_PADDING * 2)
+          : lastObservedContentWidth;
+        measureAndSyncCols(liveContentWidth);
+      }, 100);
     });
 
     observer.observe(el);
 
+    // Guaranteed post-transition sync: sidebar transition duration is 200ms.
+    // Ensure final settled width is read accurately once animation completes.
+    const transitionTimer = setTimeout(() => {
+      const liveContentWidth = el.clientWidth > 0
+        ? Math.max(0, el.clientWidth - GRID_PADDING * 2)
+        : lastObservedContentWidth;
+      measureAndSyncCols(liveContentWidth);
+    }, 210);
+
     return () => {
       if (debounceTimer !== null) clearTimeout(debounceTimer);
+      clearTimeout(transitionTimer);
       observer.disconnect();
     };
-  }, [containerRef, minCardWidth, gap]);
+  }, [containerRef, minCardWidth, gap, isSidebarCollapsed]);
 
   return cols;
 }
@@ -264,6 +300,7 @@ interface VirtualizedCardGridProps {
   handleInspectGroup?: (group: TabGroup, cardElement?: HTMLElement | null) => void;
   hasColorFilters?: boolean;
   onClearColorFilters?: () => void;
+  isSidebarCollapsed?: boolean;
 }
 
 // Smooth Horizontal Auto-Scroll Marquee Component for Long Titles
@@ -870,6 +907,7 @@ function VirtualizedCardGrid({
   handleInspectGroup,
   hasColorFilters = false,
   onClearColorFilters,
+  isSidebarCollapsed = false,
 }: VirtualizedCardGridProps) {
   const isCompact = cardDensity === 'compact';
   const minCardWidth = isCompact ? 240 : 280;
@@ -878,7 +916,7 @@ function VirtualizedCardGrid({
   const currentRowHeight = currentCardHeight + currentCardGap;
 
   const parentRef = useRef<HTMLDivElement>(null);
-  const cols = useContainerColumnCount(parentRef, minCardWidth, currentCardGap);
+  const cols = useContainerColumnCount(parentRef, minCardWidth, currentCardGap, isSidebarCollapsed);
 
   const rowCount = Math.ceil(filteredGroups.length / cols);
 
@@ -2770,6 +2808,7 @@ function AppContent() {
             handleInspectGroup={handleInspectGroup}
             hasColorFilters={selectedColorFilters.size > 0}
             onClearColorFilters={() => setSelectedColorFilters(new Set())}
+            isSidebarCollapsed={isSidebarCollapsed}
           />
         ) : (
         <>

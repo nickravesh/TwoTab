@@ -894,6 +894,28 @@ describe('React Component Rendering & Regression Smoke Test Suite', () => {
     expect(aside?.className).toContain('w-64');
   });
 
+  it('dynamically adapts grid columns and layout when sidebar collapses and expands', async () => {
+    const originalInnerWidth = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1366 });
+
+    const { container } = render(<App />);
+    const aside = container.querySelector('aside');
+    expect(aside?.getAttribute('data-collapsed')).toBe('false');
+
+    // Toggle collapse
+    const collapseBtn = screen.getByTestId('sidebar-header-collapse');
+    fireEvent.click(collapseBtn);
+    expect(aside?.getAttribute('data-collapsed')).toBe('true');
+
+    // Toggle expand
+    const expandBtn = screen.getByTestId('toolbar-sidebar-toggle');
+    fireEvent.click(expandBtn);
+    expect(aside?.getAttribute('data-collapsed')).toBe('false');
+
+    // Restore innerWidth
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: originalInnerWidth });
+  });
+
   it('mounts <PopupApp /> extension popup cleanly', () => {
     const { container } = render(<PopupApp />);
     expect(container).toBeTruthy();
